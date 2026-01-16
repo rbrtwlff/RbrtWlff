@@ -1,0 +1,44 @@
+<Window x:Class="AkteTimer.Views.PopupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AkteTimer"
+        Width="360" Height="260"
+        WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True">
+  <Border Padding="12">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+      <TextBlock Text="Status" FontWeight="Bold" />
+      <TextBlock Grid.Row="0" Margin="80,0,0,0" Text="{Binding StatusText}" />
+
+      <TextBlock Grid.Row="1" Margin="0,6,0,0" Text="Akte" FontWeight="Bold" />
+      <TextBlock Grid.Row="1" Margin="80,6,0,0" Text="{Binding ActiveMatterText}" />
+
+      <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+        <TextBlock Text="Heute" FontWeight="Bold" />
+        <TextBlock Margin="16,0,0,0" Text="{Binding TodayDurationText}" />
+        <TextBlock Margin="24,0,0,0" Text="Aktuell" FontWeight="Bold" />
+        <TextBlock Margin="8,0,0,0" Text="{Binding EntryDurationText}" />
+      </StackPanel>
+
+      <TextBox x:Name="FileRefBox"
+               Grid.Row="3"
+               Margin="0,12,0,0"
+               Height="26"
+               VerticalContentAlignment="Center"
+               Text="{Binding FileRefInput, UpdateSourceTrigger=PropertyChanged}" />
+
+      <ListBox Grid.Row="4"
+               Margin="0,8,0,0"
+               ItemsSource="{Binding RecentMatters}" />
+    </Grid>
+  </Border>
+</Window>
