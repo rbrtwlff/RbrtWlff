@@ -31,7 +31,7 @@ public partial class HashtagPromptWindow : Window
         DialogResult = false;
     }
 
-    private void HandleKeyDown(object sender, KeyEventArgs e)
+    private void HandleKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if ((Keyboard.Modifiers & ModifierKeys.Control) == 0)
         {
