@@ -36,9 +36,11 @@
                VerticalContentAlignment="Center"
                Text="{Binding FileRefInput, UpdateSourceTrigger=PropertyChanged}" />
 
-      <ListBox Grid.Row="4"
+      <ListBox x:Name="RecentMattersListBox"
+               Grid.Row="4"
                Margin="0,8,0,0"
-               ItemsSource="{Binding RecentMatters}" />
+               ItemsSource="{Binding RecentMatters}"
+               SelectedItem="{Binding SelectedRecentMatter, Mode=TwoWay}" />
     </Grid>
   </Border>
 </Window>
