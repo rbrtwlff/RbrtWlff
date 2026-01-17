@@ -65,7 +65,7 @@ public partial class App : Application
             return;
         }
 
-        _timeEntryService.StopRunningEntry(runningEntry, DateTime.UtcNow);
+        _timeEntryService.StopRunningEntries(DateTime.UtcNow);
     }
 
     protected override void OnExit(ExitEventArgs e)
