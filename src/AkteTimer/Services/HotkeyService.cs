@@ -1,6 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Windows.Interop;
-
 namespace AkteTimer.Services;
 
 public sealed class HotkeyService : IDisposable
@@ -85,14 +83,14 @@ public sealed class HotkeyService : IDisposable
                     modifiers |= ModWin;
                     break;
                 default:
-                    key = (uint)System.Windows.Interop.KeyInterop.VirtualKeyFromKey(Enum.Parse<System.Windows.Input.Key>(part, true));
+                    key = (uint)Enum.Parse<System.Windows.Input.Key>(part, true);
                     break;
             }
         }
 
         if (key == 0)
         {
-            key = (uint)System.Windows.Interop.KeyInterop.VirtualKeyFromKey(System.Windows.Input.Key.T);
+            key = (uint)System.Windows.Input.Key.T;
         }
 
         if (modifiers == 0)
