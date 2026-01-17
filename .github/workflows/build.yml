@@ -1,0 +1,59 @@
+name: Build Windows WPF
+
+on:
+  push:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish framework-dependent
+        run: >-
+          dotnet publish src/AkteTimer/AkteTimer.csproj -c Release -r win-x64 --self-contained false
+          -o ${{ github.workspace }}\artifacts\publish\framework
+
+      - name: Publish self-contained single file
+        run: >-
+          dotnet publish src/AkteTimer/AkteTimer.csproj -c Release -r win-x64 --self-contained true
+          /p:PublishSingleFile=true -o ${{ github.workspace }}\artifacts\publish\selfcontained
+
+      - name: Zip publish outputs
+        shell: pwsh
+        run: |
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE 'artifacts'
+          $frameworkZip = Join-Path $artifactDir 'AkteTimer-win-x64.zip'
+          $selfcontainedZip = Join-Path $artifactDir 'AkteTimer-win-x64-selfcontained.zip'
+          if (Test-Path $frameworkZip) { Remove-Item $frameworkZip }
+          if (Test-Path $selfcontainedZip) { Remove-Item $selfcontainedZip }
+          Compress-Archive -Path (Join-Path $artifactDir 'publish\framework\*') -DestinationPath $frameworkZip
+          Compress-Archive -Path (Join-Path $artifactDir 'publish\selfcontained\*') -DestinationPath $selfcontainedZip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AkteTimer-win-x64
+          path: |
+            artifacts\AkteTimer-win-x64.zip
+            artifacts\AkteTimer-win-x64-selfcontained.zip
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/AkteTimer-win-x64.zip
+            artifacts/AkteTimer-win-x64-selfcontained.zip
