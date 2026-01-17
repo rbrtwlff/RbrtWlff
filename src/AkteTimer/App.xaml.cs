@@ -4,7 +4,7 @@ using AkteTimer.Views;
 
 namespace AkteTimer;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private TrayService? _trayService;
     private HotkeyService? _hotkeyService;
