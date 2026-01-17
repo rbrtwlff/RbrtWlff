@@ -14,11 +14,17 @@
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
-          <TextBlock Text="Von" VerticalAlignment="Center" Margin="0,0,6,0" />
-          <DatePicker SelectedDate="{Binding FromDate}" Margin="0,0,16,0" />
-          <TextBlock Text="Bis" VerticalAlignment="Center" Margin="0,0,6,0" />
-          <DatePicker SelectedDate="{Binding ToDate}" />
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+            <TextBlock Text="Von" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <DatePicker SelectedDate="{Binding FromDate}" Margin="0,0,16,0" />
+            <TextBlock Text="Bis" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <DatePicker SelectedDate="{Binding ToDate}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <Button Content="Export CSV" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" />
+            <Button Content="Export Excel" Command="{Binding ExportExcelCommand}" />
+          </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1">
           <TextBlock Text="Akten" FontWeight="Bold" Margin="0,0,0,4" />
