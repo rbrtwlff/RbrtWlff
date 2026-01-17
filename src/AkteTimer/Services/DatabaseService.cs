@@ -247,6 +247,62 @@ public sealed class DatabaseService
         return matters;
     }
 
+    public List<Matter> GetAllMatters()
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id, file_ref, title, is_archived FROM Matters ORDER BY file_ref ASC;";
+        using var reader = command.ExecuteReader();
+        var matters = new List<Matter>();
+        while (reader.Read())
+        {
+            matters.Add(new Matter
+            {
+                Id = reader.GetInt64(0),
+                FileRef = reader.GetString(1),
+                Title = reader.IsDBNull(2) ? null : reader.GetString(2),
+                IsArchived = reader.GetInt64(3) == 1
+            });
+        }
+
+        return matters;
+    }
+
+    public List<TimeEntry> GetEntriesInRange(DateTime startUtc, DateTime endUtc, IReadOnlyCollection<long> matterIds)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var matterFilters = matterIds.Count == 0
+            ? string.Empty
+            : $" AND te.matter_id IN ({string.Join(", ", matterIds.Select((_, index) => $"$matter_{index}"))})";
+        command.CommandText = $"""
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.start_utc >= $start AND te.start_utc < $end{matterFilters}
+            ORDER BY te.start_utc ASC;
+            """;
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+        var index = 0;
+        foreach (var matterId in matterIds)
+        {
+            command.Parameters.AddWithValue($"$matter_{index}", matterId);
+            index++;
+        }
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
+    }
+
     public string? GetSetting(string key)
     {
         using var connection = CreateConnection();

@@ -97,6 +97,15 @@ public sealed class TimeEntryService
 
     public List<TimeEntry> GetTodayEntries() => _database.GetTodayEntries();
 
+    public List<TimeEntry> GetEntriesInRange(DateTime startLocal, DateTime endLocal, IReadOnlyCollection<long> matterIds)
+    {
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal.Date);
+        var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal.Date.AddDays(1));
+        return _database.GetEntriesInRange(startUtc, endUtc, matterIds);
+    }
+
+    public List<Matter> GetAllMatters() => _database.GetAllMatters();
+
     public List<Matter> GetRecentMatters() => _database.GetRecentMatters(10);
 
     private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);

@@ -65,7 +65,7 @@ public sealed class TrayService : IDisposable
 
     private void ShowReports()
     {
-        _reportsWindow ??= new ReportsWindow();
+        _reportsWindow ??= new ReportsWindow(_timeEntryService);
         _reportsWindow.Show();
         _reportsWindow.Activate();
     }
