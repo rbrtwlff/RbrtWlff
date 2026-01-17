@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Windows.Interop;
 namespace AkteTimer.Services;
 
 public sealed class HotkeyService : IDisposable
