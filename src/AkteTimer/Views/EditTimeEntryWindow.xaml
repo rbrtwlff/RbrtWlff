@@ -1,0 +1,56 @@
+<Window x:Class="AkteTimer.Views.EditTimeEntryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Eintrag bearbeiten" Height="420" Width="520" WindowStartupLocation="CenterOwner">
+  <Grid Margin="12">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+        <TextBlock Text="Start" Width="80" VerticalAlignment="Center" />
+        <DatePicker SelectedDate="{Binding StartDate}" Width="140" />
+        <TextBox Text="{Binding StartTimeText, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="8,0,0,0" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+        <TextBlock Text="Ende" Width="80" VerticalAlignment="Center" />
+        <DatePicker SelectedDate="{Binding EndDate}" Width="140" />
+        <TextBox Text="{Binding EndTimeText, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="8,0,0,0" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+        <TextBlock Text="Akte" Width="80" VerticalAlignment="Center" />
+        <ComboBox Width="200"
+                  IsEditable="True"
+                  ItemsSource="{Binding MatterOptions}"
+                  Text="{Binding MatterFileRef, UpdateSourceTrigger=PropertyChanged}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+        <TextBlock Text="Hashtag" Width="80" VerticalAlignment="Center" />
+        <ComboBox Width="200"
+                  IsEditable="True"
+                  ItemsSource="{Binding HashtagOptions}"
+                  Text="{Binding Hashtag, UpdateSourceTrigger=PropertyChanged}" />
+      </StackPanel>
+      <StackPanel Margin="0,0,0,12">
+        <TextBlock Text="Notiz" />
+        <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}"
+                 Height="80"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap" />
+      </StackPanel>
+      <Separator Margin="0,0,0,8" />
+      <TextBlock Text="Splitten" FontWeight="Bold" />
+      <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+        <TextBlock Text="Zeitpunkt" Width="80" VerticalAlignment="Center" />
+        <DatePicker SelectedDate="{Binding SplitDate}" Width="140" />
+        <TextBox Text="{Binding SplitTimeText, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="8,0,0,0" />
+        <Button Content="Splitten" Width="90" Margin="12,0,0,0" Click="OnSplit" />
+      </StackPanel>
+    </StackPanel>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button Content="Abbrechen" Width="100" Margin="0,0,8,0" Click="OnCancel" />
+      <Button Content="Speichern" Width="100" Click="OnSave" />
+    </StackPanel>
+  </Grid>
+</Window>

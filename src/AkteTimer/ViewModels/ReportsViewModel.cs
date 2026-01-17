@@ -217,6 +217,12 @@ public sealed class ReportsViewModel : ViewModelBase
         }
     }
 
+    public void RefreshEntries()
+    {
+        RefreshToday();
+        RefreshRangeAndMatters();
+    }
+
     private void HandleMatterSelectionChanged(MatterFilterItem item)
     {
         if (_suppressMatterSelection)
@@ -640,6 +646,7 @@ public sealed class ReportEntryViewModel
 {
     public ReportEntryViewModel(TimeEntry entry, Matter? matter)
     {
+        Entry = entry;
         MatterId = entry.MatterId;
         Matter = entry.MatterFileRef ?? "-";
         Hashtag = entry.Hashtag ?? string.Empty;
@@ -652,6 +659,7 @@ public sealed class ReportEntryViewModel
         BillingType = matter?.BillingType ?? BillingType.Hourly;
     }
 
+    public TimeEntry Entry { get; }
     public long MatterId { get; }
     public string Matter { get; }
     public string Hashtag { get; }

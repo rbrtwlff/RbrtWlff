@@ -75,6 +75,7 @@ public sealed class TodayEntryViewModel
 {
     public TodayEntryViewModel(TimeEntry entry)
     {
+        Entry = entry;
         Matter = entry.MatterFileRef ?? "-";
         Hashtag = entry.Hashtag ?? string.Empty;
         StartLocal = entry.StartUtc.ToLocalTime();
@@ -85,6 +86,7 @@ public sealed class TodayEntryViewModel
         RoundedMinutes = TimeEntryCalculations.GetRoundedMinutes(ActualMinutes);
     }
 
+    public TimeEntry Entry { get; }
     public string Matter { get; }
     public string Hashtag { get; }
     public DateTime StartLocal { get; }

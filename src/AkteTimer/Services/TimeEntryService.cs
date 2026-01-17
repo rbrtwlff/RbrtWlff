@@ -142,6 +142,60 @@ public sealed class TimeEntryService
         _settings.SetLastHashtag(hashtag);
     }
 
+    public void UpdateTimeEntry(long entryId, string matterFileRef, DateTime startLocal, DateTime endLocal, string? hashtag, string? note)
+    {
+        if (endLocal < startLocal)
+        {
+            throw new InvalidOperationException("Ende darf nicht vor Start liegen.");
+        }
+
+        if (!IsValidFileRef(matterFileRef))
+        {
+            throw new InvalidOperationException("Akte hat ein ungültiges Format.");
+        }
+
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal);
+        var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal);
+        if (endUtc < startUtc)
+        {
+            throw new InvalidOperationException("Ende darf nicht vor Start liegen.");
+        }
+
+        var matter = _database.GetMatterByFileRef(matterFileRef) ?? _database.CreateMatter(matterFileRef);
+        _database.UpdateTimeEntry(entryId, matter.Id, startUtc, endUtc, hashtag, note);
+        OnStateChanged();
+    }
+
+    public void SplitTimeEntry(long entryId, DateTime splitLocal)
+    {
+        var entry = _database.GetTimeEntryById(entryId);
+        if (entry == null)
+        {
+            throw new InvalidOperationException("Eintrag nicht gefunden.");
+        }
+
+        if (entry.EndUtc == null)
+        {
+            throw new InvalidOperationException("Laufende Einträge können nicht gesplittet werden.");
+        }
+
+        var startLocal = entry.StartUtc.ToLocalTime();
+        var endLocal = entry.EndUtc.Value.ToLocalTime();
+        if (splitLocal <= startLocal || splitLocal >= endLocal)
+        {
+            throw new InvalidOperationException("Split-Zeit muss zwischen Start und Ende liegen.");
+        }
+
+        var splitUtc = TimeZoneInfo.ConvertTimeToUtc(splitLocal);
+        if (splitUtc <= entry.StartUtc || splitUtc >= entry.EndUtc)
+        {
+            throw new InvalidOperationException("Split-Zeit muss zwischen Start und Ende liegen.");
+        }
+
+        _database.SplitTimeEntry(entryId, splitUtc);
+        OnStateChanged();
+    }
+
     public void UpdateMatter(Matter matter)
     {
         _database.UpdateMatter(matter);
