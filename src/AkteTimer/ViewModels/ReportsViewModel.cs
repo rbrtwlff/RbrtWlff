@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
 using AkteTimer.Models;
 using AkteTimer.Services;
@@ -15,7 +14,6 @@ namespace AkteTimer.ViewModels;
 
 public sealed class ReportsViewModel : ViewModelBase
 {
-    private static readonly Regex HashtagRegex = new("#[\\p{L}\\p{Nd}_-]+", RegexOptions.Compiled);
     private readonly TimeEntryService _timeEntryService;
     private DateTime _fromDate;
     private DateTime _toDate;
@@ -400,7 +398,7 @@ public sealed class ReportsViewModel : ViewModelBase
         var actualMinutes = TimeEntryCalculations.GetActualMinutes(duration);
         var roundedMinutes = TimeEntryCalculations.GetRoundedMinutes(actualMinutes);
         var note = entry.Note?.Trim() ?? string.Empty;
-        var hashtag = ExtractHashtag(note);
+        var hashtag = entry.Hashtag?.Trim() ?? string.Empty;
 
         return new ExportRow(
             startLocal.Date,
@@ -412,17 +410,6 @@ public sealed class ReportsViewModel : ViewModelBase
             entry.MatterFileRef ?? "-",
             hashtag,
             note);
-    }
-
-    private static string ExtractHashtag(string note)
-    {
-        if (string.IsNullOrWhiteSpace(note))
-        {
-            return string.Empty;
-        }
-
-        var match = HashtagRegex.Match(note);
-        return match.Success ? match.Value : string.Empty;
     }
 
     private static void WriteCsvRow(StringBuilder builder, params string[] values)
@@ -577,6 +564,7 @@ public sealed class ReportEntryViewModel
     public ReportEntryViewModel(TimeEntry entry)
     {
         Matter = entry.MatterFileRef ?? "-";
+        Hashtag = entry.Hashtag ?? string.Empty;
         StartLocal = entry.StartUtc.ToLocalTime();
         EndLocal = (entry.EndUtc ?? DateTime.UtcNow).ToLocalTime();
         Duration = TimeEntryCalculations.GetDuration(entry);
@@ -586,6 +574,7 @@ public sealed class ReportEntryViewModel
     }
 
     public string Matter { get; }
+    public string Hashtag { get; }
     public DateTime StartLocal { get; }
     public DateTime EndLocal { get; }
     public TimeSpan Duration { get; }

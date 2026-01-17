@@ -40,6 +40,7 @@ public sealed class DatabaseService
               start_utc TEXT NOT NULL,
               end_utc TEXT NULL,
               note TEXT NULL,
+              hashtag TEXT NULL,
               created_utc TEXT NOT NULL,
               updated_utc TEXT NOT NULL,
               manual_adjustment INTEGER NOT NULL DEFAULT 0,
@@ -55,6 +56,7 @@ public sealed class DatabaseService
               ON TimeEntries (CASE WHEN end_utc IS NULL THEN 1 END);
             """;
         command.ExecuteNonQuery();
+        EnsureHashtagColumn(connection);
     }
 
     public SqliteConnection CreateConnection()
@@ -127,7 +129,7 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.end_utc IS NULL
@@ -156,7 +158,7 @@ public sealed class DatabaseService
         });
     }
 
-    public TimeEntry CreateTimeEntry(long matterId, DateTime startUtc)
+    public TimeEntry CreateTimeEntry(long matterId, DateTime startUtc, string hashtag)
     {
         var now = DateTime.UtcNow;
         using var connection = CreateConnection();
@@ -165,11 +167,12 @@ public sealed class DatabaseService
         using var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
-            INSERT INTO TimeEntries (matter_id, start_utc, end_utc, note, created_utc, updated_utc, manual_adjustment)
-            VALUES ($matter_id, $start_utc, NULL, NULL, $created_utc, $updated_utc, 0);
+            INSERT INTO TimeEntries (matter_id, start_utc, end_utc, note, hashtag, created_utc, updated_utc, manual_adjustment)
+            VALUES ($matter_id, $start_utc, NULL, NULL, $hashtag, $created_utc, $updated_utc, 0);
             """;
         insert.Parameters.AddWithValue("$matter_id", matterId);
         insert.Parameters.AddWithValue("$start_utc", startUtc.ToString("o"));
+        insert.Parameters.AddWithValue("$hashtag", hashtag);
         insert.Parameters.AddWithValue("$created_utc", now.ToString("o"));
         insert.Parameters.AddWithValue("$updated_utc", now.ToString("o"));
         insert.ExecuteNonQuery();
@@ -177,7 +180,7 @@ public sealed class DatabaseService
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
         select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.rowid = last_insert_rowid();
@@ -199,7 +202,7 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.start_utc >= $start AND te.start_utc < $end
@@ -279,7 +282,7 @@ public sealed class DatabaseService
             ? string.Empty
             : $" AND te.matter_id IN ({string.Join(", ", matterIds.Select((_, index) => $"$matter_{index}"))})";
         command.CommandText = $"""
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.start_utc >= $start AND te.start_utc < $end{matterFilters}
@@ -330,6 +333,24 @@ public sealed class DatabaseService
         });
     }
 
+    public void UpdateTimeEntryHashtag(long entryId, string hashtag)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE TimeEntries
+                SET hashtag = $hashtag, updated_utc = $updated_utc
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$hashtag", hashtag);
+            command.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
+            command.Parameters.AddWithValue("$id", entryId);
+            command.ExecuteNonQuery();
+        });
+    }
+
     private static TimeEntry MapTimeEntry(SqliteDataReader reader)
     {
         return new TimeEntry
@@ -339,10 +360,37 @@ public sealed class DatabaseService
             StartUtc = DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
             EndUtc = reader.IsDBNull(3) ? null : DateTime.Parse(reader.GetString(3)).ToUniversalTime(),
             Note = reader.IsDBNull(4) ? null : reader.GetString(4),
-            CreatedUtc = DateTime.Parse(reader.GetString(5)).ToUniversalTime(),
-            UpdatedUtc = DateTime.Parse(reader.GetString(6)).ToUniversalTime(),
-            ManualAdjustment = reader.GetInt64(7) == 1,
-            MatterFileRef = reader.IsDBNull(8) ? null : reader.GetString(8)
+            Hashtag = reader.IsDBNull(5) ? null : reader.GetString(5),
+            CreatedUtc = DateTime.Parse(reader.GetString(6)).ToUniversalTime(),
+            UpdatedUtc = DateTime.Parse(reader.GetString(7)).ToUniversalTime(),
+            ManualAdjustment = reader.GetInt64(8) == 1,
+            MatterFileRef = reader.IsDBNull(9) ? null : reader.GetString(9)
         };
+    }
+
+    private static void EnsureHashtagColumn(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(TimeEntries);";
+        using var reader = command.ExecuteReader();
+        var hasColumn = false;
+        while (reader.Read())
+        {
+            var name = reader.GetString(1);
+            if (string.Equals(name, "hashtag", StringComparison.OrdinalIgnoreCase))
+            {
+                hasColumn = true;
+                break;
+            }
+        }
+
+        if (hasColumn)
+        {
+            return;
+        }
+
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE TimeEntries ADD COLUMN hashtag TEXT NULL;";
+        alter.ExecuteNonQuery();
     }
 }

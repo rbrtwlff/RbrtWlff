@@ -11,4 +11,5 @@ public sealed class TimeEntry
     public DateTime UpdatedUtc { get; set; }
     public bool ManualAdjustment { get; set; }
     public string? MatterFileRef { get; set; }
+    public string? Hashtag { get; set; }
 }

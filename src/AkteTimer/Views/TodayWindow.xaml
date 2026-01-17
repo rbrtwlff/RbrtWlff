@@ -16,6 +16,7 @@
         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
         <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
+        <DataGridTextColumn Header="Hashtag" Binding="{Binding Hashtag}" />
         <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
         <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" />
         <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" />

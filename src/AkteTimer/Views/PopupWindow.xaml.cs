@@ -100,6 +100,7 @@ public partial class PopupWindow : Window
                 matter = _timeEntryService.CreateMatter(fileRef);
             }
 
+            PromptForHashtagIfMissing();
             _timeEntryService.SwitchMatter(matter);
             vm.ClearInput();
             vm.Refresh();
@@ -108,8 +109,32 @@ public partial class PopupWindow : Window
 
         if (e.Key == Key.Enter)
         {
+            if (_timeEntryService.IsRunning)
+            {
+                PromptForHashtagIfMissing();
+            }
             _timeEntryService.ToggleStartPause();
             vm.Refresh();
+        }
+    }
+
+    private void PromptForHashtagIfMissing()
+    {
+        var runningEntry = _timeEntryService.GetRunningEntry();
+        if (runningEntry == null || !string.IsNullOrWhiteSpace(runningEntry.Hashtag))
+        {
+            return;
+        }
+
+        var prompt = new HashtagPromptWindow(TimeEntryService.DefaultHashtags, _timeEntryService.GetDefaultHashtag())
+        {
+            Owner = this
+        };
+
+        var result = prompt.ShowDialog();
+        if (result == true && !string.IsNullOrWhiteSpace(prompt.SelectedHashtag))
+        {
+            _timeEntryService.SetEntryHashtag(runningEntry.Id, prompt.SelectedHashtag);
         }
     }
 }

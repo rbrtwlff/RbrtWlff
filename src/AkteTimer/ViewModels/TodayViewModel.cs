@@ -76,6 +76,7 @@ public sealed class TodayEntryViewModel
     public TodayEntryViewModel(TimeEntry entry)
     {
         Matter = entry.MatterFileRef ?? "-";
+        Hashtag = entry.Hashtag ?? string.Empty;
         StartLocal = entry.StartUtc.ToLocalTime();
         EndLocal = (entry.EndUtc ?? DateTime.UtcNow).ToLocalTime();
         Duration = TimeEntryCalculations.GetDuration(entry);
@@ -85,6 +86,7 @@ public sealed class TodayEntryViewModel
     }
 
     public string Matter { get; }
+    public string Hashtag { get; }
     public DateTime StartLocal { get; }
     public DateTime EndLocal { get; }
     public TimeSpan Duration { get; }
