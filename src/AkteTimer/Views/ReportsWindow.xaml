@@ -200,7 +200,7 @@
                            Text="{Binding SelectedMatterDetails.TargetRateEurPerHour, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
                 <Separator Margin="0,8,0,8" />
-                <TextBlock Text="{Binding SelectedMatterDetails.Fee1_0EurText, StringFormat=1,0-Gebühr: {0} €}" />
+                <TextBlock Text="{Binding SelectedMatterDetails.Fee1_0EurText, StringFormat='1,0-Gebühr: {0} €'}" />
                 <TextBlock Text="{Binding SelectedMatterDetails.RvgEstimateEurText, StringFormat=RVG-Schätzung: {0} €}" />
                 <TextBlock Text="{Binding SelectedMatterDetails.EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
                 <TextBlock Text="{Binding SelectedMatterDetails.BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
