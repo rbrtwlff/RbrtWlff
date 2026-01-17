@@ -1,0 +1,37 @@
+<Window x:Class="AkteTimer.Views.HashtagPromptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hashtag hinzufügen"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="ToolWindow"
+        ShowInTaskbar="False"
+        Topmost="True">
+  <Border Padding="16">
+    <StackPanel>
+      <TextBlock Text="Hashtag hinzufügen?" FontWeight="Bold" FontSize="14" />
+      <TextBlock Text="{Binding DefaultHashtagText}" Margin="0,4,0,8" Foreground="Gray" />
+      <ItemsControl ItemsSource="{Binding Tags}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Button Content="{Binding}"
+                    Margin="0,0,8,8"
+                    Padding="10,4"
+                    MinWidth="90"
+                    Click="HandleTagClick" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <StackPanel Orientation="Horizontal" Margin="0,4,0,0" HorizontalAlignment="Right">
+        <TextBlock Text="Strg+1..7, Strg+0" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="Gray" />
+        <Button Content="Überspringen" Padding="10,4" Click="HandleSkipClick" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

@@ -6,6 +6,18 @@ namespace AkteTimer.Services;
 public sealed class TimeEntryService
 {
     private static readonly Regex FileRefRegex = new("^\\d{1,6}\\/\\d{2}$", RegexOptions.Compiled);
+    public static readonly IReadOnlyList<string> DefaultHashtags = new[]
+    {
+        "#Schriftsatz",
+        "#E-Mail",
+        "#Telefon",
+        "#Prüfung",
+        "#Termin",
+        "#Besprechung",
+        "#Organisation",
+        "#Sonstiges"
+    };
+
     private readonly DatabaseService _database;
     private readonly SettingsService _settings;
 
@@ -37,6 +49,11 @@ public sealed class TimeEntryService
         {
             _settings.SetLastMatter(entry.MatterFileRef);
         }
+
+        if (!string.IsNullOrWhiteSpace(entry.Hashtag))
+        {
+            _settings.SetLastHashtag(entry.Hashtag);
+        }
         OnStateChanged();
     }
 
@@ -61,7 +78,8 @@ public sealed class TimeEntryService
         }
 
         var matter = _database.GetMatterByFileRef(ActiveMatterFileRef) ?? _database.CreateMatter(ActiveMatterFileRef);
-        _database.CreateTimeEntry(matter.Id, DateTime.UtcNow);
+        var hashtag = _settings.LastHashtag;
+        _database.CreateTimeEntry(matter.Id, DateTime.UtcNow, hashtag);
         OnStateChanged();
         return true;
     }
@@ -80,11 +98,12 @@ public sealed class TimeEntryService
             using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = """
-                INSERT INTO TimeEntries (matter_id, start_utc, end_utc, note, created_utc, updated_utc, manual_adjustment)
-                VALUES ($matter_id, $start_utc, NULL, NULL, $created_utc, $updated_utc, 0);
+                INSERT INTO TimeEntries (matter_id, start_utc, end_utc, note, hashtag, created_utc, updated_utc, manual_adjustment)
+                VALUES ($matter_id, $start_utc, NULL, NULL, $hashtag, $created_utc, $updated_utc, 0);
                 """;
             insert.Parameters.AddWithValue("$matter_id", matter.Id);
             insert.Parameters.AddWithValue("$start_utc", DateTime.UtcNow.ToString("o"));
+            insert.Parameters.AddWithValue("$hashtag", _settings.LastHashtag);
             insert.Parameters.AddWithValue("$created_utc", DateTime.UtcNow.ToString("o"));
             insert.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
             insert.ExecuteNonQuery();
@@ -107,6 +126,19 @@ public sealed class TimeEntryService
     public List<Matter> GetAllMatters() => _database.GetAllMatters();
 
     public List<Matter> GetRecentMatters() => _database.GetRecentMatters(10);
+
+    public string GetDefaultHashtag() => _settings.LastHashtag;
+
+    public void SetEntryHashtag(long entryId, string hashtag)
+    {
+        if (string.IsNullOrWhiteSpace(hashtag))
+        {
+            return;
+        }
+
+        _database.UpdateTimeEntryHashtag(entryId, hashtag);
+        _settings.SetLastHashtag(hashtag);
+    }
 
     private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
 }
