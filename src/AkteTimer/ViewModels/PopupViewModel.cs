@@ -14,6 +14,7 @@ public sealed class PopupViewModel : ViewModelBase
     private string _activeMatterText = "-";
     private string _todayDurationText = "00:00:00";
     private string _entryDurationText = "00:00:00";
+    private string? _selectedRecentMatter;
 
     public PopupViewModel(TimeEntryService timeEntryService)
     {
@@ -42,8 +43,38 @@ public sealed class PopupViewModel : ViewModelBase
         get => _fileRefInput;
         set
         {
+            if (_fileRefInput == value)
+            {
+                return;
+            }
+
             _fileRefInput = value;
             NotifyPropertyChanged();
+
+            if (_selectedRecentMatter != null && _selectedRecentMatter != value)
+            {
+                _selectedRecentMatter = null;
+                NotifyPropertyChanged(nameof(SelectedRecentMatter));
+            }
+        }
+    }
+
+    public string? SelectedRecentMatter
+    {
+        get => _selectedRecentMatter;
+        set
+        {
+            if (_selectedRecentMatter == value)
+            {
+                return;
+            }
+
+            _selectedRecentMatter = value;
+            NotifyPropertyChanged();
+            if (!string.IsNullOrWhiteSpace(value) && FileRefInput != value)
+            {
+                FileRefInput = value;
+            }
         }
     }
 
@@ -94,10 +125,10 @@ public sealed class PopupViewModel : ViewModelBase
             return;
         }
 
-        var index = RecentMatters.IndexOf(FileRefInput);
+        var index = SelectedRecentMatter == null ? -1 : RecentMatters.IndexOf(SelectedRecentMatter);
         index = index < 0 ? 0 : index + delta;
         index = Math.Clamp(index, 0, RecentMatters.Count - 1);
-        FileRefInput = RecentMatters[index];
+        SelectedRecentMatter = RecentMatters[index];
     }
 
     public void UpdateStatus(string message)
@@ -130,11 +161,20 @@ public sealed class PopupViewModel : ViewModelBase
 
     private void LoadRecentMatters()
     {
+        var previousSelection = SelectedRecentMatter;
         RecentMatters.Clear();
         foreach (var matter in _timeEntryService.GetRecentMatters())
         {
             RecentMatters.Add(matter.FileRef);
         }
+
+        if (previousSelection != null && RecentMatters.Contains(previousSelection))
+        {
+            SelectedRecentMatter = previousSelection;
+            return;
+        }
+
+        SelectedRecentMatter = null;
     }
 
     private void RefreshDurations()

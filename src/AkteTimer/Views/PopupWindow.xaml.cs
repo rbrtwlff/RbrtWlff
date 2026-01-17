@@ -71,9 +71,10 @@ public partial class PopupWindow : Window
             return;
         }
 
-        if (e.Key == Key.Enter && FileRefBox.IsFocused)
+        if (e.Key == Key.Enter && (FileRefBox.IsFocused || RecentMattersListBox.IsFocused))
         {
-            var fileRef = vm.FileRefInput.Trim();
+            var fileRef = vm.SelectedRecentMatter ?? vm.FileRefInput;
+            fileRef = fileRef.Trim();
             if (string.IsNullOrWhiteSpace(fileRef))
             {
                 return;
