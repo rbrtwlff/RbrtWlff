@@ -1,6 +1,7 @@
 using System.Windows;
 using AkteTimer.Services;
 using AkteTimer.Views;
+using MessageBox = System.Windows.MessageBox;
 
 namespace AkteTimer;
 
