@@ -44,7 +44,7 @@ public partial class PopupWindow : Window
         FileRefBox.SelectAll();
     }
 
-    private void HandleKeyDown(object? sender, KeyEventArgs e)
+    private void HandleKeyDown(object? sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {
