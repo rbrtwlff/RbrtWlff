@@ -55,7 +55,6 @@ public sealed class TrayService : IDisposable
     private void ShowPopup()
     {
         _popupWindow.ToggleVisibility();
-        _popupWindow.FocusInput();
     }
 
     private void ShowToday()

@@ -17,6 +17,13 @@ public partial class PopupWindow : Window
 
         PreviewKeyDown += HandleKeyDown;
         Deactivated += (_, _) => Hide();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible)
+            {
+                FocusInput();
+            }
+        };
     }
 
     public void ToggleVisibility()

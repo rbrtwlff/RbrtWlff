@@ -7,6 +7,10 @@ public sealed class HotkeyService : IDisposable
 {
     private const int HotkeyId = 9001;
     private const int WmHotkey = 0x0312;
+    private const uint ModControl = 0x0002;
+    private const uint ModAlt = 0x0001;
+    private const uint ModShift = 0x0004;
+    private const uint ModWin = 0x0008;
 
     private readonly SettingsService _settings;
     private HwndSource? _source;
@@ -36,20 +40,15 @@ public sealed class HotkeyService : IDisposable
         _source.AddHook(WndProc);
 
         var (modifiers, key) = ParseHotkey(_settings.Hotkey);
-        RegisterHotKey(_source.Handle, HotkeyId, modifiers, key);
+        if (!RegisterHotKey(_source.Handle, HotkeyId, modifiers, key))
+        {
+            CleanupSource();
+        }
     }
 
     public void Dispose()
     {
-        if (_source == null)
-        {
-            return;
-        }
-
-        UnregisterHotKey(_source.Handle, HotkeyId);
-        _source.RemoveHook(WndProc);
-        _source.Dispose();
-        _source = null;
+        CleanupSource();
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -74,16 +73,16 @@ public sealed class HotkeyService : IDisposable
             switch (part.ToUpperInvariant())
             {
                 case "CTRL":
-                    modifiers |= 0x0002;
+                    modifiers |= ModControl;
                     break;
                 case "ALT":
-                    modifiers |= 0x0001;
+                    modifiers |= ModAlt;
                     break;
                 case "SHIFT":
-                    modifiers |= 0x0004;
+                    modifiers |= ModShift;
                     break;
                 case "WIN":
-                    modifiers |= 0x0008;
+                    modifiers |= ModWin;
                     break;
                 default:
                     key = (uint)KeyInterop.VirtualKeyFromKey(Enum.Parse<System.Windows.Input.Key>(part, true));
@@ -96,6 +95,11 @@ public sealed class HotkeyService : IDisposable
             key = (uint)KeyInterop.VirtualKeyFromKey(System.Windows.Input.Key.T);
         }
 
+        if (modifiers == 0)
+        {
+            modifiers = ModControl | ModAlt;
+        }
+
         return (modifiers, key);
     }
 
@@ -104,4 +108,17 @@ public sealed class HotkeyService : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    private void CleanupSource()
+    {
+        if (_source == null)
+        {
+            return;
+        }
+
+        UnregisterHotKey(_source.Handle, HotkeyId);
+        _source.RemoveHook(WndProc);
+        _source.Dispose();
+        _source = null;
+    }
 }
