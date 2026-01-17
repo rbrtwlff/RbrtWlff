@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using AkteTimer.Services;
 using AkteTimer.ViewModels;
+using MessageBox = System.Windows.MessageBox;
 
 namespace AkteTimer.Views;
 
