@@ -1,0 +1,57 @@
+name: build-windows
+
+on:
+  push:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore AkteTimer.sln
+
+      - name: Publish (framework-dependent)
+        run: dotnet publish src/AkteTimer/AkteTimer.csproj -c Release -r win-x64 --self-contained false -o artifacts/publish/win-x64
+
+      - name: Publish (self-contained)
+        run: dotnet publish src/AkteTimer/AkteTimer.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish/win-x64-selfcontained
+
+      - name: Create ZIPs
+        shell: pwsh
+        run: |
+          Compress-Archive -Path artifacts/publish/win-x64/* -DestinationPath artifacts/AkteTimer-win-x64.zip -Force
+          Compress-Archive -Path artifacts/publish/win-x64-selfcontained/* -DestinationPath artifacts/AkteTimer-win-x64-selfcontained.zip -Force
+
+      - name: Upload artifact (framework-dependent)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AkteTimer-win-x64
+          path: artifacts/AkteTimer-win-x64.zip
+
+      - name: Upload artifact (self-contained)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AkteTimer-win-x64-selfcontained
+          path: artifacts/AkteTimer-win-x64-selfcontained.zip
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/AkteTimer-win-x64.zip
+            artifacts/AkteTimer-win-x64-selfcontained.zip
