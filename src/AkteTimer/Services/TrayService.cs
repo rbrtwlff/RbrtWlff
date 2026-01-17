@@ -1,5 +1,4 @@
 using System.Drawing;
-using System.Windows;
 using System.Windows.Forms;
 using AkteTimer.Views;
 
@@ -80,6 +79,6 @@ public sealed class TrayService : IDisposable
 
     private static void Exit()
     {
-        Application.Current.Shutdown();
+        System.Windows.Application.Current.Shutdown();
     }
 }
