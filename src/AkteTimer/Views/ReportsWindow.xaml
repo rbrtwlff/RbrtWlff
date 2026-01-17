@@ -62,7 +62,7 @@
             <TextBlock FontWeight="Bold"
                        Text="{Binding TodayTotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
           </StackPanel>
-          <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding TodayEntries}" IsReadOnly="True">
+          <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding TodayEntries}" IsReadOnly="True" MouseDoubleClick="OnEntryDoubleClick">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
               <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
@@ -95,7 +95,7 @@
                     <TextBlock Text="{Binding TotalDurationText, StringFormat=Summe Ist: {0}}" />
                     <TextBlock Text="{Binding TotalActualMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
                     <TextBlock Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
-                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="True" Margin="0,6,0,0">
+                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="True" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
@@ -141,7 +141,7 @@
                       <TextBlock Text="{Binding EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
                       <TextBlock Text="{Binding BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
                     </StackPanel>
-                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="True" Margin="0,6,0,0">
+                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="True" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />

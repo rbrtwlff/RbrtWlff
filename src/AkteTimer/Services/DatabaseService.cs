@@ -375,6 +375,157 @@ public sealed class DatabaseService
         });
     }
 
+    public TimeEntry? GetTimeEntryById(long entryId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", entryId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return MapTimeEntry(reader);
+    }
+
+    public TimeEntry UpdateTimeEntry(long entryId, long matterId, DateTime startUtc, DateTime endUtc, string? hashtag, string? note)
+    {
+        var now = DateTime.UtcNow;
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE TimeEntries
+            SET matter_id = $matter_id,
+                start_utc = $start_utc,
+                end_utc = $end_utc,
+                note = $note,
+                hashtag = $hashtag,
+                updated_utc = $updated_utc,
+                manual_adjustment = 1
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        command.Parameters.AddWithValue("$start_utc", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end_utc", endUtc.ToString("o"));
+        command.Parameters.AddWithValue("$note", string.IsNullOrWhiteSpace(note) ? DBNull.Value : note);
+        command.Parameters.AddWithValue("$hashtag", string.IsNullOrWhiteSpace(hashtag) ? DBNull.Value : hashtag);
+        command.Parameters.AddWithValue("$updated_utc", now.ToString("o"));
+        command.Parameters.AddWithValue("$id", entryId);
+        command.ExecuteNonQuery();
+
+        using var select = connection.CreateCommand();
+        select.Transaction = transaction;
+        select.CommandText = """
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.id = $id;
+            """;
+        select.Parameters.AddWithValue("$id", entryId);
+        using var reader = select.ExecuteReader();
+        reader.Read();
+        var entry = MapTimeEntry(reader);
+        transaction.Commit();
+        return entry;
+    }
+
+    public (TimeEntry UpdatedEntry, TimeEntry NewEntry) SplitTimeEntry(long entryId, DateTime splitUtc)
+    {
+        var now = DateTime.UtcNow;
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        using var select = connection.CreateCommand();
+        select.Transaction = transaction;
+        select.CommandText = """
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.id = $id;
+            """;
+        select.Parameters.AddWithValue("$id", entryId);
+        using var reader = select.ExecuteReader();
+        if (!reader.Read())
+        {
+            throw new InvalidOperationException("Eintrag nicht gefunden.");
+        }
+
+        var entry = MapTimeEntry(reader);
+        if (entry.EndUtc == null)
+        {
+            throw new InvalidOperationException("Laufende Einträge können nicht gesplittet werden.");
+        }
+
+        using var update = connection.CreateCommand();
+        update.Transaction = transaction;
+        update.CommandText = """
+            UPDATE TimeEntries
+            SET end_utc = $end_utc,
+                updated_utc = $updated_utc,
+                manual_adjustment = 1
+            WHERE id = $id;
+            """;
+        update.Parameters.AddWithValue("$end_utc", splitUtc.ToString("o"));
+        update.Parameters.AddWithValue("$updated_utc", now.ToString("o"));
+        update.Parameters.AddWithValue("$id", entryId);
+        update.ExecuteNonQuery();
+
+        using var insert = connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandText = """
+            INSERT INTO TimeEntries (matter_id, start_utc, end_utc, note, hashtag, created_utc, updated_utc, manual_adjustment)
+            VALUES ($matter_id, $start_utc, $end_utc, $note, $hashtag, $created_utc, $updated_utc, 1);
+            """;
+        insert.Parameters.AddWithValue("$matter_id", entry.MatterId);
+        insert.Parameters.AddWithValue("$start_utc", splitUtc.ToString("o"));
+        insert.Parameters.AddWithValue("$end_utc", entry.EndUtc.Value.ToString("o"));
+        insert.Parameters.AddWithValue("$note", string.IsNullOrWhiteSpace(entry.Note) ? DBNull.Value : entry.Note);
+        insert.Parameters.AddWithValue("$hashtag", string.IsNullOrWhiteSpace(entry.Hashtag) ? DBNull.Value : entry.Hashtag);
+        insert.Parameters.AddWithValue("$created_utc", now.ToString("o"));
+        insert.Parameters.AddWithValue("$updated_utc", now.ToString("o"));
+        insert.ExecuteNonQuery();
+
+        using var selectUpdated = connection.CreateCommand();
+        selectUpdated.Transaction = transaction;
+        selectUpdated.CommandText = """
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.id = $id;
+            """;
+        selectUpdated.Parameters.AddWithValue("$id", entryId);
+        using var updatedReader = selectUpdated.ExecuteReader();
+        updatedReader.Read();
+        var updatedEntry = MapTimeEntry(updatedReader);
+
+        using var selectNew = connection.CreateCommand();
+        selectNew.Transaction = transaction;
+        selectNew.CommandText = """
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.rowid = last_insert_rowid();
+            """;
+        using var newReader = selectNew.ExecuteReader();
+        newReader.Read();
+        var newEntry = MapTimeEntry(newReader);
+
+        transaction.Commit();
+        return (updatedEntry, newEntry);
+    }
+
     public void UpdateMatter(Matter matter)
     {
         ExecuteInTransaction((connection, transaction) =>
