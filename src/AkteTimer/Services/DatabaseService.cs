@@ -49,6 +49,9 @@ public sealed class DatabaseService
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
             );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_time_entries_single_running
+              ON TimeEntries (CASE WHEN end_utc IS NULL THEN 1 END);
             """;
         command.ExecuteNonQuery();
     }
@@ -139,16 +142,15 @@ public sealed class DatabaseService
         return MapTimeEntry(reader);
     }
 
-    public void StopRunningEntry(long entryId, DateTime endUtc)
+    public void StopRunningEntries(DateTime endUtc)
     {
         ExecuteInTransaction((connection, transaction) =>
         {
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = "UPDATE TimeEntries SET end_utc = $end_utc, updated_utc = $updated_utc WHERE id = $id;";
+            command.CommandText = "UPDATE TimeEntries SET end_utc = $end_utc, updated_utc = $updated_utc WHERE end_utc IS NULL;";
             command.Parameters.AddWithValue("$end_utc", endUtc.ToString("o"));
             command.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
-            command.Parameters.AddWithValue("$id", entryId);
             command.ExecuteNonQuery();
         });
     }

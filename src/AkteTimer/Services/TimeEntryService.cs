@@ -40,9 +40,9 @@ public sealed class TimeEntryService
         OnStateChanged();
     }
 
-    public void StopRunningEntry(TimeEntry entry, DateTime endUtc)
+    public void StopRunningEntries(DateTime endUtc)
     {
-        _database.StopRunningEntry(entry.Id, endUtc);
+        _database.StopRunningEntries(endUtc);
         OnStateChanged();
     }
 
@@ -51,7 +51,7 @@ public sealed class TimeEntryService
         var running = GetRunningEntry();
         if (running != null)
         {
-            StopRunningEntry(running, DateTime.UtcNow);
+            StopRunningEntries(DateTime.UtcNow);
             return false;
         }
 
