@@ -6,4 +6,8 @@ public sealed class Matter
     public string FileRef { get; set; } = string.Empty;
     public string? Title { get; set; }
     public bool IsArchived { get; set; }
+    public BillingType BillingType { get; set; } = BillingType.Hourly;
+    public decimal SubjectValueEur { get; set; }
+    public decimal FeeFactor { get; set; } = 1.0m;
+    public decimal TargetRateEurPerHour { get; set; }
 }

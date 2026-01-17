@@ -31,7 +31,11 @@ public sealed class DatabaseService
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               file_ref TEXT NOT NULL UNIQUE,
               title TEXT NULL,
-              is_archived INTEGER NOT NULL DEFAULT 0
+              is_archived INTEGER NOT NULL DEFAULT 0,
+              billing_type TEXT NOT NULL DEFAULT 'hourly',
+              subject_value_eur REAL NULL,
+              fee_factor REAL NULL,
+              target_rate_eur_per_hour REAL NULL
             );
 
             CREATE TABLE IF NOT EXISTS TimeEntries (
@@ -57,6 +61,7 @@ public sealed class DatabaseService
             """;
         command.ExecuteNonQuery();
         EnsureHashtagColumn(connection);
+        EnsureMatterColumns(connection);
     }
 
     public SqliteConnection CreateConnection()
@@ -78,7 +83,11 @@ public sealed class DatabaseService
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id, file_ref, title, is_archived FROM Matters WHERE file_ref = $file_ref;";
+        command.CommandText = """
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour
+            FROM Matters
+            WHERE file_ref = $file_ref;
+            """;
         command.Parameters.AddWithValue("$file_ref", fileRef);
         using var reader = command.ExecuteReader();
         if (!reader.Read())
@@ -86,13 +95,7 @@ public sealed class DatabaseService
             return null;
         }
 
-        return new Matter
-        {
-            Id = reader.GetInt64(0),
-            FileRef = reader.GetString(1),
-            Title = reader.IsDBNull(2) ? null : reader.GetString(2),
-            IsArchived = reader.GetInt64(3) == 1
-        };
+        return MapMatter(reader);
     }
 
     public Matter CreateMatter(string fileRef)
@@ -102,23 +105,28 @@ public sealed class DatabaseService
         using var transaction = connection.BeginTransaction();
         using var insert = connection.CreateCommand();
         insert.Transaction = transaction;
-        insert.CommandText = "INSERT INTO Matters (file_ref, title, is_archived) VALUES ($file_ref, NULL, 0);";
+        insert.CommandText = """
+            INSERT INTO Matters (file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour)
+            VALUES ($file_ref, NULL, 0, $billing_type, $subject_value_eur, $fee_factor, $target_rate_eur_per_hour);
+            """;
         insert.Parameters.AddWithValue("$file_ref", fileRef);
+        insert.Parameters.AddWithValue("$billing_type", "hourly");
+        insert.Parameters.AddWithValue("$subject_value_eur", 0d);
+        insert.Parameters.AddWithValue("$fee_factor", 1d);
+        insert.Parameters.AddWithValue("$target_rate_eur_per_hour", 0d);
         insert.ExecuteNonQuery();
 
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
-        select.CommandText = "SELECT id, file_ref, title, is_archived FROM Matters WHERE file_ref = $file_ref;";
+        select.CommandText = """
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour
+            FROM Matters
+            WHERE file_ref = $file_ref;
+            """;
         select.Parameters.AddWithValue("$file_ref", fileRef);
         using var reader = select.ExecuteReader();
         reader.Read();
-        var matter = new Matter
-        {
-            Id = reader.GetInt64(0),
-            FileRef = reader.GetString(1),
-            Title = reader.IsDBNull(2) ? null : reader.GetString(2),
-            IsArchived = reader.GetInt64(3) == 1
-        };
+        var matter = MapMatter(reader);
         transaction.Commit();
         return matter;
     }
@@ -227,7 +235,7 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT m.id, m.file_ref, m.title, m.is_archived
+            SELECT m.id, m.file_ref, m.title, m.is_archived, m.billing_type, m.subject_value_eur, m.fee_factor, m.target_rate_eur_per_hour
             FROM Matters m
             JOIN TimeEntries te ON m.id = te.matter_id
             GROUP BY m.id
@@ -239,13 +247,7 @@ public sealed class DatabaseService
         var matters = new List<Matter>();
         while (reader.Read())
         {
-            matters.Add(new Matter
-            {
-                Id = reader.GetInt64(0),
-                FileRef = reader.GetString(1),
-                Title = reader.IsDBNull(2) ? null : reader.GetString(2),
-                IsArchived = reader.GetInt64(3) == 1
-            });
+            matters.Add(MapMatter(reader));
         }
 
         return matters;
@@ -256,18 +258,16 @@ public sealed class DatabaseService
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id, file_ref, title, is_archived FROM Matters ORDER BY file_ref ASC;";
+        command.CommandText = """
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour
+            FROM Matters
+            ORDER BY file_ref ASC;
+            """;
         using var reader = command.ExecuteReader();
         var matters = new List<Matter>();
         while (reader.Read())
         {
-            matters.Add(new Matter
-            {
-                Id = reader.GetInt64(0),
-                FileRef = reader.GetString(1),
-                Title = reader.IsDBNull(2) ? null : reader.GetString(2),
-                IsArchived = reader.GetInt64(3) == 1
-            });
+            matters.Add(MapMatter(reader));
         }
 
         return matters;
@@ -296,6 +296,30 @@ public sealed class DatabaseService
             command.Parameters.AddWithValue($"$matter_{index}", matterId);
             index++;
         }
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
+    }
+
+    public List<TimeEntry> GetEntriesForMatter(long matterId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.matter_id = $matter_id
+            ORDER BY te.start_utc ASC;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
 
         using var reader = command.ExecuteReader();
         var entries = new List<TimeEntry>();
@@ -351,6 +375,29 @@ public sealed class DatabaseService
         });
     }
 
+    public void UpdateMatter(Matter matter)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE Matters
+                SET billing_type = $billing_type,
+                    subject_value_eur = $subject_value_eur,
+                    fee_factor = $fee_factor,
+                    target_rate_eur_per_hour = $target_rate_eur_per_hour
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$billing_type", matter.BillingType == BillingType.Rvg ? "rvg" : "hourly");
+            command.Parameters.AddWithValue("$subject_value_eur", (double)matter.SubjectValueEur);
+            command.Parameters.AddWithValue("$fee_factor", (double)matter.FeeFactor);
+            command.Parameters.AddWithValue("$target_rate_eur_per_hour", (double)matter.TargetRateEurPerHour);
+            command.Parameters.AddWithValue("$id", matter.Id);
+            command.ExecuteNonQuery();
+        });
+    }
+
     private static TimeEntry MapTimeEntry(SqliteDataReader reader)
     {
         return new TimeEntry
@@ -366,6 +413,34 @@ public sealed class DatabaseService
             ManualAdjustment = reader.GetInt64(8) == 1,
             MatterFileRef = reader.IsDBNull(9) ? null : reader.GetString(9)
         };
+    }
+
+    private static Matter MapMatter(SqliteDataReader reader)
+    {
+        var billingTypeValue = reader.IsDBNull(4) ? "hourly" : reader.GetString(4);
+        var billingType = string.Equals(billingTypeValue, "rvg", StringComparison.OrdinalIgnoreCase)
+            ? BillingType.Rvg
+            : BillingType.Hourly;
+        var subjectValue = GetDecimalOrDefault(reader, 5);
+        var feeFactor = GetDecimalOrDefault(reader, 6, 1.0m);
+        var targetRate = GetDecimalOrDefault(reader, 7);
+
+        return new Matter
+        {
+            Id = reader.GetInt64(0),
+            FileRef = reader.GetString(1),
+            Title = reader.IsDBNull(2) ? null : reader.GetString(2),
+            IsArchived = reader.GetInt64(3) == 1,
+            BillingType = billingType,
+            SubjectValueEur = subjectValue,
+            FeeFactor = feeFactor,
+            TargetRateEurPerHour = targetRate
+        };
+    }
+
+    private static decimal GetDecimalOrDefault(SqliteDataReader reader, int index, decimal defaultValue = 0m)
+    {
+        return reader.IsDBNull(index) ? defaultValue : (decimal)reader.GetDouble(index);
     }
 
     private static void EnsureHashtagColumn(SqliteConnection connection)
@@ -392,5 +467,45 @@ public sealed class DatabaseService
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE TimeEntries ADD COLUMN hashtag TEXT NULL;";
         alter.ExecuteNonQuery();
+    }
+
+    private static void EnsureMatterColumns(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(Matters);";
+        using var reader = command.ExecuteReader();
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        var additions = new List<string>();
+        if (!columns.Contains("billing_type"))
+        {
+            additions.Add("ALTER TABLE Matters ADD COLUMN billing_type TEXT NOT NULL DEFAULT 'hourly';");
+        }
+
+        if (!columns.Contains("subject_value_eur"))
+        {
+            additions.Add("ALTER TABLE Matters ADD COLUMN subject_value_eur REAL NULL;");
+        }
+
+        if (!columns.Contains("fee_factor"))
+        {
+            additions.Add("ALTER TABLE Matters ADD COLUMN fee_factor REAL NULL;");
+        }
+
+        if (!columns.Contains("target_rate_eur_per_hour"))
+        {
+            additions.Add("ALTER TABLE Matters ADD COLUMN target_rate_eur_per_hour REAL NULL;");
+        }
+
+        foreach (var statement in additions)
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = statement;
+            alter.ExecuteNonQuery();
+        }
     }
 }

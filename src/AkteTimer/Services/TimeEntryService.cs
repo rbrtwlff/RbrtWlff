@@ -123,6 +123,8 @@ public sealed class TimeEntryService
         return _database.GetEntriesInRange(startUtc, endUtc, matterIds);
     }
 
+    public List<TimeEntry> GetEntriesForMatter(long matterId) => _database.GetEntriesForMatter(matterId);
+
     public List<Matter> GetAllMatters() => _database.GetAllMatters();
 
     public List<Matter> GetRecentMatters() => _database.GetRecentMatters(10);
@@ -138,6 +140,11 @@ public sealed class TimeEntryService
 
         _database.UpdateTimeEntryHashtag(entryId, hashtag);
         _settings.SetLastHashtag(hashtag);
+    }
+
+    public void UpdateMatter(Matter matter)
+    {
+        _database.UpdateMatter(matter);
     }
 
     private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);

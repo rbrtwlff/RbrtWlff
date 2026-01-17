@@ -2,6 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Auswertung" Height="720" Width="980">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
+  </Window.Resources>
   <Grid Margin="12">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -101,6 +104,9 @@
                         <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
                         <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" />
                         <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" />
+                        <DataGridTextColumn Header="RVG-Schätzung" Binding="{Binding RvgEstimateText}" />
+                        <DataGridTextColumn Header="Effektiv €/h" Binding="{Binding EffectiveHourlyRateText}" />
+                        <DataGridTextColumn Header="Break-even" Binding="{Binding BreakEvenTimeText}" />
                       </DataGrid.Columns>
                     </DataGrid>
                   </StackPanel>
@@ -130,6 +136,11 @@
                     <TextBlock Text="{Binding TotalDurationText, StringFormat=Summe Ist: {0}}" />
                     <TextBlock Text="{Binding TotalActualMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
                     <TextBlock Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
+                    <StackPanel Margin="0,4,0,0" Visibility="{Binding ShowRvgMetrics, Converter={StaticResource BoolToVis}}">
+                      <TextBlock Text="{Binding RvgEstimateText, StringFormat=RVG-Schätzung: {0} €}" />
+                      <TextBlock Text="{Binding EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
+                      <TextBlock Text="{Binding BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
+                    </StackPanel>
                     <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="True" Margin="0,6,0,0">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
@@ -138,6 +149,9 @@
                         <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
                         <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" />
                         <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" />
+                        <DataGridTextColumn Header="RVG-Schätzung" Binding="{Binding RvgEstimateText}" />
+                        <DataGridTextColumn Header="Effektiv €/h" Binding="{Binding EffectiveHourlyRateText}" />
+                        <DataGridTextColumn Header="Break-even" Binding="{Binding BreakEvenTimeText}" />
                       </DataGrid.Columns>
                     </DataGrid>
                   </StackPanel>
@@ -146,6 +160,54 @@
             </ItemsControl>
           </ScrollViewer>
         </DockPanel>
+      </TabItem>
+      <TabItem Header="Akte-Details">
+        <Grid Margin="0,8,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <ListBox ItemsSource="{Binding MatterDetails}"
+                   SelectedItem="{Binding SelectedMatterDetails}"
+                   DisplayMemberPath="FileRef" />
+          <ScrollViewer Grid.Column="1" Margin="12,0,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock FontWeight="Bold" FontSize="14"
+                         Text="{Binding SelectedMatterDetails.FileRef, StringFormat=Akte: {0}}" />
+              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="Abrechnungstyp" Width="140" VerticalAlignment="Center" />
+                <ComboBox Width="160"
+                          ItemsSource="{Binding DataContext.BillingTypeOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                          SelectedItem="{Binding SelectedMatterDetails.BillingType, Mode=TwoWay}" />
+              </StackPanel>
+              <StackPanel Visibility="{Binding SelectedMatterDetails.ShowRvgFields, Converter={StaticResource BoolToVis}}">
+                <TextBlock Margin="0,10,0,6"
+                           Foreground="DarkRed"
+                           Text="RVG-Schätzung für internes Controlling – keine Abrechnung und keine Kostenfestsetzung." />
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <TextBlock Text="Gegenstandswert (EUR)" Width="180" VerticalAlignment="Center" />
+                  <TextBox Width="140"
+                           Text="{Binding SelectedMatterDetails.SubjectValueEur, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <TextBlock Text="Gebührensatz/Faktor" Width="180" VerticalAlignment="Center" />
+                  <TextBox Width="140"
+                           Text="{Binding SelectedMatterDetails.FeeFactor, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <TextBlock Text="Ziel-Stundensatz (EUR/h)" Width="180" VerticalAlignment="Center" />
+                  <TextBox Width="140"
+                           Text="{Binding SelectedMatterDetails.TargetRateEurPerHour, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <Separator Margin="0,8,0,8" />
+                <TextBlock Text="{Binding SelectedMatterDetails.Fee1_0EurText, StringFormat=1,0-Gebühr: {0} €}" />
+                <TextBlock Text="{Binding SelectedMatterDetails.RvgEstimateEurText, StringFormat=RVG-Schätzung: {0} €}" />
+                <TextBlock Text="{Binding SelectedMatterDetails.EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
+                <TextBlock Text="{Binding SelectedMatterDetails.BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
       </TabItem>
     </TabControl>
   </Grid>

@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AkteTimer", "src\AkteTimer\AkteTimer.csproj", "{6C37C0E1-05CB-48A4-9BE2-9721CEDBCAB8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AkteTimer.Tests", "src\AkteTimer.Tests\AkteTimer.Tests.csproj", "{5FA452EB-B315-45CF-8F12-4892B35CEE3B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{6C37C0E1-05CB-48A4-9BE2-9721CEDBCAB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6C37C0E1-05CB-48A4-9BE2-9721CEDBCAB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6C37C0E1-05CB-48A4-9BE2-9721CEDBCAB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FA452EB-B315-45CF-8F12-4892B35CEE3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FA452EB-B315-45CF-8F12-4892B35CEE3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FA452EB-B315-45CF-8F12-4892B35CEE3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FA452EB-B315-45CF-8F12-4892B35CEE3B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
