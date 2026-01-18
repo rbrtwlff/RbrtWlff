@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using AkteTimer.Views;
@@ -109,12 +110,20 @@ public sealed class TrayService : IDisposable
     private static void RunOnUiThread(Action action)
     {
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess())
+        try
         {
-            action();
-            return;
-        }
+            if (dispatcher == null || dispatcher.CheckAccess())
+            {
+                action();
+                return;
+            }
 
-        dispatcher.Invoke(action);
+            dispatcher.Invoke(action);
+        }
+        catch (Exception exception)
+        {
+            LogService.LogException(exception, "TrayService.RunOnUiThread");
+            throw;
+        }
     }
 }
