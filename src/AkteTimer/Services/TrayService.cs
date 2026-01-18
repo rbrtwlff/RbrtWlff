@@ -11,6 +11,7 @@ public sealed class TrayService : IDisposable
     private readonly SettingsService _settingsService;
     private readonly HotkeyService _hotkeyService;
     private NotifyIcon? _notifyIcon;
+    private ContextMenuStrip? _contextMenu;
     private TodayWindow? _todayWindow;
     private ReportsWindow? _reportsWindow;
     private SettingsWindow? _settingsWindow;
@@ -40,6 +41,8 @@ public sealed class TrayService : IDisposable
         menu.Items.Add("Einstellungen", null, (_, _) => RunOnUiThread(ShowSettings));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Beenden", null, (_, _) => Exit());
+        menu.Closed += (_, _) => RefreshNotifyIcon();
+        _contextMenu = menu;
 
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.MouseClick += (_, args) =>
@@ -53,6 +56,7 @@ public sealed class TrayService : IDisposable
 
     public void Dispose()
     {
+        _contextMenu?.Dispose();
         _notifyIcon?.Dispose();
     }
 
@@ -89,6 +93,17 @@ public sealed class TrayService : IDisposable
             _popupWindow.PrepareForShutdown();
             System.Windows.Application.Current.Shutdown();
         });
+    }
+
+    private void RefreshNotifyIcon()
+    {
+        if (_notifyIcon == null)
+        {
+            return;
+        }
+
+        _notifyIcon.Visible = false;
+        _notifyIcon.Visible = true;
     }
 
     private static void RunOnUiThread(Action action)
