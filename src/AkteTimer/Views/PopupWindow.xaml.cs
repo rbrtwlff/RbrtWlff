@@ -120,6 +120,11 @@ public partial class PopupWindow : Window
 
     private void PromptForHashtagIfMissing()
     {
+        if (!_timeEntryService.ShouldPromptForHashtag())
+        {
+            return;
+        }
+
         var runningEntry = _timeEntryService.GetRunningEntry();
         if (runningEntry == null || !string.IsNullOrWhiteSpace(runningEntry.Hashtag))
         {

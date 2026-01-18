@@ -1,8 +1,61 @@
 <Window x:Class="AkteTimer.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Einstellungen" Height="260" Width="420">
+        Title="Einstellungen" Height="420" Width="520">
   <Grid Margin="12">
-    <TextBlock Text="Einstellungen (Phase 1): Hotkey/Defaults folgen." FontSize="14" />
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <GroupBox Header="Hotkey" Margin="0,0,0,12">
+          <StackPanel Margin="8">
+            <StackPanel Orientation="Horizontal">
+              <TextBox Width="240"
+                       IsReadOnly="True"
+                       Text="{Binding Hotkey}" />
+              <Button Content="{Binding RecordButtonText}"
+                      Command="{Binding ToggleRecordCommand}"
+                      Margin="8,0,0,0"
+                      Padding="8,2" />
+            </StackPanel>
+            <TextBlock Text="{Binding RecordHint}" Foreground="Gray" Margin="0,6,0,0" />
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Allgemein" Margin="0,0,0,12">
+          <StackPanel Margin="8">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <TextBlock Text="Globaler Ziel-Stundensatz (EUR/h)" Width="240" VerticalAlignment="Center" />
+              <TextBox Width="120"
+                       Text="{Binding GlobalTargetRateText, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <CheckBox Content="Hashtag-Stop-Nachfrage aktiv"
+                      IsChecked="{Binding HashtagStopPromptEnabled}" />
+            <CheckBox Content="Start-Default-Hashtag: Letzter Tag verwenden"
+                      IsChecked="{Binding UseLastHashtagDefault}"
+                      Margin="0,6,0,0" />
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Anzeige" Margin="0,0,0,12">
+          <StackPanel Margin="8">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Tabelle-Version" Width="140" VerticalAlignment="Center" />
+              <TextBox Width="160"
+                       IsReadOnly="True"
+                       Text="{Binding TableVersion}" />
+              <TextBlock Text="(Platzhalter)" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+      </StackPanel>
+    </ScrollViewer>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="Speichern" Command="{Binding SaveCommand}" Margin="0,0,8,0" Padding="12,4" />
+      <Button Content="Schließen" Command="{Binding CloseCommand}" Padding="12,4" />
+    </StackPanel>
   </Grid>
 </Window>

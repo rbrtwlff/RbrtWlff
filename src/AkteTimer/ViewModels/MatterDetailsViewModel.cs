@@ -141,7 +141,8 @@ public sealed class MatterDetailsViewModel : ViewModelBase
         _rvgEstimateEur = RvgCalculator.CalculateEstimate(_fee1_0Eur, _feeFactor);
         var actualHours = _actualMinutes / 60m;
         _effectiveHourlyRateEur = RvgCalculator.CalculateEffectiveHourlyRate(_rvgEstimateEur, actualHours);
-        _breakEvenTime = RvgCalculator.CalculateBreakEvenTime(_rvgEstimateEur, _targetRateEurPerHour);
+        var targetRate = _timeEntryService.GetEffectiveTargetRate(_targetRateEurPerHour);
+        _breakEvenTime = RvgCalculator.CalculateBreakEvenTime(_rvgEstimateEur, targetRate);
         NotifyPropertyChanged(nameof(Fee1_0Eur));
         NotifyPropertyChanged(nameof(RvgEstimateEur));
         NotifyPropertyChanged(nameof(EffectiveHourlyRateText));
