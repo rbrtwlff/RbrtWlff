@@ -9,6 +9,7 @@ namespace AkteTimer.Views;
 public partial class PopupWindow : Window
 {
     private readonly TimeEntryService _timeEntryService;
+    private bool _allowClose;
 
     public PopupWindow(TimeEntryService timeEntryService, SettingsService settingsService)
     {
@@ -18,6 +19,20 @@ public partial class PopupWindow : Window
 
         PreviewKeyDown += HandleKeyDown;
         Deactivated += (_, _) => Hide();
+        Closing += (_, args) =>
+        {
+            if (_allowClose)
+            {
+                return;
+            }
+
+            args.Cancel = true;
+            Hide();
+        };
+        if (Application.Current != null)
+        {
+            Application.Current.ShutdownStarted += (_, _) => _allowClose = true;
+        }
         IsVisibleChanged += (_, _) =>
         {
             if (IsVisible)
@@ -43,6 +58,11 @@ public partial class PopupWindow : Window
     {
         FileRefBox.Focus();
         FileRefBox.SelectAll();
+    }
+
+    public void PrepareForShutdown()
+    {
+        _allowClose = true;
     }
 
     private void HandleKeyDown(object? sender, System.Windows.Input.KeyEventArgs e)
