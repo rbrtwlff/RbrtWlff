@@ -55,7 +55,7 @@
                  FontSize="11"
                  Foreground="SteelBlue">
         <Hyperlink Command="{Binding ToggleHotkeyHelpCommand}">
-          <Run Text="{Binding HotkeyHelpToggleText}" />
+          <Run Text="{Binding HotkeyHelpToggleText, Mode=OneWay}" />
         </Hyperlink>
       </TextBlock>
 
