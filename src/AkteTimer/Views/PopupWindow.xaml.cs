@@ -9,6 +9,7 @@ namespace AkteTimer.Views;
 public partial class PopupWindow : Window
 {
     private readonly TimeEntryService _timeEntryService;
+    private TodayWindow? _todayWindow;
     private bool _allowClose;
 
     public PopupWindow(TimeEntryService timeEntryService, SettingsService settingsService)
@@ -94,7 +95,7 @@ public partial class PopupWindow : Window
             return;
         }
 
-        if (e.Key == Key.Enter && (FileRefBox.IsFocused || RecentMattersListBox.IsFocused))
+        if (e.Key == Key.Enter && (FileRefBox.IsFocused || RecentEntriesListBox.IsFocused))
         {
             ConfirmMatter(vm);
             return;
@@ -123,7 +124,7 @@ public partial class PopupWindow : Window
 
     private void ConfirmMatter(PopupViewModel vm)
     {
-        var fileRef = vm.SelectedRecentMatter ?? vm.FileRefInput;
+        var fileRef = vm.SelectedRecentEntry?.MatterFileRef ?? vm.FileRefInput;
         fileRef = fileRef.Trim();
         if (string.IsNullOrWhiteSpace(fileRef))
         {
@@ -153,6 +154,29 @@ public partial class PopupWindow : Window
         _timeEntryService.SwitchMatter(matter);
         vm.ClearInput();
         vm.Refresh();
+    }
+
+    private void StopButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not PopupViewModel vm)
+        {
+            return;
+        }
+
+        PromptForHashtagIfMissing();
+        _timeEntryService.Stop();
+        vm.Refresh();
+        FocusInput();
+    }
+
+    private void ShowToday_Click(object sender, RoutedEventArgs e)
+    {
+        _todayWindow ??= new TodayWindow(_timeEntryService)
+        {
+            Owner = this
+        };
+        _todayWindow.Show();
+        _todayWindow.Activate();
     }
 
     private void PromptForHashtagIfMissing()
