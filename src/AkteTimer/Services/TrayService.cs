@@ -30,6 +30,7 @@ public sealed class TrayService : IDisposable
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Öffnen", null, (_, _) => ShowPopup());
+        menu.Items.Add("Start/Pause", null, (_, _) => _timeEntryService.ToggleStartPause());
         menu.Items.Add("Heute", null, (_, _) => ShowToday());
         menu.Items.Add("Auswertung", null, (_, _) => ShowReports());
         menu.Items.Add("Einstellungen", null, (_, _) => ShowSettings());
