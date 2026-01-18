@@ -10,11 +10,11 @@ public partial class PopupWindow : Window
 {
     private readonly TimeEntryService _timeEntryService;
 
-    public PopupWindow(TimeEntryService timeEntryService)
+    public PopupWindow(TimeEntryService timeEntryService, SettingsService settingsService)
     {
         InitializeComponent();
         _timeEntryService = timeEntryService;
-        DataContext = new PopupViewModel(_timeEntryService);
+        DataContext = new PopupViewModel(_timeEntryService, settingsService);
 
         PreviewKeyDown += HandleKeyDown;
         Deactivated += (_, _) => Hide();

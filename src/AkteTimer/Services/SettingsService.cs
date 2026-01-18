@@ -11,6 +11,7 @@ public sealed class SettingsService
     public const string HashtagStopPromptSetting = "hashtag_stop_prompt";
     public const string UseLastHashtagDefaultSetting = "start_default_hashtag_last_day";
     public const string TableVersionSetting = "table_version";
+    public const string PopupHotkeyHelpSetting = "popup_hotkey_help";
 
     private const string DefaultHotkey = "Ctrl+Alt+T";
     private const string DefaultHashtag = "#Sonstiges";
@@ -53,6 +54,11 @@ public sealed class SettingsService
         if (_database.GetSetting(TableVersionSetting) == null)
         {
             _database.SetSetting(TableVersionSetting, DefaultTableVersion);
+        }
+
+        if (_database.GetSetting(PopupHotkeyHelpSetting) == null)
+        {
+            _database.SetSetting(PopupHotkeyHelpSetting, "0");
         }
     }
 
@@ -103,6 +109,13 @@ public sealed class SettingsService
     public void SetTableVersion(string value)
     {
         _database.SetSetting(TableVersionSetting, value);
+    }
+
+    public bool IsPopupHotkeyHelpVisible => GetBool(PopupHotkeyHelpSetting, false);
+
+    public void SetPopupHotkeyHelpVisible(bool value)
+    {
+        _database.SetSetting(PopupHotkeyHelpSetting, value ? "1" : "0");
     }
 
     public string GetStartHashtag()

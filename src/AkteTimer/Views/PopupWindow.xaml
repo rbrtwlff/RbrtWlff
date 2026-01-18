@@ -2,14 +2,19 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AkteTimer"
-        Width="360" Height="260"
+        Width="360" Height="340"
         WindowStyle="ToolWindow"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+  </Window.Resources>
   <Border Padding="12">
     <Grid>
       <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
@@ -45,8 +50,33 @@
                VerticalContentAlignment="Center"
                Text="{Binding FileRefInput, UpdateSourceTrigger=PropertyChanged}" />
 
+      <TextBlock Grid.Row="5"
+                 Margin="0,8,0,0"
+                 FontSize="11"
+                 Foreground="SteelBlue">
+        <Hyperlink Command="{Binding ToggleHotkeyHelpCommand}">
+          <Run Text="{Binding HotkeyHelpToggleText}" />
+        </Hyperlink>
+      </TextBlock>
+
+      <Border Grid.Row="6"
+              Margin="0,6,0,0"
+              Padding="8"
+              Background="#FFF5F5F5"
+              BorderBrush="#FFE0E0E0"
+              BorderThickness="1"
+              Visibility="{Binding IsHotkeyHelpVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+        <StackPanel>
+          <TextBlock Text="Ctrl+Alt+T: Popup öffnen" />
+          <TextBlock Text="Enter: Aktenzeichen bestätigen / Start-Pause (je nach Fokus)" />
+          <TextBlock Text="Pfeil hoch/runter: letzte Akten" />
+          <TextBlock Text="Ctrl+1..7: Hashtags setzen, Ctrl+0: #Sonstiges" />
+          <TextBlock Text="Esc: Popup schließen" />
+        </StackPanel>
+      </Border>
+
       <ListBox x:Name="RecentMattersListBox"
-               Grid.Row="5"
+               Grid.Row="7"
                Margin="0,8,0,0"
                ItemsSource="{Binding RecentMatters}"
                SelectedItem="{Binding SelectedRecentMatter, Mode=TwoWay}" />

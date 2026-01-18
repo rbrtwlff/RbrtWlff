@@ -8,6 +8,7 @@ namespace AkteTimer.ViewModels;
 public sealed class PopupViewModel : ViewModelBase
 {
     private readonly TimeEntryService _timeEntryService;
+    private readonly SettingsService _settingsService;
     private readonly DispatcherTimer _timer;
     private string _fileRefInput = string.Empty;
     private string _statusText = "Pausiert";
@@ -16,13 +17,16 @@ public sealed class PopupViewModel : ViewModelBase
     private string _entryDurationText = "00:00:00";
     private string _toggleButtonText = "Start";
     private string? _selectedRecentMatter;
+    private bool _isHotkeyHelpVisible;
 
-    public PopupViewModel(TimeEntryService timeEntryService)
+    public PopupViewModel(TimeEntryService timeEntryService, SettingsService settingsService)
     {
         _timeEntryService = timeEntryService;
+        _settingsService = settingsService;
         _timeEntryService.StateChanged += (_, _) => Refresh();
 
         ToggleCommand = new RelayCommand(_ => Toggle());
+        ToggleHotkeyHelpCommand = new RelayCommand(_ => ToggleHotkeyHelp());
 
         _timer = new DispatcherTimer
         {
@@ -31,6 +35,7 @@ public sealed class PopupViewModel : ViewModelBase
         _timer.Tick += (_, _) => RefreshDurations();
         _timer.Start();
 
+        _isHotkeyHelpVisible = _settingsService.IsPopupHotkeyHelpVisible;
         LoadRecentMatters();
         Refresh();
     }
@@ -38,6 +43,8 @@ public sealed class PopupViewModel : ViewModelBase
     public ObservableCollection<string> RecentMatters { get; } = new();
 
     public RelayCommand ToggleCommand { get; }
+
+    public RelayCommand ToggleHotkeyHelpCommand { get; }
 
     public string FileRefInput
     {
@@ -129,6 +136,25 @@ public sealed class PopupViewModel : ViewModelBase
         }
     }
 
+    public bool IsHotkeyHelpVisible
+    {
+        get => _isHotkeyHelpVisible;
+        private set
+        {
+            if (_isHotkeyHelpVisible == value)
+            {
+                return;
+            }
+
+            _isHotkeyHelpVisible = value;
+            _settingsService.SetPopupHotkeyHelpVisible(value);
+            NotifyPropertyChanged();
+            NotifyPropertyChanged(nameof(HotkeyHelpToggleText));
+        }
+    }
+
+    public string HotkeyHelpToggleText => IsHotkeyHelpVisible ? "Hotkey-Hilfe ausblenden" : "Hotkey-Hilfe anzeigen";
+
     public void MoveSelection(int delta)
     {
         if (RecentMatters.Count == 0)
@@ -169,6 +195,11 @@ public sealed class PopupViewModel : ViewModelBase
     private void Toggle()
     {
         _timeEntryService.ToggleStartPause();
+    }
+
+    private void ToggleHotkeyHelp()
+    {
+        IsHotkeyHelpVisible = !IsHotkeyHelpVisible;
     }
 
     private void LoadRecentMatters()
