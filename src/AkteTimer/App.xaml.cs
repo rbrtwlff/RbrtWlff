@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Windows;
 using AkteTimer.Services;
 using AkteTimer.Views;
@@ -17,6 +19,10 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        LogService.Initialize();
+        RegisterGlobalExceptionHandlers();
+        LogService.LogInfo("App-Start.");
 
         _databaseService = new DatabaseService();
         _databaseService.Initialize();
@@ -40,6 +46,30 @@ public partial class App : System.Windows.Application
         _trayService.Initialize();
 
         HandleRecovery();
+    }
+
+    private static void RegisterGlobalExceptionHandlers()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception exception)
+            {
+                LogService.LogException(exception, "UnhandledException");
+                return;
+            }
+
+            LogService.LogError("UnhandledException ohne Exception-Objekt.");
+        };
+
+        DispatcherUnhandledException += (_, args) =>
+        {
+            LogService.LogException(args.Exception, "DispatcherUnhandledException");
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            LogService.LogException(args.Exception, "UnobservedTaskException");
+        };
     }
 
     private void HandleRecovery()
@@ -74,6 +104,7 @@ public partial class App : System.Windows.Application
     {
         _hotkeyService?.Dispose();
         _trayService?.Dispose();
+        LogService.LogInfo("App-Ende.");
         base.OnExit(e);
     }
 }
