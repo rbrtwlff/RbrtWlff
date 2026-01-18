@@ -26,7 +26,7 @@ public partial class App : System.Windows.Application
 
         _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
 
-        _popupWindow = new PopupWindow(_timeEntryService);
+        _popupWindow = new PopupWindow(_timeEntryService, _settingsService);
 
         _hotkeyService = new HotkeyService(_settingsService);
         _hotkeyService.HotkeyPressed += (_, _) =>
