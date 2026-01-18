@@ -19,9 +19,9 @@ public partial class HashtagPromptWindow : Window
 
     private void HandleTagClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: string hashtag })
+        if (sender is FrameworkElement { DataContext: TagChipViewModel chip })
         {
-            SelectedHashtag = hashtag;
+            SelectedHashtag = chip.Tag;
             DialogResult = true;
         }
     }
