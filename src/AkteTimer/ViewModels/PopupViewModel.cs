@@ -14,6 +14,7 @@ public sealed class PopupViewModel : ViewModelBase
     private string _activeMatterText = "-";
     private string _todayDurationText = "00:00:00";
     private string _entryDurationText = "00:00:00";
+    private string _toggleButtonText = "Start";
     private string? _selectedRecentMatter;
 
     public PopupViewModel(TimeEntryService timeEntryService)
@@ -118,6 +119,16 @@ public sealed class PopupViewModel : ViewModelBase
         }
     }
 
+    public string ToggleButtonText
+    {
+        get => _toggleButtonText;
+        private set
+        {
+            _toggleButtonText = value;
+            NotifyPropertyChanged();
+        }
+    }
+
     public void MoveSelection(int delta)
     {
         if (RecentMatters.Count == 0)
@@ -149,6 +160,7 @@ public sealed class PopupViewModel : ViewModelBase
     public void Refresh()
     {
         StatusText = _timeEntryService.IsRunning ? "Läuft" : "Pausiert";
+        ToggleButtonText = _timeEntryService.IsRunning ? "Pause" : "Start";
         ActiveMatterText = _timeEntryService.ActiveMatterFileRef ?? "-";
         RefreshDurations();
         LoadRecentMatters();
