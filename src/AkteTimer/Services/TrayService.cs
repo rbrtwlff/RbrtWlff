@@ -33,11 +33,11 @@ public sealed class TrayService : IDisposable
         };
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Öffnen", null, (_, _) => ShowPopup());
-        menu.Items.Add("Start/Pause", null, (_, _) => _timeEntryService.ToggleStartPause());
-        menu.Items.Add("Heute", null, (_, _) => ShowToday());
-        menu.Items.Add("Auswertung", null, (_, _) => ShowReports());
-        menu.Items.Add("Einstellungen", null, (_, _) => ShowSettings());
+        menu.Items.Add("Öffnen", null, (_, _) => RunOnUiThread(ShowPopup));
+        menu.Items.Add("Start/Pause", null, (_, _) => RunOnUiThread(() => _timeEntryService.ToggleStartPause()));
+        menu.Items.Add("Heute", null, (_, _) => RunOnUiThread(ShowToday));
+        menu.Items.Add("Auswertung", null, (_, _) => RunOnUiThread(ShowReports));
+        menu.Items.Add("Einstellungen", null, (_, _) => RunOnUiThread(ShowSettings));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Beenden", null, (_, _) => Exit());
 
@@ -46,7 +46,7 @@ public sealed class TrayService : IDisposable
         {
             if (args.Button == MouseButtons.Left)
             {
-                ShowPopup();
+                RunOnUiThread(ShowPopup);
             }
         };
     }
@@ -85,5 +85,17 @@ public sealed class TrayService : IDisposable
     private static void Exit()
     {
         System.Windows.Application.Current.Shutdown();
+    }
+
+    private static void RunOnUiThread(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        dispatcher.Invoke(action);
     }
 }
