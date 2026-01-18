@@ -8,12 +8,24 @@ public sealed class DatabaseService
 {
     private readonly string _databasePath;
 
-    public DatabaseService()
+    public DatabaseService(string? databasePath = null)
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var folder = Path.Combine(appData, "AkteTimer");
-        Directory.CreateDirectory(folder);
-        _databasePath = Path.Combine(folder, "aktetimer.db");
+        if (string.IsNullOrWhiteSpace(databasePath))
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var folder = Path.Combine(appData, "AkteTimer");
+            Directory.CreateDirectory(folder);
+            _databasePath = Path.Combine(folder, "aktetimer.db");
+        }
+        else
+        {
+            var folder = Path.GetDirectoryName(databasePath);
+            if (!string.IsNullOrWhiteSpace(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+            _databasePath = databasePath;
+        }
     }
 
     public string DatabasePath => _databasePath;
