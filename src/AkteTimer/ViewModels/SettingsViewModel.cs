@@ -205,13 +205,13 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(Hotkey))
         {
-            MessageBox.Show("Hotkey darf nicht leer sein.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show("Hotkey darf nicht leer sein.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (!decimal.TryParse(GlobalTargetRateText, NumberStyles.Number, CultureInfo.CurrentCulture, out var targetRate))
         {
-            MessageBox.Show("Bitte einen gültigen Ziel-Stundensatz eingeben.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show("Bitte einen gültigen Ziel-Stundensatz eingeben.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -219,7 +219,7 @@ public sealed class SettingsViewModel : ViewModelBase
         if (!_hotkeyService.TryRegister(Hotkey, out var errorMessage))
         {
             _hotkeyService.TryRegister(previousHotkey, out _);
-            MessageBox.Show(errorMessage ?? "Hotkey konnte nicht registriert werden.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.MessageBox.Show(errorMessage ?? "Hotkey konnte nicht registriert werden.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -229,6 +229,6 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.SetUseLastHashtagAsDefault(UseLastHashtagDefault);
         _settings.SetTableVersion(TableVersion);
 
-        MessageBox.Show("Einstellungen gespeichert.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Information);
+        System.Windows.MessageBox.Show("Einstellungen gespeichert.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }

@@ -30,7 +30,7 @@ public partial class SettingsWindow : Window
 
     private void HandleClosing(object? sender, CancelEventArgs e)
     {
-        if (Application.Current?.Dispatcher.HasShutdownStarted == true)
+        if (System.Windows.Application.Current?.Dispatcher.HasShutdownStarted == true)
         {
             return;
         }
