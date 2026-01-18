@@ -1,25 +1,49 @@
 <Window x:Class="AkteTimer.Views.TodayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Heute" Height="360" Width="640">
+        Title="Heute" Height="520" Width="960">
   <DockPanel Margin="12">
-    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-      <TextBlock FontWeight="Bold"
-                 Text="{Binding TotalDuration, StringFormat=Summe Ist: {0}}" />
-      <TextBlock FontWeight="Bold"
-                 Text="{Binding TotalActualMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
-      <TextBlock FontWeight="Bold"
-                 Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
-    </StackPanel>
+    <Border DockPanel.Dock="Top" Background="#F5F5F5" Padding="8" Margin="0,0,0,8" CornerRadius="4">
+      <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+          <TextBlock Text="Datum" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <DatePicker SelectedDate="{Binding SelectedDate}" Width="140" />
+          <TextBlock Text="Akte" VerticalAlignment="Center" Margin="16,0,8,0" />
+          <ComboBox Width="160"
+                    ItemsSource="{Binding MatterOptions}"
+                    DisplayMemberPath="Label"
+                    SelectedValuePath="Value"
+                    SelectedValue="{Binding SelectedMatter}" />
+          <TextBlock Text="Hashtag" VerticalAlignment="Center" Margin="16,0,8,0" />
+          <ComboBox Width="160"
+                    ItemsSource="{Binding HashtagOptions}"
+                    DisplayMemberPath="Label"
+                    SelectedValuePath="Value"
+                    SelectedValue="{Binding SelectedHashtag}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <Button Content="Export CSV" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" />
+          <Button Content="Export XLSX" Command="{Binding ExportExcelCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <Border DockPanel.Dock="Bottom" Background="#F5F5F5" Padding="8" CornerRadius="4">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock FontWeight="Bold" Text="{Binding TotalDuration, StringFormat=Summe Ist: {0}}" Margin="0,0,16,0" />
+        <TextBlock FontWeight="Bold" Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
+      </StackPanel>
+    </Border>
     <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="True" MouseDoubleClick="OnEntryDoubleClick">
       <DataGrid.Columns>
+        <DataGridTextColumn Header="Datum" Binding="{Binding DateLocal, StringFormat=dd.MM.yyyy}" />
         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
         <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
         <DataGridTextColumn Header="Hashtag" Binding="{Binding Hashtag}" />
-        <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
-        <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" />
-        <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" />
+        <DataGridTextColumn Header="Ist hh:mm:ss" Binding="{Binding DurationText}" />
+        <DataGridTextColumn Header="Ist Minuten" Binding="{Binding ActualMinutes}" />
+        <DataGridTextColumn Header="6-Min Minuten" Binding="{Binding RoundedMinutes}" />
+        <DataGridTextColumn Header="Notiz" Binding="{Binding Note}" Width="*" />
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>
