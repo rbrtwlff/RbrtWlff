@@ -8,6 +8,41 @@
         WindowStyle="ToolWindow"
         ShowInTaskbar="False"
         Topmost="True">
+  <Window.Resources>
+    <Style x:Key="TagChipButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="#FFF5F5F5" />
+      <Setter Property="BorderBrush" Value="#FFE0E0E0" />
+      <Setter Property="Foreground" Value="Black" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinWidth" Value="90" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="12">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#FFEFF6FF" />
+          <Setter Property="BorderBrush" Value="#FF8AB6F8" />
+        </Trigger>
+        <DataTrigger Binding="{Binding IsActive}" Value="True">
+          <Setter Property="Background" Value="#FFD7E8FF" />
+          <Setter Property="BorderBrush" Value="#FF5B8DEB" />
+          <Setter Property="Foreground" Value="#FF0B3D91" />
+          <Setter Property="FontWeight" Value="Bold" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
   <Border Padding="16">
     <StackPanel>
       <TextBlock Text="Hashtag hinzufügen?" FontWeight="Bold" FontSize="14" />
@@ -20,10 +55,10 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <Button Content="{Binding}"
+            <Button Content="{Binding Tag}"
                     Margin="0,0,8,8"
-                    Padding="10,4"
-                    MinWidth="90"
+                    ToolTip="{Binding Shortcut}"
+                    Style="{StaticResource TagChipButtonStyle}"
                     Click="HandleTagClick" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
