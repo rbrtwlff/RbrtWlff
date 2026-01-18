@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Forms;
 using AkteTimer.Services;
 using AkteTimer.Views;
 using MessageBox = System.Windows.MessageBox;
@@ -15,20 +16,37 @@ public partial class App : System.Windows.Application
     private TimeEntryService? _timeEntryService;
     private PopupWindow? _popupWindow;
     private SettingsService? _settingsService;
+    private DataDirectoryService? _dataDirectoryService;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        LogService.Initialize();
+        _dataDirectoryService = new DataDirectoryService();
+        var startupDirectory = ResolveStartupDirectory(_dataDirectoryService);
+        if (startupDirectory == null)
+        {
+            Shutdown();
+            return;
+        }
+
+        _dataDirectoryService.SetCurrentDirectory(startupDirectory);
+        _dataDirectoryService.PersistDirectory(startupDirectory);
+
+        LogService.Initialize(_dataDirectoryService.LogsDirectory);
         RegisterGlobalExceptionHandlers();
         LogService.LogInfo("App-Start.");
 
-        _databaseService = new DatabaseService();
+        _databaseService = new DatabaseService(_dataDirectoryService);
         _databaseService.Initialize();
 
         _settingsService = new SettingsService(_databaseService);
         _settingsService.EnsureDefaults();
+        if (!ApplyStoredDataDirectory(_dataDirectoryService, _databaseService, _settingsService))
+        {
+            Shutdown();
+            return;
+        }
 
         _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
 
@@ -42,7 +60,7 @@ public partial class App : System.Windows.Application
         };
         _hotkeyService.Register();
 
-        _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService);
+        _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService, _dataDirectoryService, _databaseService);
         _trayService.Initialize();
 
         HandleRecovery();
@@ -109,5 +127,107 @@ public partial class App : System.Windows.Application
         _trayService?.Dispose();
         LogService.LogInfo("App-Ende.");
         base.OnExit(e);
+    }
+
+    private static string? ResolveStartupDirectory(DataDirectoryService dataDirectoryService)
+    {
+        var preferredDirectory = dataDirectoryService.LoadPersistedDirectory() ?? dataDirectoryService.DefaultDirectory;
+        if (dataDirectoryService.TryEnsureWritable(preferredDirectory, out _))
+        {
+            return preferredDirectory;
+        }
+
+        return PromptForUnavailableDirectory(dataDirectoryService, preferredDirectory);
+    }
+
+    private static string? PromptForUnavailableDirectory(DataDirectoryService dataDirectoryService, string missingDirectory)
+    {
+        var result = MessageBox.Show(
+            $"Der Datenordner ist nicht erreichbar:\n{missingDirectory}\n\n" +
+            "Möchten Sie einen anderen Ordner auswählen?",
+            "Datenordner nicht erreichbar",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.Yes);
+
+        if (result == MessageBoxResult.No)
+        {
+            if (dataDirectoryService.TryEnsureWritable(dataDirectoryService.DefaultDirectory, out _))
+            {
+                return dataDirectoryService.DefaultDirectory;
+            }
+
+            MessageBox.Show(
+                "Der Standard-Datenordner ist ebenfalls nicht verfügbar. Die App wird beendet.",
+                "Datenordner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return null;
+        }
+
+        while (true)
+        {
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "Datenordner auswählen",
+                SelectedPath = dataDirectoryService.DefaultDirectory,
+                ShowNewFolderButton = true
+            };
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+            {
+                MessageBox.Show(
+                    "Ohne Datenordner kann die App nicht starten.",
+                    "Datenordner",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return null;
+            }
+
+            if (dataDirectoryService.TryEnsureWritable(dialog.SelectedPath, out var errorMessage))
+            {
+                return dialog.SelectedPath;
+            }
+
+            MessageBox.Show(
+                $"Der Ordner konnte nicht beschrieben werden:\n{errorMessage}",
+                "Datenordner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private static bool ApplyStoredDataDirectory(DataDirectoryService dataDirectoryService, DatabaseService databaseService, SettingsService settingsService)
+    {
+        var storedDirectory = settingsService.DataDirectory;
+        if (string.IsNullOrWhiteSpace(storedDirectory))
+        {
+            settingsService.SetDataDirectory(dataDirectoryService.CurrentDirectory);
+            dataDirectoryService.PersistDirectory(dataDirectoryService.CurrentDirectory);
+            return true;
+        }
+
+        if (DataDirectoryService.AreSameDirectory(storedDirectory, dataDirectoryService.CurrentDirectory))
+        {
+            return true;
+        }
+
+        if (!dataDirectoryService.TryEnsureWritable(storedDirectory, out _))
+        {
+            var fallback = PromptForUnavailableDirectory(dataDirectoryService, storedDirectory);
+            if (fallback == null)
+            {
+                return false;
+            }
+
+            storedDirectory = fallback;
+        }
+
+        dataDirectoryService.SetCurrentDirectory(storedDirectory);
+        dataDirectoryService.PersistDirectory(storedDirectory);
+        databaseService.Initialize();
+        settingsService.SetDataDirectory(storedDirectory);
+        LogService.UpdateLogDirectory(dataDirectoryService.LogsDirectory);
+        return true;
     }
 }

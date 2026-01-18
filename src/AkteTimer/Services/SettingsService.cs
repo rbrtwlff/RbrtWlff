@@ -12,6 +12,7 @@ public sealed class SettingsService
     public const string UseLastHashtagDefaultSetting = "start_default_hashtag_last_day";
     public const string TableVersionSetting = "table_version";
     public const string PopupHotkeyHelpSetting = "popup_hotkey_help";
+    public const string DataDirectorySetting = DataDirectoryService.DataDirectorySetting;
 
     private const string DefaultHotkey = "Ctrl+Alt+T";
     private const string DefaultHashtag = "#Sonstiges";
@@ -116,6 +117,13 @@ public sealed class SettingsService
     public void SetPopupHotkeyHelpVisible(bool value)
     {
         _database.SetSetting(PopupHotkeyHelpSetting, value ? "1" : "0");
+    }
+
+    public string? DataDirectory => _database.GetSetting(DataDirectorySetting);
+
+    public void SetDataDirectory(string directory)
+    {
+        _database.SetSetting(DataDirectorySetting, directory);
     }
 
     public string GetStartHashtag()

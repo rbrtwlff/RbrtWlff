@@ -10,24 +10,21 @@ public static class LogService
     private static readonly object SyncRoot = new();
     private static string? _logFilePath;
 
-    public static void Initialize()
+    public static void Initialize(string logDirectory)
     {
         if (_logFilePath != null)
         {
             return;
         }
 
-        var baseDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "AkteTimer",
-            "Logs");
-
-        Directory.CreateDirectory(baseDirectory);
-
-        var fileName = $"AkteTimer-{DateTime.UtcNow:yyyyMMdd}.log";
-        _logFilePath = Path.Combine(baseDirectory, fileName);
-
+        SetLogFilePath(logDirectory);
         LogInfo("Logging initialisiert.");
+    }
+
+    public static void UpdateLogDirectory(string logDirectory)
+    {
+        SetLogFilePath(logDirectory);
+        LogInfo("Logging-Pfad aktualisiert.");
     }
 
     public static void LogInfo(string message)
@@ -68,5 +65,12 @@ public static class LogService
         {
             File.AppendAllText(_logFilePath, builder.ToString());
         }
+    }
+
+    private static void SetLogFilePath(string logDirectory)
+    {
+        Directory.CreateDirectory(logDirectory);
+        var fileName = $"AkteTimer-{DateTime.UtcNow:yyyyMMdd}.log";
+        _logFilePath = Path.Combine(logDirectory, fileName);
     }
 }

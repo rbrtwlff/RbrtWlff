@@ -6,32 +6,35 @@ namespace AkteTimer.Services;
 
 public sealed class DatabaseService
 {
-    private readonly string _databasePath;
+    private readonly string? _databasePath;
+    private readonly DataDirectoryService? _dataDirectoryService;
 
-    public DatabaseService(string? databasePath = null)
+    public DatabaseService(DataDirectoryService dataDirectoryService)
+    {
+        _dataDirectoryService = dataDirectoryService;
+    }
+
+    public DatabaseService(string databasePath)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var folder = Path.Combine(appData, "AkteTimer");
-            Directory.CreateDirectory(folder);
-            _databasePath = Path.Combine(folder, "aktetimer.db");
+            throw new ArgumentException("Database path must not be empty.", nameof(databasePath));
         }
-        else
-        {
-            var folder = Path.GetDirectoryName(databasePath);
-            if (!string.IsNullOrWhiteSpace(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
-            _databasePath = databasePath;
-        }
+
+        _databasePath = databasePath;
     }
 
-    public string DatabasePath => _databasePath;
+    public string DatabasePath => ResolveDatabasePath();
 
     public void Initialize()
     {
+        var databasePath = ResolveDatabasePath();
+        var folder = Path.GetDirectoryName(databasePath);
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            Directory.CreateDirectory(folder);
+        }
+
         using var connection = CreateConnection();
         connection.Open();
 
@@ -78,7 +81,22 @@ public sealed class DatabaseService
 
     public SqliteConnection CreateConnection()
     {
-        return new SqliteConnection($"Data Source={_databasePath}");
+        return new SqliteConnection($"Data Source={ResolveDatabasePath()}");
+    }
+
+    private string ResolveDatabasePath()
+    {
+        if (!string.IsNullOrWhiteSpace(_databasePath))
+        {
+            return _databasePath;
+        }
+
+        if (_dataDirectoryService == null)
+        {
+            throw new InvalidOperationException("Database path is not configured.");
+        }
+
+        return _dataDirectoryService.DatabasePath;
     }
 
     public void ExecuteInTransaction(Action<SqliteConnection, SqliteTransaction> action)

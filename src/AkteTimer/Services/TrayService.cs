@@ -11,18 +11,22 @@ public sealed class TrayService : IDisposable
     private readonly TimeEntryService _timeEntryService;
     private readonly SettingsService _settingsService;
     private readonly HotkeyService _hotkeyService;
+    private readonly DataDirectoryService _dataDirectoryService;
+    private readonly DatabaseService _databaseService;
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
     private TodayWindow? _todayWindow;
     private ReportsWindow? _reportsWindow;
     private SettingsWindow? _settingsWindow;
 
-    public TrayService(PopupWindow popupWindow, TimeEntryService timeEntryService, SettingsService settingsService, HotkeyService hotkeyService)
+    public TrayService(PopupWindow popupWindow, TimeEntryService timeEntryService, SettingsService settingsService, HotkeyService hotkeyService, DataDirectoryService dataDirectoryService, DatabaseService databaseService)
     {
         _popupWindow = popupWindow;
         _timeEntryService = timeEntryService;
         _settingsService = settingsService;
         _hotkeyService = hotkeyService;
+        _dataDirectoryService = dataDirectoryService;
+        _databaseService = databaseService;
     }
 
     public void Initialize()
@@ -83,7 +87,7 @@ public sealed class TrayService : IDisposable
 
     private void ShowSettings()
     {
-        _settingsWindow ??= new SettingsWindow(_settingsService, _hotkeyService);
+        _settingsWindow ??= new SettingsWindow(_settingsService, _hotkeyService, _dataDirectoryService, _databaseService);
         _settingsWindow.Show();
         _settingsWindow.Activate();
     }
