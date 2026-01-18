@@ -8,10 +8,10 @@ namespace AkteTimer.Views;
 
 public partial class SettingsWindow : Window
 {
-    public SettingsWindow(SettingsService settingsService, HotkeyService hotkeyService)
+    public SettingsWindow(SettingsService settingsService, HotkeyService hotkeyService, DataDirectoryService dataDirectoryService, DatabaseService databaseService)
     {
         InitializeComponent();
-        var viewModel = new SettingsViewModel(settingsService, hotkeyService);
+        var viewModel = new SettingsViewModel(settingsService, hotkeyService, dataDirectoryService, databaseService);
         viewModel.RequestClose += (_, _) => Hide();
         DataContext = viewModel;
         PreviewKeyDown += (_, args) =>

@@ -1,7 +1,7 @@
 <Window x:Class="AkteTimer.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Einstellungen" Height="420" Width="520">
+        Title="Einstellungen" Height="480" Width="520">
   <Grid Margin="12">
     <Grid.RowDefinitions>
       <RowDefinition Height="*" />
@@ -36,6 +36,21 @@
             <CheckBox Content="Start-Default-Hashtag: Letzter Tag verwenden"
                       IsChecked="{Binding UseLastHashtagDefault}"
                       Margin="0,6,0,0" />
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Datenordner" Margin="0,0,0,12">
+          <StackPanel Margin="8">
+            <TextBlock Text="Speicherort für Datenbank, Logs und Backups." />
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBox Width="320"
+                       IsReadOnly="True"
+                       Text="{Binding DataDirectory}" />
+              <Button Content="Datenordner..."
+                      Command="{Binding SelectDataDirectoryCommand}"
+                      Margin="8,0,0,0"
+                      Padding="8,2" />
+            </StackPanel>
           </StackPanel>
         </GroupBox>
 
