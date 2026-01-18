@@ -82,9 +82,13 @@ public sealed class TrayService : IDisposable
         _settingsWindow.Activate();
     }
 
-    private static void Exit()
+    private void Exit()
     {
-        System.Windows.Application.Current.Shutdown();
+        RunOnUiThread(() =>
+        {
+            _popupWindow.PrepareForShutdown();
+            System.Windows.Application.Current.Shutdown();
+        });
     }
 
     private static void RunOnUiThread(Action action)
