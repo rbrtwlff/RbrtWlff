@@ -78,7 +78,7 @@ public sealed class TimeEntryService
         }
 
         var matter = _database.GetMatterByFileRef(ActiveMatterFileRef) ?? _database.CreateMatter(ActiveMatterFileRef);
-        var hashtag = _settings.LastHashtag;
+        var hashtag = _settings.GetStartHashtag();
         _database.CreateTimeEntry(matter.Id, DateTime.UtcNow, hashtag);
         OnStateChanged();
         return true;
@@ -103,7 +103,7 @@ public sealed class TimeEntryService
                 """;
             insert.Parameters.AddWithValue("$matter_id", matter.Id);
             insert.Parameters.AddWithValue("$start_utc", DateTime.UtcNow.ToString("o"));
-            insert.Parameters.AddWithValue("$hashtag", _settings.LastHashtag);
+            insert.Parameters.AddWithValue("$hashtag", _settings.GetStartHashtag());
             insert.Parameters.AddWithValue("$created_utc", DateTime.UtcNow.ToString("o"));
             insert.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
             insert.ExecuteNonQuery();
@@ -129,7 +129,16 @@ public sealed class TimeEntryService
 
     public List<Matter> GetRecentMatters() => _database.GetRecentMatters(10);
 
-    public string GetDefaultHashtag() => _settings.LastHashtag;
+    public string GetDefaultHashtag() => _settings.GetStartHashtag();
+
+    public bool ShouldPromptForHashtag() => _settings.IsHashtagStopPromptEnabled;
+
+    public decimal GetEffectiveTargetRate(decimal matterRate)
+    {
+        return matterRate > 0m ? matterRate : _settings.GlobalTargetRateEurPerHour;
+    }
+
+    public decimal GetEffectiveTargetRate(Matter matter) => GetEffectiveTargetRate(matter.TargetRateEurPerHour);
 
     public void SetEntryHashtag(long entryId, string hashtag)
     {

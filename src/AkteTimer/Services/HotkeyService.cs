@@ -23,10 +23,24 @@ public sealed class HotkeyService : IDisposable
 
     public void Register()
     {
-        if (_source != null)
+        TryRegister(_settings.Hotkey, out _);
+    }
+
+    public void Dispose()
+    {
+        CleanupSource();
+    }
+
+    public bool TryRegister(string hotkey, out string? errorMessage)
+    {
+        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(hotkey))
         {
-            return;
+            errorMessage = "Hotkey darf nicht leer sein.";
+            return false;
         }
+
+        CleanupSource();
 
         var parameters = new HwndSourceParameters("AkteTimerHotkey")
         {
@@ -38,16 +52,15 @@ public sealed class HotkeyService : IDisposable
         _source = new HwndSource(parameters);
         _source.AddHook(WndProc);
 
-        var (modifiers, key) = ParseHotkey(_settings.Hotkey);
+        var (modifiers, key) = ParseHotkey(hotkey);
         if (!RegisterHotKey(_source.Handle, HotkeyId, modifiers, key))
         {
+            errorMessage = "Hotkey konnte nicht registriert werden. Eventuell ist er bereits belegt.";
             CleanupSource();
+            return false;
         }
-    }
 
-    public void Dispose()
-    {
-        CleanupSource();
+        return true;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

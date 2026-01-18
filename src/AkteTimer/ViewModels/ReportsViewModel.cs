@@ -366,7 +366,7 @@ public sealed class ReportsViewModel : ViewModelBase
         var estimate = RvgCalculator.CalculateEstimate(fee1_0, matter.FeeFactor);
         var actualHours = actualMinutes / 60m;
         var effective = RvgCalculator.CalculateEffectiveHourlyRate(estimate, actualHours);
-        var breakEven = RvgCalculator.CalculateBreakEvenTime(estimate, matter.TargetRateEurPerHour);
+        var breakEven = RvgCalculator.CalculateBreakEvenTime(estimate, _timeEntryService.GetEffectiveTargetRate(matter));
         return new RvgMetrics(fee1_0, estimate, effective, breakEven);
     }
 

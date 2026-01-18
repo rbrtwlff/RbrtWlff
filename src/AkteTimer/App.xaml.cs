@@ -12,6 +12,7 @@ public partial class App : System.Windows.Application
     private DatabaseService? _databaseService;
     private TimeEntryService? _timeEntryService;
     private PopupWindow? _popupWindow;
+    private SettingsService? _settingsService;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -20,23 +21,23 @@ public partial class App : System.Windows.Application
         _databaseService = new DatabaseService();
         _databaseService.Initialize();
 
-        var settingsService = new SettingsService(_databaseService);
-        settingsService.EnsureDefaults();
+        _settingsService = new SettingsService(_databaseService);
+        _settingsService.EnsureDefaults();
 
-        _timeEntryService = new TimeEntryService(_databaseService, settingsService);
+        _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
 
         _popupWindow = new PopupWindow(_timeEntryService);
 
-        _trayService = new TrayService(_popupWindow, _timeEntryService);
-        _trayService.Initialize();
-
-        _hotkeyService = new HotkeyService(settingsService);
+        _hotkeyService = new HotkeyService(_settingsService);
         _hotkeyService.HotkeyPressed += (_, _) =>
         {
             _popupWindow.ToggleVisibility();
             _popupWindow.FocusInput();
         };
         _hotkeyService.Register();
+
+        _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService);
+        _trayService.Initialize();
 
         HandleRecovery();
     }
