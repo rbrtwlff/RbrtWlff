@@ -61,10 +61,13 @@ public partial class App : System.Windows.Application
             LogService.LogError("UnhandledException ohne Exception-Objekt.");
         };
 
-        DispatcherUnhandledException += (_, args) =>
+        if (Application.Current != null)
         {
-            LogService.LogException(args.Exception, "DispatcherUnhandledException");
-        };
+            Application.Current.DispatcherUnhandledException += (_, args) =>
+            {
+                LogService.LogException(args.Exception, "DispatcherUnhandledException");
+            };
+        }
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
