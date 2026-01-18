@@ -29,9 +29,9 @@ public partial class PopupWindow : Window
             args.Cancel = true;
             Hide();
         };
-        if (Application.Current != null)
+        if (System.Windows.Application.Current != null)
         {
-            Application.Current.ShutdownStarted += (_, _) => _allowClose = true;
+            System.Windows.Application.Current.ShutdownStarted += (_, _) => _allowClose = true;
         }
         IsVisibleChanged += (_, _) =>
         {
