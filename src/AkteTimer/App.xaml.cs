@@ -100,7 +100,7 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        _timeEntryService.StopRunningEntries(DateTime.UtcNow);
+        _timeEntryService.Stop();
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -15,7 +15,9 @@ public partial class PopupWindow : Window
     {
         InitializeComponent();
         _timeEntryService = timeEntryService;
-        DataContext = new PopupViewModel(_timeEntryService, settingsService);
+        var viewModel = new PopupViewModel(_timeEntryService, settingsService);
+        viewModel.FocusRequested += (_, _) => FocusInput();
+        DataContext = viewModel;
 
         PreviewKeyDown += HandleKeyDown;
         Deactivated += (_, _) => Hide();
@@ -94,36 +96,7 @@ public partial class PopupWindow : Window
 
         if (e.Key == Key.Enter && (FileRefBox.IsFocused || RecentMattersListBox.IsFocused))
         {
-            var fileRef = vm.SelectedRecentMatter ?? vm.FileRefInput;
-            fileRef = fileRef.Trim();
-            if (string.IsNullOrWhiteSpace(fileRef))
-            {
-                return;
-            }
-
-            if (!_timeEntryService.IsValidFileRef(fileRef))
-            {
-                vm.UpdateStatus("Ungültiges Aktenzeichen");
-                return;
-            }
-
-            var matter = _timeEntryService.GetMatterByFileRef(fileRef);
-            if (matter == null)
-            {
-                var result = MessageBox.Show($"Akte {fileRef} existiert nicht. Erstellen?", "Akte anlegen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                if (result != MessageBoxResult.Yes)
-                {
-                    FocusInput();
-                    return;
-                }
-
-                matter = _timeEntryService.CreateMatter(fileRef);
-            }
-
-            PromptForHashtagIfMissing();
-            _timeEntryService.SwitchMatter(matter);
-            vm.ClearInput();
-            vm.Refresh();
+            ConfirmMatter(vm);
             return;
         }
 
@@ -132,10 +105,54 @@ public partial class PopupWindow : Window
             if (_timeEntryService.IsRunning)
             {
                 PromptForHashtagIfMissing();
+                _timeEntryService.Pause();
+                vm.Refresh();
+                return;
             }
-            _timeEntryService.ToggleStartPause();
+
+            if (!_timeEntryService.Start())
+            {
+                vm.UpdateStatus("Bitte Akte wählen");
+                FocusInput();
+                return;
+            }
+
             vm.Refresh();
         }
+    }
+
+    private void ConfirmMatter(PopupViewModel vm)
+    {
+        var fileRef = vm.SelectedRecentMatter ?? vm.FileRefInput;
+        fileRef = fileRef.Trim();
+        if (string.IsNullOrWhiteSpace(fileRef))
+        {
+            return;
+        }
+
+        if (!_timeEntryService.IsValidFileRef(fileRef))
+        {
+            vm.UpdateStatus("Ungültiges Aktenzeichen");
+            return;
+        }
+
+        var matter = _timeEntryService.GetMatterByFileRef(fileRef);
+        if (matter == null)
+        {
+            var result = MessageBox.Show($"Akte {fileRef} existiert nicht. Erstellen?", "Akte anlegen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                FocusInput();
+                return;
+            }
+
+            matter = _timeEntryService.CreateMatter(fileRef);
+        }
+
+        PromptForHashtagIfMissing();
+        _timeEntryService.SwitchMatter(matter);
+        vm.ClearInput();
+        vm.Refresh();
     }
 
     private void PromptForHashtagIfMissing()

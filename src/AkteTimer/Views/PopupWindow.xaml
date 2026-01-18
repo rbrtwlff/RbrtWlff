@@ -20,6 +20,7 @@
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
       <Button Grid.Row="0"
@@ -33,10 +34,13 @@
       <TextBlock Grid.Row="1" Text="Status" FontWeight="Bold" />
       <TextBlock Grid.Row="1" Margin="80,0,0,0" Text="{Binding StatusText}" />
 
-      <TextBlock Grid.Row="2" Margin="0,6,0,0" Text="Akte" FontWeight="Bold" />
-      <TextBlock Grid.Row="2" Margin="80,6,0,0" Text="{Binding ActiveMatterText}" />
+      <TextBlock Grid.Row="2" Margin="0,6,0,0" Text="Zustand" FontWeight="Bold" />
+      <TextBlock Grid.Row="2" Margin="80,6,0,0" Text="{Binding StateText}" />
 
-      <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,6,0,0">
+      <TextBlock Grid.Row="3" Margin="0,6,0,0" Text="Akte" FontWeight="Bold" />
+      <TextBlock Grid.Row="3" Margin="80,6,0,0" Text="{Binding ActiveMatterText}" />
+
+      <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0">
         <TextBlock Text="Heute" FontWeight="Bold" />
         <TextBlock Margin="16,0,0,0" Text="{Binding TodayDurationText}" />
         <TextBlock Margin="24,0,0,0" Text="Aktuell" FontWeight="Bold" />
@@ -44,13 +48,13 @@
       </StackPanel>
 
       <TextBox x:Name="FileRefBox"
-               Grid.Row="4"
+               Grid.Row="5"
                Margin="0,12,0,0"
                Height="26"
                VerticalContentAlignment="Center"
                Text="{Binding FileRefInput, UpdateSourceTrigger=PropertyChanged}" />
 
-      <TextBlock Grid.Row="5"
+      <TextBlock Grid.Row="6"
                  Margin="0,8,0,0"
                  FontSize="11"
                  Foreground="SteelBlue">
@@ -59,7 +63,7 @@
         </Hyperlink>
       </TextBlock>
 
-      <Border Grid.Row="6"
+      <Border Grid.Row="7"
               Margin="0,6,0,0"
               Padding="8"
               Background="#FFF5F5F5"
@@ -76,7 +80,7 @@
       </Border>
 
       <ListBox x:Name="RecentMattersListBox"
-               Grid.Row="7"
+               Grid.Row="8"
                Margin="0,8,0,0"
                ItemsSource="{Binding RecentMatters}"
                SelectedItem="{Binding SelectedRecentMatter, Mode=TwoWay}" />

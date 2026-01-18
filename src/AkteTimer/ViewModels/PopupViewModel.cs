@@ -12,12 +12,14 @@ public sealed class PopupViewModel : ViewModelBase
     private readonly DispatcherTimer _timer;
     private string _fileRefInput = string.Empty;
     private string _statusText = "Pausiert";
-    private string _activeMatterText = "-";
+    private string _activeMatterText = "Keine aktive Akte";
     private string _todayDurationText = "00:00:00";
     private string _entryDurationText = "00:00:00";
     private string _toggleButtonText = "Start";
     private string? _selectedRecentMatter;
     private bool _isHotkeyHelpVisible;
+    private bool _shouldFocusFileRefInput;
+    private string _stateText = "Idle";
 
     public PopupViewModel(TimeEntryService timeEntryService, SettingsService settingsService)
     {
@@ -45,6 +47,18 @@ public sealed class PopupViewModel : ViewModelBase
     public RelayCommand ToggleCommand { get; }
 
     public RelayCommand ToggleHotkeyHelpCommand { get; }
+
+    public event EventHandler? FocusRequested;
+
+    public string StateText
+    {
+        get => _stateText;
+        private set
+        {
+            _stateText = value;
+            NotifyPropertyChanged();
+        }
+    }
 
     public string FileRefInput
     {
@@ -136,6 +150,21 @@ public sealed class PopupViewModel : ViewModelBase
         }
     }
 
+    public bool ShouldFocusFileRefInput
+    {
+        get => _shouldFocusFileRefInput;
+        private set
+        {
+            if (_shouldFocusFileRefInput == value)
+            {
+                return;
+            }
+
+            _shouldFocusFileRefInput = value;
+            NotifyPropertyChanged();
+        }
+    }
+
     public bool IsHotkeyHelpVisible
     {
         get => _isHotkeyHelpVisible;
@@ -185,11 +214,43 @@ public sealed class PopupViewModel : ViewModelBase
 
     public void Refresh()
     {
-        StatusText = _timeEntryService.IsRunning ? "Läuft" : "Pausiert";
-        ToggleButtonText = _timeEntryService.IsRunning ? "Pause" : "Start";
-        ActiveMatterText = _timeEntryService.ActiveMatterFileRef ?? "-";
+        var running = _timeEntryService.IsRunning;
+        var hasMatter = !string.IsNullOrWhiteSpace(_timeEntryService.ActiveMatterFileRef);
+        var focusNow = false;
+
+        if (!hasMatter)
+        {
+            StateText = "Idle";
+            StatusText = "Pausiert";
+            ActiveMatterText = "Keine aktive Akte";
+            ToggleButtonText = "Start";
+            focusNow = !ShouldFocusFileRefInput;
+            ShouldFocusFileRefInput = true;
+        }
+        else if (running)
+        {
+            StateText = "Running";
+            StatusText = "Läuft";
+            ActiveMatterText = _timeEntryService.ActiveMatterFileRef ?? "Keine aktive Akte";
+            ToggleButtonText = "Pause";
+            ShouldFocusFileRefInput = false;
+        }
+        else
+        {
+            StateText = "Paused";
+            StatusText = "Pausiert";
+            ActiveMatterText = _timeEntryService.ActiveMatterFileRef ?? "Keine aktive Akte";
+            ToggleButtonText = "Start";
+            ShouldFocusFileRefInput = false;
+        }
+
         RefreshDurations();
         LoadRecentMatters();
+
+        if (focusNow)
+        {
+            FocusRequested?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void Toggle()

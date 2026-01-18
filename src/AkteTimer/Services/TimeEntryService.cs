@@ -57,6 +57,46 @@ public sealed class TimeEntryService
         OnStateChanged();
     }
 
+    public void Pause()
+    {
+        var running = GetRunningEntry();
+        if (running == null)
+        {
+            return;
+        }
+
+        StopRunningEntries(DateTime.UtcNow);
+    }
+
+    public bool Start()
+    {
+        if (GetRunningEntry() != null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(ActiveMatterFileRef))
+        {
+            return false;
+        }
+
+        var matter = _database.GetMatterByFileRef(ActiveMatterFileRef) ?? _database.CreateMatter(ActiveMatterFileRef);
+        _database.CreateTimeEntry(matter.Id, DateTime.UtcNow, _settings.GetStartHashtag());
+        OnStateChanged();
+        return true;
+    }
+
+    public void Stop()
+    {
+        if (GetRunningEntry() != null)
+        {
+            StopRunningEntries(DateTime.UtcNow);
+        }
+
+        ActiveMatterFileRef = null;
+        OnStateChanged();
+    }
+
     public void StopRunningEntries(DateTime endUtc)
     {
         _database.StopRunningEntries(endUtc);
@@ -68,31 +108,23 @@ public sealed class TimeEntryService
         var running = GetRunningEntry();
         if (running != null)
         {
-            StopRunningEntries(DateTime.UtcNow);
+            Pause();
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(ActiveMatterFileRef))
-        {
-            return false;
-        }
-
-        var matter = _database.GetMatterByFileRef(ActiveMatterFileRef) ?? _database.CreateMatter(ActiveMatterFileRef);
-        var hashtag = _settings.GetStartHashtag();
-        _database.CreateTimeEntry(matter.Id, DateTime.UtcNow, hashtag);
-        OnStateChanged();
-        return true;
+        return Start();
     }
 
     public void SwitchMatter(Matter matter)
     {
+        var now = DateTime.UtcNow;
         _database.ExecuteInTransaction((connection, transaction) =>
         {
             using var stopCommand = connection.CreateCommand();
             stopCommand.Transaction = transaction;
             stopCommand.CommandText = "UPDATE TimeEntries SET end_utc = $end_utc, updated_utc = $updated_utc WHERE end_utc IS NULL;";
-            stopCommand.Parameters.AddWithValue("$end_utc", DateTime.UtcNow.ToString("o"));
-            stopCommand.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
+            stopCommand.Parameters.AddWithValue("$end_utc", now.ToString("o"));
+            stopCommand.Parameters.AddWithValue("$updated_utc", now.ToString("o"));
             stopCommand.ExecuteNonQuery();
 
             using var insert = connection.CreateCommand();
@@ -102,10 +134,10 @@ public sealed class TimeEntryService
                 VALUES ($matter_id, $start_utc, NULL, NULL, $hashtag, $created_utc, $updated_utc, 0);
                 """;
             insert.Parameters.AddWithValue("$matter_id", matter.Id);
-            insert.Parameters.AddWithValue("$start_utc", DateTime.UtcNow.ToString("o"));
+            insert.Parameters.AddWithValue("$start_utc", now.ToString("o"));
             insert.Parameters.AddWithValue("$hashtag", _settings.GetStartHashtag());
-            insert.Parameters.AddWithValue("$created_utc", DateTime.UtcNow.ToString("o"));
-            insert.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
+            insert.Parameters.AddWithValue("$created_utc", now.ToString("o"));
+            insert.Parameters.AddWithValue("$updated_utc", now.ToString("o"));
             insert.ExecuteNonQuery();
         });
 
