@@ -31,7 +31,7 @@ public partial class PopupWindow : Window
         };
         if (System.Windows.Application.Current != null)
         {
-            System.Windows.Application.Current.ShutdownStarted += (_, _) => _allowClose = true;
+            System.Windows.Application.Current.Exit += (_, _) => _allowClose = true;
         }
         IsVisibleChanged += (_, _) =>
         {
