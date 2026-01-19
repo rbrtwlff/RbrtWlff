@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Windows;
 using System.Windows.Forms;
 using AkteTimer.Views;
 
@@ -73,23 +74,17 @@ public sealed class TrayService : IDisposable
 
     private void ShowToday()
     {
-        _todayWindow ??= new TodayWindow(_timeEntryService);
-        _todayWindow.Show();
-        _todayWindow.Activate();
+        ShowWindow(ref _todayWindow, () => new TodayWindow(_timeEntryService));
     }
 
     private void ShowReports()
     {
-        _reportsWindow ??= new ReportsWindow(_timeEntryService);
-        _reportsWindow.Show();
-        _reportsWindow.Activate();
+        ShowWindow(ref _reportsWindow, () => new ReportsWindow(_timeEntryService));
     }
 
     private void ShowSettings()
     {
-        _settingsWindow ??= new SettingsWindow(_settingsService, _hotkeyService, _dataDirectoryService, _databaseService);
-        _settingsWindow.Show();
-        _settingsWindow.Activate();
+        ShowWindow(ref _settingsWindow, () => new SettingsWindow(_settingsService, _hotkeyService, _dataDirectoryService, _databaseService));
     }
 
     private void Exit()
@@ -130,5 +125,22 @@ public sealed class TrayService : IDisposable
             LogService.LogException(exception, "TrayService.RunOnUiThread");
             throw;
         }
+    }
+
+    private static void ShowWindow<TWindow>(ref TWindow? window, Func<TWindow> createWindow) where TWindow : Window
+    {
+        if (window == null || !window.IsLoaded)
+        {
+            window = createWindow();
+        }
+
+        if (window.IsVisible)
+        {
+            window.Activate();
+            return;
+        }
+
+        window.Show();
+        window.Activate();
     }
 }
