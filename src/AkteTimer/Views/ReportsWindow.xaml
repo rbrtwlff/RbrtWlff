@@ -38,6 +38,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
     <GroupBox Header="Filter" Grid.Row="0" Margin="0,0,0,8">
@@ -678,5 +679,11 @@
         </Grid>
       </TabItem>
     </TabControl>
+
+    <TextBlock Grid.Row="2"
+               Margin="0,6,0,0"
+               Foreground="DimGray"
+               Text="{Binding AutoBillingHint}"
+               Visibility="{Binding ShowAutoBillingHint, Converter={StaticResource BoolToVis}}" />
   </Grid>
 </Window>
