@@ -284,7 +284,7 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup);
+        ApplyMatterHonorarium(entryViewModels, matterLookup, _rvgFeeTableService);
         TodayTotalDuration = totalDuration.ToString(@"hh\:mm\:ss");
         TodayTotalMinutes = totalMinutes;
         TodayTotalRoundedMinutes = totalRoundedMinutes;
@@ -333,7 +333,7 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup);
+        ApplyMatterHonorarium(entryViewModels, matterLookup, _rvgFeeTableService);
 
         var rangeGroups = entryViewModels
             .GroupBy(vm => vm.StartLocal.Date)
@@ -373,7 +373,8 @@ public sealed class ReportsViewModel : ViewModelBase
 
     private static void ApplyMatterHonorarium(
         IEnumerable<ReportEntryViewModel> entries,
-        IReadOnlyDictionary<long, Matter> matterLookup)
+        IReadOnlyDictionary<long, Matter> matterLookup,
+        RvgFeeTableService rvgFeeTableService)
     {
         var honorariumByMatter = entries
             .GroupBy(vm => vm.MatterId)
@@ -385,15 +386,35 @@ public sealed class ReportsViewModel : ViewModelBase
                     var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
                     var totalRoundedMinutes = group.Sum(vm => vm.RoundedMinutes);
                     var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
-                    var honorarRvg = 0m;
-                    return (hourlyRate, totalRoundedMinutes, honorarStunden, honorarRvg);
+                    decimal? honorarRvg = null;
+                    decimal? rvgFee1_0 = null;
+                    decimal? factorSum = null;
+                    if (matter?.BillingType == BillingType.Rvg)
+                    {
+                        rvgFee1_0 = rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
+                        var feeModifierSum = RvgCalculator.CalculateFeeModifierSum(
+                            matter.BusinessFee13Enabled,
+                            matter.TermFee12Enabled,
+                            matter.SettlementFee10Enabled,
+                            matter.SettlementFee15Enabled);
+                        factorSum = matter.FeeFactor + feeModifierSum;
+                        honorarRvg = RvgCalculator.CalculateEstimate(rvgFee1_0.Value, matter.FeeFactor, feeModifierSum);
+                    }
+
+                    return (hourlyRate, totalRoundedMinutes, honorarStunden, honorarRvg, rvgFee1_0, factorSum);
                 });
 
         foreach (var entry in entries)
         {
             if (honorariumByMatter.TryGetValue(entry.MatterId, out var values))
             {
-                entry.SetMatterHonorarium(values.hourlyRate, values.totalRoundedMinutes, values.honorarStunden, values.honorarRvg);
+                entry.SetMatterHonorarium(
+                    values.hourlyRate,
+                    values.totalRoundedMinutes,
+                    values.honorarStunden,
+                    values.honorarRvg,
+                    values.rvgFee1_0,
+                    values.factorSum);
             }
         }
     }
@@ -770,6 +791,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
     public decimal HonorarStundenMatter { get; private set; }
     public decimal HonorarRvgMatter { get; private set; }
     public decimal EffektivitätMatter { get; private set; }
+    public string RvgFormulaTooltip { get; private set; } = "-";
     public string RvgEstimateText { get; private set; } = "-";
     public string EffectiveHourlyRateText { get; private set; } = "-";
     public string BreakEvenTimeText { get; private set; } = "-";
@@ -890,18 +912,28 @@ public sealed class ReportEntryViewModel : ViewModelBase
         }
     }
 
-    public void SetMatterHonorarium(decimal hourlyRateEurPerHour, int sumRoundedMinutesMatter, decimal honorarStundenMatter, decimal? honorarRvgEur = null)
+    public void SetMatterHonorarium(
+        decimal hourlyRateEurPerHour,
+        int sumRoundedMinutesMatter,
+        decimal honorarStundenMatter,
+        decimal? honorarRvgEur = null,
+        decimal? rvgFee1_0Eur = null,
+        decimal? factorSum = null)
     {
         _hourlyRate = hourlyRateEurPerHour;
         EinzelHonorar = RoundCurrency((RoundedMinutes / 60m) * hourlyRateEurPerHour);
         HonorarStundenMatter = honorarStundenMatter;
         HonorarRvgMatter = honorarRvgEur ?? 0m;
         EffektivitätMatter = honorarRvgEur == null ? 0m : RoundCurrency(honorarRvgEur.Value - honorarStundenMatter);
+        RvgFormulaTooltip = rvgFee1_0Eur == null || factorSum == null
+            ? "-"
+            : $"1,0-Gebühr: {rvgFee1_0Eur.Value:N2} €, Faktor-Summe: {factorSum.Value:N1}";
         NotifyPropertyChanged(nameof(HourlyRate));
         NotifyPropertyChanged(nameof(EinzelHonorar));
         NotifyPropertyChanged(nameof(HonorarStundenMatter));
         NotifyPropertyChanged(nameof(HonorarRvgMatter));
         NotifyPropertyChanged(nameof(EffektivitätMatter));
+        NotifyPropertyChanged(nameof(RvgFormulaTooltip));
     }
 
     public void SetRvgMetrics(RvgMetrics? metrics)
