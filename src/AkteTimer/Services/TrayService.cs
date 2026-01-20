@@ -79,7 +79,7 @@ public sealed class TrayService : IDisposable
 
     private void ShowReports()
     {
-        ShowWindow(ref _reportsWindow, () => new ReportsWindow(_timeEntryService));
+        ShowWindow(ref _reportsWindow, () => new ReportsWindow(_timeEntryService, _settingsService));
     }
 
     private void ShowSettings()

@@ -153,7 +153,7 @@ public sealed class DatabaseService
         insert.Parameters.AddWithValue("$file_ref", fileRef);
         insert.Parameters.AddWithValue("$billing_type", "hourly");
         insert.Parameters.AddWithValue("$subject_value_eur", 0d);
-        insert.Parameters.AddWithValue("$fee_factor", 1d);
+        insert.Parameters.AddWithValue("$fee_factor", DBNull.Value);
         insert.Parameters.AddWithValue("$target_rate_eur_per_hour", 0d);
         insert.Parameters.AddWithValue("$hourly_rate_eur_per_hour", 230d);
         insert.Parameters.AddWithValue("$business_fee_1_3_enabled", 0);
@@ -599,7 +599,7 @@ public sealed class DatabaseService
                 """;
             command.Parameters.AddWithValue("$billing_type", matter.BillingType == BillingType.Rvg ? "rvg" : "hourly");
             command.Parameters.AddWithValue("$subject_value_eur", (double)matter.SubjectValueEur);
-            command.Parameters.AddWithValue("$fee_factor", (double)matter.FeeFactor);
+            command.Parameters.AddWithValue("$fee_factor", matter.FeeFactor.HasValue ? (object)(double)matter.FeeFactor.Value : DBNull.Value);
             command.Parameters.AddWithValue("$target_rate_eur_per_hour", (double)matter.TargetRateEurPerHour);
             command.Parameters.AddWithValue("$hourly_rate_eur_per_hour", (double)matter.HourlyRateEurPerHour);
             command.Parameters.AddWithValue("$business_fee_1_3_enabled", matter.BusinessFee13Enabled ? 1 : 0);
@@ -635,7 +635,7 @@ public sealed class DatabaseService
             ? BillingType.Rvg
             : BillingType.Hourly;
         var subjectValue = GetDecimalOrDefault(reader, 5);
-        var feeFactor = GetDecimalOrDefault(reader, 6, 1.0m);
+        var feeFactor = GetNullableDecimal(reader, 6);
         var targetRate = GetDecimalOrDefault(reader, 7);
         var hourlyRate = GetDecimalOrDefault(reader, 8, 230m);
         var businessFee13Enabled = !reader.IsDBNull(9) && reader.GetInt64(9) == 1;
@@ -664,6 +664,11 @@ public sealed class DatabaseService
     private static decimal GetDecimalOrDefault(SqliteDataReader reader, int index, decimal defaultValue = 0m)
     {
         return reader.IsDBNull(index) ? defaultValue : (decimal)reader.GetDouble(index);
+    }
+
+    private static decimal? GetNullableDecimal(SqliteDataReader reader, int index)
+    {
+        return reader.IsDBNull(index) ? null : (decimal)reader.GetDouble(index);
     }
 
     private static void EnsureHashtagColumn(SqliteConnection connection)

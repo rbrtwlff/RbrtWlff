@@ -10,7 +10,7 @@ public sealed class MatterDetailsViewModel : ViewModelBase
     private readonly Matter _matter;
     private BillingType _billingType;
     private decimal _subjectValueEur;
-    private decimal _feeFactor;
+    private decimal? _feeFactor;
     private decimal _targetRateEurPerHour;
     private decimal _hourlyRateEurPerHour;
     private int _actualMinutes;
@@ -71,20 +71,19 @@ public sealed class MatterDetailsViewModel : ViewModelBase
         }
     }
 
-    public decimal FeeFactor
+    public decimal? FeeFactor
     {
         get => _feeFactor;
         set
         {
-            var clamped = Math.Clamp(value, 0m, 3m);
-            var rounded = Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
-            if (_feeFactor == rounded)
+            var normalized = NormalizeFeeFactor(value);
+            if (_feeFactor == normalized)
             {
                 return;
             }
 
-            _feeFactor = rounded;
-            _matter.FeeFactor = _feeFactor;
+            _feeFactor = normalized;
+            _matter.FeeFactor = normalized;
             _timeEntryService.UpdateMatter(_matter);
             NotifyPropertyChanged();
             RefreshCalculations();
@@ -163,7 +162,7 @@ public sealed class MatterDetailsViewModel : ViewModelBase
             _matter.TermFee12Enabled,
             _matter.SettlementFee10Enabled,
             _matter.SettlementFee15Enabled);
-        _rvgEstimateEur = RvgCalculator.CalculateEstimate(_fee1_0Eur, _feeFactor, feeModifierSum);
+        _rvgEstimateEur = RvgCalculator.CalculateEstimate(_fee1_0Eur, _feeFactor ?? 0m, feeModifierSum);
         var actualHours = _actualMinutes / 60m;
         _effectiveHourlyRateEur = RvgCalculator.CalculateEffectiveHourlyRate(_rvgEstimateEur, actualHours);
         var targetRate = _timeEntryService.GetEffectiveTargetRate(_targetRateEurPerHour);
@@ -174,5 +173,16 @@ public sealed class MatterDetailsViewModel : ViewModelBase
         NotifyPropertyChanged(nameof(BreakEvenTimeText));
         NotifyPropertyChanged(nameof(Fee1_0EurText));
         NotifyPropertyChanged(nameof(RvgEstimateEurText));
+    }
+
+    private static decimal? NormalizeFeeFactor(decimal? value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var clamped = Math.Clamp(value.Value, 0m, 3m);
+        return Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
     }
 }

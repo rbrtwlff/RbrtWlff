@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Windows;
 
 namespace AkteTimer.Services;
 
@@ -13,6 +14,11 @@ public sealed class SettingsService
     public const string TableVersionSetting = "table_version";
     public const string PopupHotkeyHelpSetting = "popup_hotkey_help";
     public const string DataDirectorySetting = DataDirectoryService.DataDirectorySetting;
+    public const string ReportsWindowLeftSetting = "reports_window_left";
+    public const string ReportsWindowTopSetting = "reports_window_top";
+    public const string ReportsWindowWidthSetting = "reports_window_width";
+    public const string ReportsWindowHeightSetting = "reports_window_height";
+    public const string ReportsWindowStateSetting = "reports_window_state";
 
     private const string DefaultHotkey = "Ctrl+Alt+T";
     private const string DefaultHashtag = "#Sonstiges";
@@ -126,6 +132,36 @@ public sealed class SettingsService
         _database.SetSetting(DataDirectorySetting, directory);
     }
 
+    public ReportsWindowPlacement? GetReportsWindowPlacement()
+    {
+        var left = GetDoubleSetting(ReportsWindowLeftSetting);
+        var top = GetDoubleSetting(ReportsWindowTopSetting);
+        var width = GetDoubleSetting(ReportsWindowWidthSetting);
+        var height = GetDoubleSetting(ReportsWindowHeightSetting);
+        var stateRaw = _database.GetSetting(ReportsWindowStateSetting);
+
+        if (left == null || top == null || width == null || height == null || string.IsNullOrWhiteSpace(stateRaw))
+        {
+            return null;
+        }
+
+        if (!Enum.TryParse(stateRaw, out WindowState state))
+        {
+            state = WindowState.Normal;
+        }
+
+        return new ReportsWindowPlacement(left.Value, top.Value, width.Value, height.Value, state);
+    }
+
+    public void SetReportsWindowPlacement(ReportsWindowPlacement placement)
+    {
+        _database.SetSetting(ReportsWindowLeftSetting, placement.Left.ToString(CultureInfo.InvariantCulture));
+        _database.SetSetting(ReportsWindowTopSetting, placement.Top.ToString(CultureInfo.InvariantCulture));
+        _database.SetSetting(ReportsWindowWidthSetting, placement.Width.ToString(CultureInfo.InvariantCulture));
+        _database.SetSetting(ReportsWindowHeightSetting, placement.Height.ToString(CultureInfo.InvariantCulture));
+        _database.SetSetting(ReportsWindowStateSetting, placement.State.ToString());
+    }
+
     public string GetStartHashtag()
     {
         return UseLastHashtagAsDefault ? LastHashtag : DefaultHashtag;
@@ -159,4 +195,19 @@ public sealed class SettingsService
 
         return raw == "1";
     }
+
+    private double? GetDoubleSetting(string key)
+    {
+        var raw = _database.GetSetting(key);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        return double.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
 }
+
+public sealed record ReportsWindowPlacement(double Left, double Top, double Width, double Height, WindowState State);
