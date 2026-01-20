@@ -6,9 +6,9 @@ namespace AkteTimer.Converters;
 
 public sealed class PositiveNegativeBrushConverter : IValueConverter
 {
-    public System.Windows.Media.Brush PositiveBrush { get; set; } = Brushes.ForestGreen;
-    public System.Windows.Media.Brush NegativeBrush { get; set; } = Brushes.Firebrick;
-    public System.Windows.Media.Brush ZeroBrush { get; set; } = Brushes.Black;
+    public System.Windows.Media.Brush PositiveBrush { get; set; } = System.Windows.Media.Brushes.ForestGreen;
+    public System.Windows.Media.Brush NegativeBrush { get; set; } = System.Windows.Media.Brushes.Firebrick;
+    public System.Windows.Media.Brush ZeroBrush { get; set; } = System.Windows.Media.Brushes.Black;
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -29,5 +29,5 @@ public sealed class PositiveNegativeBrushConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        => Binding.DoNothing;
+        => System.Windows.Data.Binding.DoNothing;
 }
