@@ -10,4 +10,9 @@ public sealed class Matter
     public decimal SubjectValueEur { get; set; }
     public decimal FeeFactor { get; set; } = 1.0m;
     public decimal TargetRateEurPerHour { get; set; }
+    public decimal HourlyRateEurPerHour { get; set; } = 230m;
+    public bool BusinessFee13Enabled { get; set; }
+    public bool TermFee12Enabled { get; set; }
+    public bool SettlementFee10Enabled { get; set; }
+    public bool SettlementFee15Enabled { get; set; }
 }
