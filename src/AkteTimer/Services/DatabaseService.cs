@@ -50,6 +50,7 @@ public sealed class DatabaseService
               billing_type TEXT NOT NULL DEFAULT 'hourly',
               subject_value_eur REAL NULL,
               fee_factor REAL NULL,
+              custom_fee_factor REAL NULL,
               target_rate_eur_per_hour REAL NULL,
               hourly_rate_eur_per_hour REAL NOT NULL DEFAULT 230.0,
               business_fee_1_3_enabled INTEGER NOT NULL DEFAULT 0,
@@ -119,9 +120,9 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour,
-                   hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled, settlement_fee_1_0_enabled,
-                   settlement_fee_1_5_enabled
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
+                   target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
             FROM Matters
             WHERE file_ref = $file_ref;
             """;
@@ -143,17 +144,18 @@ public sealed class DatabaseService
         using var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
-            INSERT INTO Matters (file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour,
-                                 hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled, settlement_fee_1_0_enabled,
-                                 settlement_fee_1_5_enabled)
-            VALUES ($file_ref, NULL, 0, $billing_type, $subject_value_eur, $fee_factor, $target_rate_eur_per_hour,
-                    $hourly_rate_eur_per_hour, $business_fee_1_3_enabled, $term_fee_1_2_enabled, $settlement_fee_1_0_enabled,
-                    $settlement_fee_1_5_enabled);
+            INSERT INTO Matters (file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
+                                 target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled,
+                                 term_fee_1_2_enabled, settlement_fee_1_0_enabled, settlement_fee_1_5_enabled)
+            VALUES ($file_ref, NULL, 0, $billing_type, $subject_value_eur, $fee_factor, $custom_fee_factor,
+                    $target_rate_eur_per_hour, $hourly_rate_eur_per_hour, $business_fee_1_3_enabled,
+                    $term_fee_1_2_enabled, $settlement_fee_1_0_enabled, $settlement_fee_1_5_enabled);
             """;
         insert.Parameters.AddWithValue("$file_ref", fileRef);
         insert.Parameters.AddWithValue("$billing_type", "hourly");
         insert.Parameters.AddWithValue("$subject_value_eur", 0d);
         insert.Parameters.AddWithValue("$fee_factor", DBNull.Value);
+        insert.Parameters.AddWithValue("$custom_fee_factor", DBNull.Value);
         insert.Parameters.AddWithValue("$target_rate_eur_per_hour", 0d);
         insert.Parameters.AddWithValue("$hourly_rate_eur_per_hour", 230d);
         insert.Parameters.AddWithValue("$business_fee_1_3_enabled", 0);
@@ -165,9 +167,9 @@ public sealed class DatabaseService
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
         select.CommandText = """
-            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour,
-                   hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled, settlement_fee_1_0_enabled,
-                   settlement_fee_1_5_enabled
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
+                   target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
             FROM Matters
             WHERE file_ref = $file_ref;
             """;
@@ -283,8 +285,9 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT m.id, m.file_ref, m.title, m.is_archived, m.billing_type, m.subject_value_eur, m.fee_factor, m.target_rate_eur_per_hour,
-                   m.hourly_rate_eur_per_hour, m.business_fee_1_3_enabled, m.term_fee_1_2_enabled, m.settlement_fee_1_0_enabled,
+            SELECT m.id, m.file_ref, m.title, m.is_archived, m.billing_type, m.subject_value_eur, m.fee_factor,
+                   m.custom_fee_factor, m.target_rate_eur_per_hour, m.hourly_rate_eur_per_hour,
+                   m.business_fee_1_3_enabled, m.term_fee_1_2_enabled, m.settlement_fee_1_0_enabled,
                    m.settlement_fee_1_5_enabled
             FROM Matters m
             JOIN TimeEntries te ON m.id = te.matter_id
@@ -309,9 +312,9 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, target_rate_eur_per_hour,
-                   hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled, settlement_fee_1_0_enabled,
-                   settlement_fee_1_5_enabled
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
+                   target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
             FROM Matters
             ORDER BY file_ref ASC;
             """;
@@ -589,6 +592,7 @@ public sealed class DatabaseService
                 SET billing_type = $billing_type,
                     subject_value_eur = $subject_value_eur,
                     fee_factor = $fee_factor,
+                    custom_fee_factor = $custom_fee_factor,
                     target_rate_eur_per_hour = $target_rate_eur_per_hour,
                     hourly_rate_eur_per_hour = $hourly_rate_eur_per_hour,
                     business_fee_1_3_enabled = $business_fee_1_3_enabled,
@@ -600,6 +604,7 @@ public sealed class DatabaseService
             command.Parameters.AddWithValue("$billing_type", matter.BillingType == BillingType.Rvg ? "rvg" : "hourly");
             command.Parameters.AddWithValue("$subject_value_eur", (double)matter.SubjectValueEur);
             command.Parameters.AddWithValue("$fee_factor", matter.FeeFactor.HasValue ? (object)(double)matter.FeeFactor.Value : DBNull.Value);
+            command.Parameters.AddWithValue("$custom_fee_factor", matter.CustomFeeFactor.HasValue ? (object)(double)matter.CustomFeeFactor.Value : DBNull.Value);
             command.Parameters.AddWithValue("$target_rate_eur_per_hour", (double)matter.TargetRateEurPerHour);
             command.Parameters.AddWithValue("$hourly_rate_eur_per_hour", (double)matter.HourlyRateEurPerHour);
             command.Parameters.AddWithValue("$business_fee_1_3_enabled", matter.BusinessFee13Enabled ? 1 : 0);
@@ -636,12 +641,13 @@ public sealed class DatabaseService
             : BillingType.Hourly;
         var subjectValue = GetDecimalOrDefault(reader, 5);
         var feeFactor = GetNullableDecimal(reader, 6);
-        var targetRate = GetDecimalOrDefault(reader, 7);
-        var hourlyRate = GetDecimalOrDefault(reader, 8, 230m);
-        var businessFee13Enabled = !reader.IsDBNull(9) && reader.GetInt64(9) == 1;
-        var termFee12Enabled = !reader.IsDBNull(10) && reader.GetInt64(10) == 1;
-        var settlementFee10Enabled = !reader.IsDBNull(11) && reader.GetInt64(11) == 1;
-        var settlementFee15Enabled = !reader.IsDBNull(12) && reader.GetInt64(12) == 1;
+        var customFeeFactor = GetNullableDecimal(reader, 7);
+        var targetRate = GetDecimalOrDefault(reader, 8);
+        var hourlyRate = GetDecimalOrDefault(reader, 9, 230m);
+        var businessFee13Enabled = !reader.IsDBNull(10) && reader.GetInt64(10) == 1;
+        var termFee12Enabled = !reader.IsDBNull(11) && reader.GetInt64(11) == 1;
+        var settlementFee10Enabled = !reader.IsDBNull(12) && reader.GetInt64(12) == 1;
+        var settlementFee15Enabled = !reader.IsDBNull(13) && reader.GetInt64(13) == 1;
 
         return new Matter
         {
@@ -652,6 +658,7 @@ public sealed class DatabaseService
             BillingType = billingType,
             SubjectValueEur = subjectValue,
             FeeFactor = feeFactor,
+            CustomFeeFactor = customFeeFactor,
             TargetRateEurPerHour = targetRate,
             HourlyRateEurPerHour = hourlyRate,
             BusinessFee13Enabled = businessFee13Enabled,
@@ -722,6 +729,11 @@ public sealed class DatabaseService
         if (!columns.Contains("fee_factor"))
         {
             additions.Add("ALTER TABLE Matters ADD COLUMN fee_factor REAL NULL;");
+        }
+
+        if (!columns.Contains("custom_fee_factor"))
+        {
+            additions.Add("ALTER TABLE Matters ADD COLUMN custom_fee_factor REAL NULL;");
         }
 
         if (!columns.Contains("target_rate_eur_per_hour"))

@@ -9,6 +9,7 @@ public sealed class Matter
     public BillingType BillingType { get; set; } = BillingType.Hourly;
     public decimal SubjectValueEur { get; set; }
     public decimal? FeeFactor { get; set; }
+    public decimal? CustomFeeFactor { get; set; }
     public decimal TargetRateEurPerHour { get; set; }
     public decimal HourlyRateEurPerHour { get; set; } = 230m;
     public bool BusinessFee13Enabled { get; set; }

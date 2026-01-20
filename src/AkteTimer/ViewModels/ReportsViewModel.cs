@@ -409,23 +409,9 @@ public sealed class ReportsViewModel : ViewModelBase
                     var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
                     var totalRoundedMinutes = group.Sum(vm => vm.RoundedMinutes);
                     var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
-                    decimal? honorarRvg = null;
-                    decimal? rvgFee1_0 = null;
-                    decimal? factorSum = null;
-                    if (matter?.BillingType == BillingType.Rvg)
-                    {
-                        rvgFee1_0 = rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
-                        var feeFactor = matter.FeeFactor ?? 0m;
-                        var feeModifierSum = RvgCalculator.CalculateFeeModifierSum(
-                            matter.BusinessFee13Enabled,
-                            matter.TermFee12Enabled,
-                            matter.SettlementFee10Enabled,
-                            matter.SettlementFee15Enabled);
-                        factorSum = feeFactor + feeModifierSum;
-                        honorarRvg = RvgCalculator.CalculateEstimate(rvgFee1_0.Value, feeFactor, feeModifierSum);
-                    }
+                    var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, rvgFeeTableService);
 
-                    return (hourlyRate, totalRoundedMinutes, honorarStunden, honorarRvg, rvgFee1_0, factorSum);
+                    return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown);
                 });
 
         foreach (var entry in entries)
@@ -436,9 +422,7 @@ public sealed class ReportsViewModel : ViewModelBase
                     values.hourlyRate,
                     values.totalRoundedMinutes,
                     values.honorarStunden,
-                    values.honorarRvg,
-                    values.rvgFee1_0,
-                    values.factorSum);
+                    values.breakdown);
             }
         }
     }
@@ -476,17 +460,44 @@ public sealed class ReportsViewModel : ViewModelBase
             return null;
         }
 
-        var fee1_0 = _rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
-        var feeModifierSum = RvgCalculator.CalculateFeeModifierSum(
-            matter.BusinessFee13Enabled,
-            matter.TermFee12Enabled,
-            matter.SettlementFee10Enabled,
-            matter.SettlementFee15Enabled);
-        var estimate = RvgCalculator.CalculateEstimate(fee1_0, matter.FeeFactor ?? 0m, feeModifierSum);
+        var breakdown = CalculateRvgBreakdown(matter, _rvgFeeTableService);
+        if (breakdown == null)
+        {
+            return null;
+        }
+
+        var estimate = breakdown.TotalEur;
         var actualHours = actualMinutes / 60m;
         var effective = RvgCalculator.CalculateEffectiveHourlyRate(estimate, actualHours);
         var breakEven = RvgCalculator.CalculateBreakEvenTime(estimate, _timeEntryService.GetEffectiveTargetRate(matter));
-        return new RvgMetrics(fee1_0, estimate, effective, breakEven);
+        return new RvgMetrics(breakdown.Fee1_0Eur, estimate, effective, breakEven);
+    }
+
+    private static RvgBreakdown? CalculateRvgBreakdown(Matter matter, RvgFeeTableService rvgFeeTableService)
+    {
+        if (matter.BillingType != BillingType.Rvg)
+        {
+            return null;
+        }
+
+        var fee1_0 = rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
+        var businessFee = matter.BusinessFee13Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.3m) : 0m;
+        var termFee = matter.TermFee12Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.2m) : 0m;
+        var settlement10Fee = matter.SettlementFee10Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.0m) : 0m;
+        var settlement15Fee = matter.SettlementFee15Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.5m) : 0m;
+        var customFee = matter.CustomFeeFactor.HasValue
+            ? RvgCalculator.RoundCurrency(fee1_0 * matter.CustomFeeFactor.Value)
+            : 0m;
+        var total = RvgCalculator.RoundCurrency(businessFee + termFee + settlement10Fee + settlement15Fee + customFee);
+
+        return new RvgBreakdown(
+            fee1_0,
+            businessFee,
+            termFee,
+            settlement10Fee,
+            settlement15Fee,
+            customFee,
+            total);
     }
 
     private bool CanExport() => MatterFilters.Count > 0;
@@ -583,7 +594,7 @@ public sealed class ReportsViewModel : ViewModelBase
                 row.HonorarStundenMatter.ToString("N2"),
                 row.HonorarRvgMatter.ToString("N2"),
                 row.SubjectValueEur.ToString("N2"),
-                FormatFeeFactor(row.FeeFactor),
+                FormatFeeFactor(row.CustomFeeFactor),
                 FormatToggle(row.BusinessFee13Enabled),
                 FormatToggle(row.TermFee12Enabled),
                 FormatToggle(row.SettlementFee10Enabled),
@@ -685,7 +696,7 @@ public sealed class ReportsViewModel : ViewModelBase
             entryViewModel.HonorarStundenMatter,
             entryViewModel.HonorarRvgMatter,
             entryViewModel.SubjectValueEur,
-            entryViewModel.FeeFactor,
+            entryViewModel.CustomFeeFactor,
             entryViewModel.BusinessFee13Enabled,
             entryViewModel.TermFee12Enabled,
             entryViewModel.SettlementFee10Enabled,
@@ -734,7 +745,7 @@ public sealed class ReportsViewModel : ViewModelBase
             sheet.Cell(rowIndex, 10).Value = row.HonorarStundenMatter;
             sheet.Cell(rowIndex, 11).Value = row.HonorarRvgMatter;
             sheet.Cell(rowIndex, 12).Value = row.SubjectValueEur;
-            sheet.Cell(rowIndex, 13).Value = row.FeeFactor.HasValue ? (double)row.FeeFactor.Value : string.Empty;
+            sheet.Cell(rowIndex, 13).Value = row.CustomFeeFactor.HasValue ? (double)row.CustomFeeFactor.Value : string.Empty;
             sheet.Cell(rowIndex, 14).Value = FormatToggle(row.BusinessFee13Enabled);
             sheet.Cell(rowIndex, 15).Value = FormatToggle(row.TermFee12Enabled);
             sheet.Cell(rowIndex, 16).Value = FormatToggle(row.SettlementFee10Enabled);
@@ -835,12 +846,21 @@ public sealed record ExportRow(
     decimal HonorarStundenMatter,
     decimal HonorarRvgMatter,
     decimal SubjectValueEur,
-    decimal? FeeFactor,
+    decimal? CustomFeeFactor,
     bool BusinessFee13Enabled,
     bool TermFee12Enabled,
     bool SettlementFee10Enabled,
     bool SettlementFee15Enabled,
     decimal EffektivitätMatter);
+
+internal sealed record RvgBreakdown(
+    decimal Fee1_0Eur,
+    decimal BusinessFee13Eur,
+    decimal TermFee12Eur,
+    decimal SettlementFee10Eur,
+    decimal SettlementFee15Eur,
+    decimal CustomFeeEur,
+    decimal TotalEur);
 
 public sealed class MatterFilterItem : ViewModelBase
 {
@@ -867,11 +887,16 @@ public sealed class ReportEntryViewModel : ViewModelBase
     private readonly Action<long>? _matterUpdated;
     private decimal _hourlyRate;
     private decimal _subjectValueEur;
-    private decimal? _feeFactor;
+    private decimal? _customFeeFactor;
     private bool _businessFee13Enabled;
     private bool _termFee12Enabled;
     private bool _settlementFee10Enabled;
     private bool _settlementFee15Enabled;
+    private decimal _businessFee13Eur;
+    private decimal _termFee12Eur;
+    private decimal _settlementFee10Eur;
+    private decimal _settlementFee15Eur;
+    private decimal _customFeeEur;
 
     public ReportEntryViewModel(TimeEntry entry, Matter? matter, TimeEntryService timeEntryService, Action<long> matterUpdated)
     {
@@ -891,12 +916,12 @@ public sealed class ReportEntryViewModel : ViewModelBase
         BillingType = matter?.BillingType ?? BillingType.Hourly;
         _hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
         _subjectValueEur = matter?.SubjectValueEur ?? 0m;
-        _feeFactor = matter?.FeeFactor;
+        _customFeeFactor = matter?.CustomFeeFactor;
         _businessFee13Enabled = matter?.BusinessFee13Enabled ?? false;
         _termFee12Enabled = matter?.TermFee12Enabled ?? false;
         _settlementFee10Enabled = matter?.SettlementFee10Enabled ?? false;
         _settlementFee15Enabled = matter?.SettlementFee15Enabled ?? false;
-        SetMatterHonorarium(matter?.HourlyRateEurPerHour ?? 0m, 0, 0m);
+        SetMatterHonorarium(matter?.HourlyRateEurPerHour ?? 0m, 0, 0m, null);
     }
 
     public TimeEntry Entry { get; }
@@ -918,6 +943,16 @@ public sealed class ReportEntryViewModel : ViewModelBase
     public string RvgEstimateText { get; private set; } = "-";
     public string EffectiveHourlyRateText { get; private set; } = "-";
     public string BreakEvenTimeText { get; private set; } = "-";
+    public decimal BusinessFee13Eur => _businessFee13Eur;
+    public decimal TermFee12Eur => _termFee12Eur;
+    public decimal SettlementFee10Eur => _settlementFee10Eur;
+    public decimal SettlementFee15Eur => _settlementFee15Eur;
+    public decimal CustomFeeEur => _customFeeEur;
+    public string BusinessFee13EurText => FormatRvgComponent(_businessFee13Enabled, _businessFee13Eur);
+    public string TermFee12EurText => FormatRvgComponent(_termFee12Enabled, _termFee12Eur);
+    public string SettlementFee10EurText => FormatRvgComponent(_settlementFee10Enabled, _settlementFee10Eur);
+    public string SettlementFee15EurText => FormatRvgComponent(_settlementFee15Enabled, _settlementFee15Eur);
+    public string CustomFeeEurText => _customFeeFactor.HasValue ? FormatCurrency(_customFeeEur) : string.Empty;
 
     public decimal HourlyRate
     {
@@ -953,20 +988,21 @@ public sealed class ReportEntryViewModel : ViewModelBase
         }
     }
 
-    public decimal? FeeFactor
+    public decimal? CustomFeeFactor
     {
-        get => _feeFactor;
+        get => _customFeeFactor;
         set
         {
-            var normalized = NormalizeFeeFactor(value);
-            if (_feeFactor == normalized)
+            var normalized = NormalizeCustomFeeFactor(value);
+            if (_customFeeFactor == normalized)
             {
                 return;
             }
 
-            _feeFactor = normalized;
+            _customFeeFactor = normalized;
             NotifyPropertyChanged();
-            UpdateMatter(matter => matter.FeeFactor = normalized);
+            NotifyPropertyChanged(nameof(CustomFeeEurText));
+            UpdateMatter(matter => matter.CustomFeeFactor = normalized);
         }
     }
 
@@ -1038,24 +1074,39 @@ public sealed class ReportEntryViewModel : ViewModelBase
         decimal hourlyRateEurPerHour,
         int sumRoundedMinutesMatter,
         decimal honorarStundenMatter,
-        decimal? honorarRvgEur = null,
-        decimal? rvgFee1_0Eur = null,
-        decimal? factorSum = null)
+        RvgBreakdown? breakdown)
     {
         _hourlyRate = hourlyRateEurPerHour;
         EinzelHonorar = RoundCurrency((RoundedMinutes / 60m) * hourlyRateEurPerHour);
         HonorarStundenMatter = honorarStundenMatter;
-        HonorarRvgMatter = honorarRvgEur ?? 0m;
-        EffektivitätMatter = honorarRvgEur == null ? 0m : RoundCurrency(honorarRvgEur.Value - honorarStundenMatter);
-        RvgFormulaTooltip = rvgFee1_0Eur == null || factorSum == null
+        HonorarRvgMatter = breakdown?.TotalEur ?? 0m;
+        EffektivitätMatter = breakdown == null ? 0m : RoundCurrency(breakdown.TotalEur - honorarStundenMatter);
+        RvgFormulaTooltip = breakdown == null
             ? "-"
-            : $"1,0-Gebühr: {rvgFee1_0Eur.Value:N2} €, Faktor-Summe: {factorSum.Value:N1}";
+            : $"1,0-Gebühr: {breakdown.Fee1_0Eur:N2} €, GB 1,3: {breakdown.BusinessFee13Eur:N2} €, " +
+              $"Termin 1,2: {breakdown.TermFee12Eur:N2} €, Vergleich 1,0: {breakdown.SettlementFee10Eur:N2} €, " +
+              $"Vergleich 1,5: {breakdown.SettlementFee15Eur:N2} €, Wahl: {breakdown.CustomFeeEur:N2} €";
+        _businessFee13Eur = breakdown?.BusinessFee13Eur ?? 0m;
+        _termFee12Eur = breakdown?.TermFee12Eur ?? 0m;
+        _settlementFee10Eur = breakdown?.SettlementFee10Eur ?? 0m;
+        _settlementFee15Eur = breakdown?.SettlementFee15Eur ?? 0m;
+        _customFeeEur = breakdown?.CustomFeeEur ?? 0m;
         NotifyPropertyChanged(nameof(HourlyRate));
         NotifyPropertyChanged(nameof(EinzelHonorar));
         NotifyPropertyChanged(nameof(HonorarStundenMatter));
         NotifyPropertyChanged(nameof(HonorarRvgMatter));
         NotifyPropertyChanged(nameof(EffektivitätMatter));
         NotifyPropertyChanged(nameof(RvgFormulaTooltip));
+        NotifyPropertyChanged(nameof(BusinessFee13Eur));
+        NotifyPropertyChanged(nameof(TermFee12Eur));
+        NotifyPropertyChanged(nameof(SettlementFee10Eur));
+        NotifyPropertyChanged(nameof(SettlementFee15Eur));
+        NotifyPropertyChanged(nameof(CustomFeeEur));
+        NotifyPropertyChanged(nameof(BusinessFee13EurText));
+        NotifyPropertyChanged(nameof(TermFee12EurText));
+        NotifyPropertyChanged(nameof(SettlementFee10EurText));
+        NotifyPropertyChanged(nameof(SettlementFee15EurText));
+        NotifyPropertyChanged(nameof(CustomFeeEurText));
     }
 
     public void SetRvgMetrics(RvgMetrics? metrics)
@@ -1081,15 +1132,25 @@ public sealed class ReportEntryViewModel : ViewModelBase
 
     public static decimal RoundCurrency(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
-    private static decimal? NormalizeFeeFactor(decimal? value)
+    private static decimal? NormalizeCustomFeeFactor(decimal? value)
     {
         if (value == null)
         {
             return null;
         }
 
-        var clamped = Math.Clamp(value.Value, 0m, 3m);
+        var clamped = Math.Clamp(value.Value, 0.1m, 3m);
         return Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
+    }
+
+    private static string FormatRvgComponent(bool enabled, decimal amount)
+    {
+        return enabled ? FormatCurrency(amount) : "—";
+    }
+
+    private static string FormatCurrency(decimal amount)
+    {
+        return $"{amount:N2} €";
     }
 
     private void UpdateMatter(Action<Matter> updateAction)
