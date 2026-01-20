@@ -363,7 +363,12 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         var fee1_0 = _rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
-        var estimate = RvgCalculator.CalculateEstimate(fee1_0, matter.FeeFactor);
+        var feeModifierSum = RvgCalculator.CalculateFeeModifierSum(
+            matter.BusinessFee13Enabled,
+            matter.TermFee12Enabled,
+            matter.SettlementFee10Enabled,
+            matter.SettlementFee15Enabled);
+        var estimate = RvgCalculator.CalculateEstimate(fee1_0, matter.FeeFactor, feeModifierSum);
         var actualHours = actualMinutes / 60m;
         var effective = RvgCalculator.CalculateEffectiveHourlyRate(estimate, actualHours);
         var breakEven = RvgCalculator.CalculateBreakEvenTime(estimate, _timeEntryService.GetEffectiveTargetRate(matter));

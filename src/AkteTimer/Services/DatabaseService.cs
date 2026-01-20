@@ -723,7 +723,8 @@ public sealed class DatabaseService
         {
             additions.Add("ALTER TABLE Matters ADD COLUMN target_rate_eur_per_hour REAL NULL;");
         }
-        if (!columns.Contains("hourly_rate_eur_per_hour"))
+        var hasHourlyRateColumn = columns.Contains("hourly_rate_eur_per_hour");
+        if (!hasHourlyRateColumn)
         {
             additions.Add("ALTER TABLE Matters ADD COLUMN hourly_rate_eur_per_hour REAL NOT NULL DEFAULT 230.0;");
         }
@@ -749,6 +750,13 @@ public sealed class DatabaseService
             using var alter = connection.CreateCommand();
             alter.CommandText = statement;
             alter.ExecuteNonQuery();
+        }
+
+        if (hasHourlyRateColumn)
+        {
+            using var update = connection.CreateCommand();
+            update.CommandText = "UPDATE Matters SET hourly_rate_eur_per_hour = 230.0 WHERE hourly_rate_eur_per_hour IS NULL;";
+            update.ExecuteNonQuery();
         }
     }
 }

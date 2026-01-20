@@ -12,6 +12,7 @@ public sealed class MatterDetailsViewModel : ViewModelBase
     private decimal _subjectValueEur;
     private decimal _feeFactor;
     private decimal _targetRateEurPerHour;
+    private decimal _hourlyRateEurPerHour;
     private int _actualMinutes;
     private decimal _fee1_0Eur;
     private decimal _rvgEstimateEur;
@@ -27,6 +28,7 @@ public sealed class MatterDetailsViewModel : ViewModelBase
         _subjectValueEur = matter.SubjectValueEur;
         _feeFactor = matter.FeeFactor;
         _targetRateEurPerHour = matter.TargetRateEurPerHour;
+        _hourlyRateEurPerHour = matter.HourlyRateEurPerHour;
         _actualMinutes = GetActualMinutes();
         RefreshCalculations();
     }
@@ -74,13 +76,14 @@ public sealed class MatterDetailsViewModel : ViewModelBase
         get => _feeFactor;
         set
         {
-            var clamped = Math.Clamp(value, 0.1m, 2.5m);
-            if (_feeFactor == clamped)
+            var clamped = Math.Clamp(value, 0m, 3m);
+            var rounded = Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
+            if (_feeFactor == rounded)
             {
                 return;
             }
 
-            _feeFactor = clamped;
+            _feeFactor = rounded;
             _matter.FeeFactor = _feeFactor;
             _timeEntryService.UpdateMatter(_matter);
             NotifyPropertyChanged();
@@ -103,6 +106,23 @@ public sealed class MatterDetailsViewModel : ViewModelBase
             _timeEntryService.UpdateMatter(_matter);
             NotifyPropertyChanged();
             RefreshCalculations();
+        }
+    }
+
+    public decimal HourlyRateEurPerHour
+    {
+        get => _hourlyRateEurPerHour;
+        set
+        {
+            if (_hourlyRateEurPerHour == value)
+            {
+                return;
+            }
+
+            _hourlyRateEurPerHour = Math.Max(0m, value);
+            _matter.HourlyRateEurPerHour = _hourlyRateEurPerHour;
+            _timeEntryService.UpdateMatter(_matter);
+            NotifyPropertyChanged();
         }
     }
 
@@ -138,7 +158,12 @@ public sealed class MatterDetailsViewModel : ViewModelBase
     private void RefreshCalculations()
     {
         _fee1_0Eur = _rvgFeeTableService.LookupFee1_0(_subjectValueEur);
-        _rvgEstimateEur = RvgCalculator.CalculateEstimate(_fee1_0Eur, _feeFactor);
+        var feeModifierSum = RvgCalculator.CalculateFeeModifierSum(
+            _matter.BusinessFee13Enabled,
+            _matter.TermFee12Enabled,
+            _matter.SettlementFee10Enabled,
+            _matter.SettlementFee15Enabled);
+        _rvgEstimateEur = RvgCalculator.CalculateEstimate(_fee1_0Eur, _feeFactor, feeModifierSum);
         var actualHours = _actualMinutes / 60m;
         _effectiveHourlyRateEur = RvgCalculator.CalculateEffectiveHourlyRate(_rvgEstimateEur, actualHours);
         var targetRate = _timeEntryService.GetEffectiveTargetRate(_targetRateEurPerHour);
