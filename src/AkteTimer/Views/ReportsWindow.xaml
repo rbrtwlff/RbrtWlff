@@ -185,19 +185,19 @@
                            Foreground="DarkRed"
                            Text="RVG-Schätzung für internes Controlling – keine Abrechnung und keine Kostenfestsetzung." />
                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                  <TextBlock Text="Gegenstandswert (EUR)" Width="180" VerticalAlignment="Center" />
+                  <TextBlock Text="Streitwert (EUR)" Width="180" VerticalAlignment="Center" />
                   <TextBox Width="140"
                            Text="{Binding SelectedMatterDetails.SubjectValueEur, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                   <TextBlock Text="Gebührensatz/Faktor" Width="180" VerticalAlignment="Center" />
                   <TextBox Width="140"
-                           Text="{Binding SelectedMatterDetails.FeeFactor, UpdateSourceTrigger=PropertyChanged}" />
+                           Text="{Binding SelectedMatterDetails.FeeFactor, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                  <TextBlock Text="Ziel-Stundensatz (EUR/h)" Width="180" VerticalAlignment="Center" />
+                  <TextBlock Text="Stundensatz (EUR/h)" Width="180" VerticalAlignment="Center" />
                   <TextBox Width="140"
-                           Text="{Binding SelectedMatterDetails.TargetRateEurPerHour, UpdateSourceTrigger=PropertyChanged}" />
+                           Text="{Binding SelectedMatterDetails.HourlyRateEurPerHour, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
                 <Separator Margin="0,8,0,8" />
                 <TextBlock Text="{Binding SelectedMatterDetails.Fee1_0EurText, StringFormat='1,0-Gebühr: {0} €'}" />
