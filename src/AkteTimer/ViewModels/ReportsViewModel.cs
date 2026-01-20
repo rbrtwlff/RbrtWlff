@@ -246,7 +246,10 @@ public sealed class ReportsViewModel : ViewModelBase
 
     private void HandleMatterDetailsChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MatterDetailsViewModel.HourlyRateEurPerHour))
+        if (e.PropertyName == nameof(MatterDetailsViewModel.HourlyRateEurPerHour)
+            || e.PropertyName == nameof(MatterDetailsViewModel.SubjectValueEur)
+            || e.PropertyName == nameof(MatterDetailsViewModel.FeeFactor)
+            || e.PropertyName == nameof(MatterDetailsViewModel.BillingType))
         {
             RefreshToday();
             RefreshRangeAndMatters();
@@ -264,12 +267,21 @@ public sealed class ReportsViewModel : ViewModelBase
         foreach (var entry in _timeEntryService.GetTodayEntries())
         {
             matterLookup.TryGetValue(entry.MatterId, out var matter);
-            var vm = new ReportEntryViewModel(entry, matter);
+            var vm = new ReportEntryViewModel(entry, matter, _timeEntryService, HandleMatterUpdated);
             TodayEntries.Add(vm);
             entryViewModels.Add(vm);
             totalDuration += vm.Duration;
             totalMinutes += vm.ActualMinutes;
             totalRoundedMinutes += vm.RoundedMinutes;
+        }
+
+        var rvgMetricsByMatter = BuildRvgMetricsByMatter(entryViewModels, matterLookup);
+        foreach (var entryViewModel in entryViewModels)
+        {
+            if (rvgMetricsByMatter.TryGetValue(entryViewModel.MatterId, out var metrics))
+            {
+                entryViewModel.SetRvgMetrics(metrics);
+            }
         }
 
         ApplyMatterHonorarium(entryViewModels, matterLookup);
@@ -307,24 +319,11 @@ public sealed class ReportsViewModel : ViewModelBase
             .Select(entry =>
             {
                 matterLookup.TryGetValue(entry.MatterId, out var matter);
-                return new ReportEntryViewModel(entry, matter);
+                return new ReportEntryViewModel(entry, matter, _timeEntryService, HandleMatterUpdated);
             })
             .ToList();
 
-        var rvgMetricsByMatter = entryViewModels
-            .GroupBy(vm => vm.MatterId)
-            .ToDictionary(
-                group => group.Key,
-                group =>
-                {
-                    if (!matterLookup.TryGetValue(group.Key, out var matter))
-                    {
-                        return null;
-                    }
-
-                    var totalMinutes = group.Sum(vm => vm.ActualMinutes);
-                    return CalculateRvgMetrics(matter, totalMinutes);
-                });
+        var rvgMetricsByMatter = BuildRvgMetricsByMatter(entryViewModels, matterLookup);
 
         foreach (var entryViewModel in entryViewModels)
         {
@@ -372,7 +371,9 @@ public sealed class ReportsViewModel : ViewModelBase
         RaiseExportCanExecute();
     }
 
-    private static void ApplyMatterHonorarium(IEnumerable<ReportEntryViewModel> entries, IReadOnlyDictionary<long, Matter> matterLookup)
+    private static void ApplyMatterHonorarium(
+        IEnumerable<ReportEntryViewModel> entries,
+        IReadOnlyDictionary<long, Matter> matterLookup)
     {
         var honorariumByMatter = entries
             .GroupBy(vm => vm.MatterId)
@@ -384,16 +385,43 @@ public sealed class ReportsViewModel : ViewModelBase
                     var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
                     var totalRoundedMinutes = group.Sum(vm => vm.RoundedMinutes);
                     var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
-                    return (hourlyRate, totalRoundedMinutes, honorarStunden);
+                    var honorarRvg = 0m;
+                    return (hourlyRate, totalRoundedMinutes, honorarStunden, honorarRvg);
                 });
 
         foreach (var entry in entries)
         {
             if (honorariumByMatter.TryGetValue(entry.MatterId, out var values))
             {
-                entry.SetMatterHonorarium(values.hourlyRate, values.totalRoundedMinutes, values.honorarStunden);
+                entry.SetMatterHonorarium(values.hourlyRate, values.totalRoundedMinutes, values.honorarStunden, values.honorarRvg);
             }
         }
+    }
+
+    private Dictionary<long, RvgMetrics?> BuildRvgMetricsByMatter(
+        IEnumerable<ReportEntryViewModel> entryViewModels,
+        IReadOnlyDictionary<long, Matter> matterLookup)
+    {
+        return entryViewModels
+            .GroupBy(vm => vm.MatterId)
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    if (!matterLookup.TryGetValue(group.Key, out var matter))
+                    {
+                        return null;
+                    }
+
+                    var totalMinutes = group.Sum(vm => vm.ActualMinutes);
+                    return CalculateRvgMetrics(matter, totalMinutes);
+                });
+    }
+
+    private void HandleMatterUpdated(long matterId)
+    {
+        RefreshToday();
+        RefreshRangeAndMatters();
     }
 
     private RvgMetrics? CalculateRvgMetrics(Matter matter, int actualMinutes)
@@ -688,10 +716,24 @@ public sealed class MatterFilterItem : ViewModelBase
     public event Action<MatterFilterItem>? SelectionChanged;
 }
 
-public sealed class ReportEntryViewModel
+public sealed class ReportEntryViewModel : ViewModelBase
 {
-    public ReportEntryViewModel(TimeEntry entry, Matter? matter)
+    private readonly TimeEntryService _timeEntryService;
+    private readonly Matter? _matter;
+    private readonly Action<long>? _matterUpdated;
+    private decimal _hourlyRate;
+    private decimal _subjectValueEur;
+    private decimal _feeFactor;
+    private bool _businessFee13Enabled;
+    private bool _termFee12Enabled;
+    private bool _settlementFee10Enabled;
+    private bool _settlementFee15Enabled;
+
+    public ReportEntryViewModel(TimeEntry entry, Matter? matter, TimeEntryService timeEntryService, Action<long> matterUpdated)
     {
+        _timeEntryService = timeEntryService;
+        _matter = matter;
+        _matterUpdated = matterUpdated;
         Entry = entry;
         MatterId = entry.MatterId;
         Matter = entry.MatterFileRef ?? "-";
@@ -703,6 +745,13 @@ public sealed class ReportEntryViewModel
         ActualMinutes = TimeEntryCalculations.GetActualMinutes(Duration);
         RoundedMinutes = TimeEntryCalculations.GetRoundedMinutes(ActualMinutes);
         BillingType = matter?.BillingType ?? BillingType.Hourly;
+        _hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
+        _subjectValueEur = matter?.SubjectValueEur ?? 0m;
+        _feeFactor = matter?.FeeFactor ?? 0m;
+        _businessFee13Enabled = matter?.BusinessFee13Enabled ?? false;
+        _termFee12Enabled = matter?.TermFee12Enabled ?? false;
+        _settlementFee10Enabled = matter?.SettlementFee10Enabled ?? false;
+        _settlementFee15Enabled = matter?.SettlementFee15Enabled ?? false;
         SetMatterHonorarium(matter?.HourlyRateEurPerHour ?? 0m, 0, 0m);
     }
 
@@ -718,19 +767,141 @@ public sealed class ReportEntryViewModel
     public int RoundedMinutes { get; }
     public BillingType BillingType { get; }
     public decimal EinzelHonorar { get; private set; }
-    public decimal HourlyRate { get; private set; }
     public decimal HonorarStundenMatter { get; private set; }
+    public decimal HonorarRvgMatter { get; private set; }
     public decimal EffektivitätMatter { get; private set; }
     public string RvgEstimateText { get; private set; } = "-";
     public string EffectiveHourlyRateText { get; private set; } = "-";
     public string BreakEvenTimeText { get; private set; } = "-";
 
+    public decimal HourlyRate
+    {
+        get => _hourlyRate;
+        set
+        {
+            var next = Math.Max(0m, value);
+            if (_hourlyRate == next)
+            {
+                return;
+            }
+
+            _hourlyRate = next;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.HourlyRateEurPerHour = next);
+        }
+    }
+
+    public decimal SubjectValueEur
+    {
+        get => _subjectValueEur;
+        set
+        {
+            var next = Math.Max(0m, value);
+            if (_subjectValueEur == next)
+            {
+                return;
+            }
+
+            _subjectValueEur = next;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.SubjectValueEur = next);
+        }
+    }
+
+    public decimal FeeFactor
+    {
+        get => _feeFactor;
+        set
+        {
+            var clamped = Math.Clamp(value, 0m, 3m);
+            var rounded = Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
+            if (_feeFactor == rounded)
+            {
+                return;
+            }
+
+            _feeFactor = rounded;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.FeeFactor = rounded);
+        }
+    }
+
+    public bool BusinessFee13Enabled
+    {
+        get => _businessFee13Enabled;
+        set
+        {
+            if (_businessFee13Enabled == value)
+            {
+                return;
+            }
+
+            _businessFee13Enabled = value;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.BusinessFee13Enabled = value);
+        }
+    }
+
+    public bool TermFee12Enabled
+    {
+        get => _termFee12Enabled;
+        set
+        {
+            if (_termFee12Enabled == value)
+            {
+                return;
+            }
+
+            _termFee12Enabled = value;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.TermFee12Enabled = value);
+        }
+    }
+
+    public bool SettlementFee10Enabled
+    {
+        get => _settlementFee10Enabled;
+        set
+        {
+            if (_settlementFee10Enabled == value)
+            {
+                return;
+            }
+
+            _settlementFee10Enabled = value;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.SettlementFee10Enabled = value);
+        }
+    }
+
+    public bool SettlementFee15Enabled
+    {
+        get => _settlementFee15Enabled;
+        set
+        {
+            if (_settlementFee15Enabled == value)
+            {
+                return;
+            }
+
+            _settlementFee15Enabled = value;
+            NotifyPropertyChanged();
+            UpdateMatter(matter => matter.SettlementFee15Enabled = value);
+        }
+    }
+
     public void SetMatterHonorarium(decimal hourlyRateEurPerHour, int sumRoundedMinutesMatter, decimal honorarStundenMatter, decimal? honorarRvgEur = null)
     {
-        HourlyRate = hourlyRateEurPerHour;
+        _hourlyRate = hourlyRateEurPerHour;
         EinzelHonorar = RoundCurrency((RoundedMinutes / 60m) * hourlyRateEurPerHour);
         HonorarStundenMatter = honorarStundenMatter;
+        HonorarRvgMatter = honorarRvgEur ?? 0m;
         EffektivitätMatter = honorarRvgEur == null ? 0m : RoundCurrency(honorarRvgEur.Value - honorarStundenMatter);
+        NotifyPropertyChanged(nameof(HourlyRate));
+        NotifyPropertyChanged(nameof(EinzelHonorar));
+        NotifyPropertyChanged(nameof(HonorarStundenMatter));
+        NotifyPropertyChanged(nameof(HonorarRvgMatter));
+        NotifyPropertyChanged(nameof(EffektivitätMatter));
     }
 
     public void SetRvgMetrics(RvgMetrics? metrics)
@@ -740,15 +911,33 @@ public sealed class ReportEntryViewModel
             RvgEstimateText = "-";
             EffectiveHourlyRateText = "-";
             BreakEvenTimeText = "-";
+            NotifyPropertyChanged(nameof(RvgEstimateText));
+            NotifyPropertyChanged(nameof(EffectiveHourlyRateText));
+            NotifyPropertyChanged(nameof(BreakEvenTimeText));
             return;
         }
 
         RvgEstimateText = metrics.EstimateEur.ToString("N2");
         EffectiveHourlyRateText = metrics.EffectiveHourlyRateEur?.ToString("N2") ?? "-";
         BreakEvenTimeText = metrics.BreakEvenTime == null ? "-" : RvgCalculator.FormatBreakEvenTime(metrics.BreakEvenTime.Value);
+        NotifyPropertyChanged(nameof(RvgEstimateText));
+        NotifyPropertyChanged(nameof(EffectiveHourlyRateText));
+        NotifyPropertyChanged(nameof(BreakEvenTimeText));
     }
 
     public static decimal RoundCurrency(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+
+    private void UpdateMatter(Action<Matter> updateAction)
+    {
+        if (_matter == null)
+        {
+            return;
+        }
+
+        updateAction(_matter);
+        _timeEntryService.UpdateMatter(_matter);
+        _matterUpdated?.Invoke(_matter.Id);
+    }
 }
 
 public sealed class DayGroupViewModel
