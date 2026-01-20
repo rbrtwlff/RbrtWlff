@@ -9,7 +9,7 @@
     <converters:FlexibleDecimalConverter x:Key="CurrencyConverter" Format="N2" Suffix="€" />
     <converters:FlexibleDecimalConverter x:Key="FeeFactorConverter" Format="F1" AllowNull="True" />
     <Style x:Key="ToggleCheckBoxStyle" TargetType="CheckBox">
-      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Style.Triggers>
         <Trigger Property="IsChecked" Value="False">
@@ -20,6 +20,9 @@
     <Style x:Key="NumericTextBlockStyle" TargetType="TextBlock">
       <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+    <Style x:Key="RvgAmountTextStyle" TargetType="TextBlock" BasedOn="{StaticResource NumericTextBlockStyle}">
+      <Setter Property="Margin" Value="6,0,0,0" />
     </Style>
     <Style x:Key="NumericTextBoxStyle" TargetType="TextBox">
       <Setter Property="TextAlignment" Value="Right" />
@@ -115,26 +118,130 @@
                                   Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                   ElementStyle="{StaticResource NumericTextBlockStyle}"
                                   EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-              <DataGridTextColumn Header="Gebühr (wahl)"
-                                  Binding="{Binding FeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}"
-                                  ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                  EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-              <DataGridCheckBoxColumn Header="Geschäftsgebühr 1,3"
-                                      Binding="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                      ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                      EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-              <DataGridCheckBoxColumn Header="Terminsgebühr 1,2"
-                                      Binding="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                      ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                      EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-              <DataGridCheckBoxColumn Header="Vergleichsgebühr 1,0"
-                                      Binding="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                      ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                      EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-              <DataGridCheckBoxColumn Header="Vergleichsgebühr 1,5"
-                                      Binding="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                      ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                      EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
+              <DataGridTemplateColumn Header="Gebühr (wahl)">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBox Grid.Column="0"
+                               Margin="0,0,6,0"
+                               MinWidth="50"
+                               Style="{StaticResource NumericTextBoxStyle}"
+                               Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
+                      <TextBlock Grid.Column="1"
+                                 Style="{StaticResource NumericTextBlockStyle}"
+                                 Text="{Binding CustomFeeEurText}" />
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Geschäftsgebühr 1,3">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding BusinessFee13EurText}">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding BusinessFee13Enabled}" Value="False">
+                                <Setter Property="Foreground" Value="DarkGray" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Terminsgebühr 1,2">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding TermFee12EurText}">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding TermFee12Enabled}" Value="False">
+                                <Setter Property="Foreground" Value="DarkGray" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Vergleichsgebühr 1,0">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding SettlementFee10EurText}">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding SettlementFee10Enabled}" Value="False">
+                                <Setter Property="Foreground" Value="DarkGray" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Vergleichsgebühr 1,5">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding SettlementFee15EurText}">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding SettlementFee15Enabled}" Value="False">
+                                <Setter Property="Foreground" Value="DarkGray" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Grid>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
               <DataGridTextColumn Header="Effektivität"
                                   Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
                                   ElementStyle="{StaticResource EffectivityTextStyle}"
@@ -192,26 +299,130 @@
                                             Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
                                             EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-                        <DataGridTextColumn Header="Gebühr (wahl)"
-                                            Binding="{Binding FeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}"
-                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Geschäftsgebühr 1,3"
-                                                Binding="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Terminsgebühr 1,2"
-                                                Binding="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Vergleichsgebühr 1,0"
-                                                Binding="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Vergleichsgebühr 1,5"
-                                                Binding="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
+                        <DataGridTemplateColumn Header="Gebühr (wahl)">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="60" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         MinWidth="50"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
+                                <TextBlock Grid.Column="1"
+                                           Style="{StaticResource NumericTextBlockStyle}"
+                                           Text="{Binding CustomFeeEurText}" />
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Geschäftsgebühr 1,3">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding BusinessFee13EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding BusinessFee13Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Terminsgebühr 1,2">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding TermFee12EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TermFee12Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,0">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SettlementFee10EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SettlementFee10Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,5">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SettlementFee15EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SettlementFee15Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Effektivität"
                                             Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource EffectivityTextStyle}"
@@ -278,26 +489,130 @@
                                             Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
                                             EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-                        <DataGridTextColumn Header="Gebühr (wahl)"
-                                            Binding="{Binding FeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}"
-                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Geschäftsgebühr 1,3"
-                                                Binding="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Terminsgebühr 1,2"
-                                                Binding="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Vergleichsgebühr 1,0"
-                                                Binding="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
-                        <DataGridCheckBoxColumn Header="Vergleichsgebühr 1,5"
-                                                Binding="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}"
-                                                ElementStyle="{StaticResource ToggleCheckBoxStyle}"
-                                                EditingElementStyle="{StaticResource ToggleCheckBoxStyle}" />
+                        <DataGridTemplateColumn Header="Gebühr (wahl)">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="60" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         MinWidth="50"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
+                                <TextBlock Grid.Column="1"
+                                           Style="{StaticResource NumericTextBlockStyle}"
+                                           Text="{Binding CustomFeeEurText}" />
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Geschäftsgebühr 1,3">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding BusinessFee13EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding BusinessFee13Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Terminsgebühr 1,2">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding TermFee12EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TermFee12Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,0">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SettlementFee10EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SettlementFee10Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,5">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SettlementFee15EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SettlementFee15Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Effektivität"
                                             Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource EffectivityTextStyle}"
