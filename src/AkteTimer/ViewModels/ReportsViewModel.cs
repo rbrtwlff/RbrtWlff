@@ -489,7 +489,26 @@ public sealed class ReportsViewModel : ViewModelBase
 
         var exportRows = BuildExportRows();
         var builder = new StringBuilder();
-        WriteCsvRow(builder, "Datum", "Start", "Ende", "IstDauer_hhmmss", "IstMinuten", "Abrechnung6Minuten", "Aktenzeichen", "Hashtag", "Notiz");
+        WriteCsvRow(
+            builder,
+            "Datum",
+            "Start",
+            "Ende",
+            "IstDauer_hhmmss",
+            "IstMinuten",
+            "Abrechnung6Minuten",
+            "Aktenzeichen",
+            "Einzel-Honorar",
+            "Stundensatz",
+            "Honorar Stunden",
+            "Honorar RVG",
+            "Streitwert",
+            "Gebühr (wahl)",
+            "GB 1,3",
+            "Termin 1,2",
+            "Vergleich 1,0",
+            "Vergleich 1,5",
+            "Effektivität");
 
         foreach (var row in exportRows)
         {
@@ -502,8 +521,17 @@ public sealed class ReportsViewModel : ViewModelBase
                 row.ActualMinutes.ToString(),
                 row.RoundedMinutes.ToString(),
                 row.Matter,
-                row.Hashtag,
-                row.Note);
+                row.EinzelHonorar.ToString("N2"),
+                row.HourlyRate.ToString("N2"),
+                row.HonorarStundenMatter.ToString("N2"),
+                row.HonorarRvgMatter.ToString("N2"),
+                row.SubjectValueEur.ToString("N2"),
+                row.FeeFactor.ToString("F1"),
+                FormatToggle(row.BusinessFee13Enabled),
+                FormatToggle(row.TermFee12Enabled),
+                FormatToggle(row.SettlementFee10Enabled),
+                FormatToggle(row.SettlementFee15Enabled),
+                row.EffektivitätMatter.ToString("N2"));
         }
 
         try
@@ -560,34 +588,55 @@ public sealed class ReportsViewModel : ViewModelBase
             return new List<ExportRow>();
         }
 
-        var nowUtc = DateTime.UtcNow;
         var entries = _timeEntryService.GetEntriesInRange(FromDate, ToDate, selectedMatterIds);
-        return entries
-            .Select(entry => CreateExportRow(entry, nowUtc))
+        var matters = _timeEntryService.GetAllMatters();
+        var matterLookup = matters.ToDictionary(matter => matter.Id);
+        var entryViewModels = entries
+            .Select(entry =>
+            {
+                matterLookup.TryGetValue(entry.MatterId, out var matter);
+                return new ReportEntryViewModel(entry, matter, _timeEntryService, HandleMatterUpdated);
+            })
+            .ToList();
+
+        var rvgMetricsByMatter = BuildRvgMetricsByMatter(entryViewModels, matterLookup);
+        foreach (var entryViewModel in entryViewModels)
+        {
+            if (rvgMetricsByMatter.TryGetValue(entryViewModel.MatterId, out var metrics))
+            {
+                entryViewModel.SetRvgMetrics(metrics);
+            }
+        }
+
+        ApplyMatterHonorarium(entryViewModels, matterLookup, _rvgFeeTableService);
+
+        return entryViewModels
+            .Select(CreateExportRow)
             .OrderBy(row => row.Start)
             .ToList();
     }
 
-    private static ExportRow CreateExportRow(TimeEntry entry, DateTime nowUtc)
+    private static ExportRow CreateExportRow(ReportEntryViewModel entryViewModel)
     {
-        var startLocal = entry.StartUtc.ToLocalTime();
-        var endLocal = (entry.EndUtc ?? nowUtc).ToLocalTime();
-        var duration = TimeEntryCalculations.GetDuration(entry, nowUtc);
-        var actualMinutes = TimeEntryCalculations.GetActualMinutes(duration);
-        var roundedMinutes = TimeEntryCalculations.GetRoundedMinutes(actualMinutes);
-        var note = entry.Note?.Trim() ?? string.Empty;
-        var hashtag = entry.Hashtag?.Trim() ?? string.Empty;
-
         return new ExportRow(
-            startLocal.Date,
-            startLocal,
-            endLocal,
-            duration,
-            actualMinutes,
-            roundedMinutes,
-            entry.MatterFileRef ?? "-",
-            hashtag,
-            note);
+            entryViewModel.StartLocal.Date,
+            entryViewModel.StartLocal,
+            entryViewModel.EndLocal,
+            entryViewModel.Duration,
+            entryViewModel.ActualMinutes,
+            entryViewModel.RoundedMinutes,
+            entryViewModel.Matter,
+            entryViewModel.EinzelHonorar,
+            entryViewModel.HourlyRate,
+            entryViewModel.HonorarStundenMatter,
+            entryViewModel.HonorarRvgMatter,
+            entryViewModel.SubjectValueEur,
+            entryViewModel.FeeFactor,
+            entryViewModel.BusinessFee13Enabled,
+            entryViewModel.TermFee12Enabled,
+            entryViewModel.SettlementFee10Enabled,
+            entryViewModel.SettlementFee15Enabled,
+            entryViewModel.EffektivitätMatter);
     }
 
     private static void WriteCsvRow(StringBuilder builder, params string[] values)
@@ -626,8 +675,17 @@ public sealed class ReportsViewModel : ViewModelBase
             sheet.Cell(rowIndex, 5).Value = row.ActualMinutes;
             sheet.Cell(rowIndex, 6).Value = row.RoundedMinutes;
             sheet.Cell(rowIndex, 7).Value = row.Matter;
-            sheet.Cell(rowIndex, 8).Value = row.Hashtag;
-            sheet.Cell(rowIndex, 9).Value = row.Note;
+            sheet.Cell(rowIndex, 8).Value = row.EinzelHonorar;
+            sheet.Cell(rowIndex, 9).Value = row.HourlyRate;
+            sheet.Cell(rowIndex, 10).Value = row.HonorarStundenMatter;
+            sheet.Cell(rowIndex, 11).Value = row.HonorarRvgMatter;
+            sheet.Cell(rowIndex, 12).Value = row.SubjectValueEur;
+            sheet.Cell(rowIndex, 13).Value = row.FeeFactor;
+            sheet.Cell(rowIndex, 14).Value = FormatToggle(row.BusinessFee13Enabled);
+            sheet.Cell(rowIndex, 15).Value = FormatToggle(row.TermFee12Enabled);
+            sheet.Cell(rowIndex, 16).Value = FormatToggle(row.SettlementFee10Enabled);
+            sheet.Cell(rowIndex, 17).Value = FormatToggle(row.SettlementFee15Enabled);
+            sheet.Cell(rowIndex, 18).Value = row.EffektivitätMatter;
             rowIndex++;
         }
 
@@ -643,9 +701,20 @@ public sealed class ReportsViewModel : ViewModelBase
         sheet.Cell(1, 5).Value = "IstMinuten";
         sheet.Cell(1, 6).Value = "Abrechnung6Minuten";
         sheet.Cell(1, 7).Value = "Aktenzeichen";
-        sheet.Cell(1, 8).Value = "Hashtag";
-        sheet.Cell(1, 9).Value = "Notiz";
+        sheet.Cell(1, 8).Value = "Einzel-Honorar";
+        sheet.Cell(1, 9).Value = "Stundensatz";
+        sheet.Cell(1, 10).Value = "Honorar Stunden";
+        sheet.Cell(1, 11).Value = "Honorar RVG";
+        sheet.Cell(1, 12).Value = "Streitwert";
+        sheet.Cell(1, 13).Value = "Gebühr (wahl)";
+        sheet.Cell(1, 14).Value = "GB 1,3";
+        sheet.Cell(1, 15).Value = "Termin 1,2";
+        sheet.Cell(1, 16).Value = "Vergleich 1,0";
+        sheet.Cell(1, 17).Value = "Vergleich 1,5";
+        sheet.Cell(1, 18).Value = "Effektivität";
     }
+
+    private static string FormatToggle(bool enabled) => enabled ? "on" : "off";
 
     private static void WriteSummariesByMatterSheet(XLWorkbook workbook, IReadOnlyList<ExportRow> rows)
     {
@@ -702,8 +771,17 @@ public sealed record ExportRow(
     int ActualMinutes,
     int RoundedMinutes,
     string Matter,
-    string Hashtag,
-    string Note);
+    decimal EinzelHonorar,
+    decimal HourlyRate,
+    decimal HonorarStundenMatter,
+    decimal HonorarRvgMatter,
+    decimal SubjectValueEur,
+    decimal FeeFactor,
+    bool BusinessFee13Enabled,
+    bool TermFee12Enabled,
+    bool SettlementFee10Enabled,
+    bool SettlementFee15Enabled,
+    decimal EffektivitätMatter);
 
 public sealed class MatterFilterItem : ViewModelBase
 {
