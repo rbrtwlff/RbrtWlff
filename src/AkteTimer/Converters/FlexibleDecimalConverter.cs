@@ -12,7 +12,7 @@ public sealed class FlexibleDecimalConverter : IValueConverter
 
     public bool AllowNull { get; set; }
 
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value == null)
         {
@@ -39,7 +39,7 @@ public sealed class FlexibleDecimalConverter : IValueConverter
         return value.ToString() ?? string.Empty;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
     {
         var text = value?.ToString()?.Trim();
         if (string.IsNullOrWhiteSpace(text))
@@ -77,6 +77,6 @@ public sealed class FlexibleDecimalConverter : IValueConverter
             return parsed;
         }
 
-        return Binding.DoNothing;
+        return System.Windows.Data.Binding.DoNothing;
     }
 }

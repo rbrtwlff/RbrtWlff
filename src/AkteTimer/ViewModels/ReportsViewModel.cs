@@ -734,7 +734,7 @@ public sealed class ReportsViewModel : ViewModelBase
             sheet.Cell(rowIndex, 10).Value = row.HonorarStundenMatter;
             sheet.Cell(rowIndex, 11).Value = row.HonorarRvgMatter;
             sheet.Cell(rowIndex, 12).Value = row.SubjectValueEur;
-            sheet.Cell(rowIndex, 13).Value = row.FeeFactor.HasValue ? (double)row.FeeFactor.Value : null;
+            sheet.Cell(rowIndex, 13).Value = row.FeeFactor.HasValue ? (double)row.FeeFactor.Value : string.Empty;
             sheet.Cell(rowIndex, 14).Value = FormatToggle(row.BusinessFee13Enabled);
             sheet.Cell(rowIndex, 15).Value = FormatToggle(row.TermFee12Enabled);
             sheet.Cell(rowIndex, 16).Value = FormatToggle(row.SettlementFee10Enabled);
