@@ -853,7 +853,7 @@ public sealed record ExportRow(
     bool SettlementFee15Enabled,
     decimal EffektivitätMatter);
 
-internal sealed record RvgBreakdown(
+public sealed record RvgBreakdown(
     decimal Fee1_0Eur,
     decimal BusinessFee13Eur,
     decimal TermFee12Eur,
