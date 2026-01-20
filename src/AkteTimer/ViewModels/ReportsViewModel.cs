@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
+using System.Windows.Data;
 using AkteTimer.Models;
 using AkteTimer.Services;
 using ClosedXML.Excel;
@@ -19,7 +20,6 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly RvgFeeTableService _rvgFeeTableService = new();
     private DateTime _fromDate;
     private DateTime _toDate;
-    private bool _suppressMatterSelection;
     private string _todayTotalDuration = "00:00:00";
     private int _todayTotalMinutes;
     private int _todayTotalRoundedMinutes;
@@ -31,6 +31,10 @@ public sealed class ReportsViewModel : ViewModelBase
     private int _matterTotalRoundedMinutes;
     private readonly RelayCommand _exportCsvCommand;
     private readonly RelayCommand _exportExcelCommand;
+    private readonly RelayCommand _resetMatterFilterCommand;
+    private string _matterFilterSearchText = string.Empty;
+    private MatterFilterItem? _selectedMatterFilter;
+    private ICollectionView? _matterFilterView;
     private MatterDetailsViewModel? _selectedMatterDetails;
 
     public ReportsViewModel(TimeEntryService timeEntryService)
@@ -41,9 +45,7 @@ public sealed class ReportsViewModel : ViewModelBase
 
         foreach (var matter in _timeEntryService.GetAllMatters())
         {
-            var item = new MatterFilterItem(matter) { IsSelected = true };
-            item.SelectionChanged += HandleMatterSelectionChanged;
-            MatterFilters.Add(item);
+            MatterFilters.Add(new MatterFilterItem(matter));
             var detailsViewModel = new MatterDetailsViewModel(matter, _timeEntryService, _rvgFeeTableService);
             detailsViewModel.PropertyChanged += HandleMatterDetailsChanged;
             MatterDetails.Add(detailsViewModel);
@@ -51,6 +53,10 @@ public sealed class ReportsViewModel : ViewModelBase
 
         _exportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => CanExport());
         _exportExcelCommand = new RelayCommand(_ => ExportExcel(), _ => CanExport());
+        _resetMatterFilterCommand = new RelayCommand(_ => ResetMatterFilter(), _ => CanResetMatterFilter());
+
+        _matterFilterView = CollectionViewSource.GetDefaultView(MatterFilters);
+        _matterFilterView.Filter = FilterMatter;
 
         SelectedMatterDetails = MatterDetails.FirstOrDefault();
         RefreshToday();
@@ -61,6 +67,8 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public ObservableCollection<MatterFilterItem> MatterFilters { get; } = new();
 
+    public ICollectionView MatterFilterView => _matterFilterView ??= CollectionViewSource.GetDefaultView(MatterFilters);
+
     public ObservableCollection<DayGroupViewModel> RangeGroups { get; } = new();
 
     public ObservableCollection<MatterGroupViewModel> MatterGroups { get; } = new();
@@ -70,6 +78,8 @@ public sealed class ReportsViewModel : ViewModelBase
     public RelayCommand ExportCsvCommand => _exportCsvCommand;
 
     public RelayCommand ExportExcelCommand => _exportExcelCommand;
+
+    public RelayCommand ResetMatterFilterCommand => _resetMatterFilterCommand;
 
     public IReadOnlyList<BillingType> BillingTypeOptions { get; } = Enum.GetValues<BillingType>();
 
@@ -85,6 +95,40 @@ public sealed class ReportsViewModel : ViewModelBase
 
             _selectedMatterDetails = value;
             NotifyPropertyChanged();
+        }
+    }
+
+    public string MatterFilterSearchText
+    {
+        get => _matterFilterSearchText;
+        set
+        {
+            if (_matterFilterSearchText == value)
+            {
+                return;
+            }
+
+            _matterFilterSearchText = value;
+            NotifyPropertyChanged();
+            MatterFilterView.Refresh();
+            _resetMatterFilterCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public MatterFilterItem? SelectedMatterFilter
+    {
+        get => _selectedMatterFilter;
+        set
+        {
+            if (_selectedMatterFilter == value)
+            {
+                return;
+            }
+
+            _selectedMatterFilter = value;
+            NotifyPropertyChanged();
+            RefreshRangeAndMatters();
+            _resetMatterFilterCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -226,24 +270,6 @@ public sealed class ReportsViewModel : ViewModelBase
         RefreshRangeAndMatters();
     }
 
-    private void HandleMatterSelectionChanged(MatterFilterItem item)
-    {
-        if (_suppressMatterSelection)
-        {
-            return;
-        }
-
-        if (MatterFilters.All(filter => !filter.IsSelected))
-        {
-            _suppressMatterSelection = true;
-            item.IsSelected = true;
-            _suppressMatterSelection = false;
-            return;
-        }
-
-        RefreshRangeAndMatters();
-    }
-
     private void HandleMatterDetailsChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MatterDetailsViewModel.HourlyRateEurPerHour)
@@ -292,10 +318,7 @@ public sealed class ReportsViewModel : ViewModelBase
 
     private void RefreshRangeAndMatters()
     {
-        var selectedMatterIds = MatterFilters
-            .Where(filter => filter.IsSelected)
-            .Select(filter => filter.Matter.Id)
-            .ToList();
+        var selectedMatterIds = GetSelectedMatterIds();
 
         RangeGroups.Clear();
         MatterGroups.Clear();
@@ -392,13 +415,14 @@ public sealed class ReportsViewModel : ViewModelBase
                     if (matter?.BillingType == BillingType.Rvg)
                     {
                         rvgFee1_0 = rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
+                        var feeFactor = matter.FeeFactor ?? 0m;
                         var feeModifierSum = RvgCalculator.CalculateFeeModifierSum(
                             matter.BusinessFee13Enabled,
                             matter.TermFee12Enabled,
                             matter.SettlementFee10Enabled,
                             matter.SettlementFee15Enabled);
-                        factorSum = matter.FeeFactor + feeModifierSum;
-                        honorarRvg = RvgCalculator.CalculateEstimate(rvgFee1_0.Value, matter.FeeFactor, feeModifierSum);
+                        factorSum = feeFactor + feeModifierSum;
+                        honorarRvg = RvgCalculator.CalculateEstimate(rvgFee1_0.Value, feeFactor, feeModifierSum);
                     }
 
                     return (hourlyRate, totalRoundedMinutes, honorarStunden, honorarRvg, rvgFee1_0, factorSum);
@@ -458,14 +482,47 @@ public sealed class ReportsViewModel : ViewModelBase
             matter.TermFee12Enabled,
             matter.SettlementFee10Enabled,
             matter.SettlementFee15Enabled);
-        var estimate = RvgCalculator.CalculateEstimate(fee1_0, matter.FeeFactor, feeModifierSum);
+        var estimate = RvgCalculator.CalculateEstimate(fee1_0, matter.FeeFactor ?? 0m, feeModifierSum);
         var actualHours = actualMinutes / 60m;
         var effective = RvgCalculator.CalculateEffectiveHourlyRate(estimate, actualHours);
         var breakEven = RvgCalculator.CalculateBreakEvenTime(estimate, _timeEntryService.GetEffectiveTargetRate(matter));
         return new RvgMetrics(fee1_0, estimate, effective, breakEven);
     }
 
-    private bool CanExport() => MatterFilters.Any(filter => filter.IsSelected);
+    private bool CanExport() => MatterFilters.Count > 0;
+
+    private bool FilterMatter(object item)
+    {
+        if (item is not MatterFilterItem matter)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(MatterFilterSearchText))
+        {
+            return true;
+        }
+
+        return matter.SearchText.Contains(MatterFilterSearchText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private List<long> GetSelectedMatterIds()
+    {
+        return SelectedMatterFilter == null
+            ? MatterFilters.Select(filter => filter.Matter.Id).ToList()
+            : new List<long> { SelectedMatterFilter.Matter.Id };
+    }
+
+    private void ResetMatterFilter()
+    {
+        SelectedMatterFilter = null;
+        MatterFilterSearchText = string.Empty;
+    }
+
+    private bool CanResetMatterFilter()
+    {
+        return SelectedMatterFilter != null || !string.IsNullOrWhiteSpace(MatterFilterSearchText);
+    }
 
     private void RaiseExportCanExecute()
     {
@@ -526,7 +583,7 @@ public sealed class ReportsViewModel : ViewModelBase
                 row.HonorarStundenMatter.ToString("N2"),
                 row.HonorarRvgMatter.ToString("N2"),
                 row.SubjectValueEur.ToString("N2"),
-                row.FeeFactor.ToString("F1"),
+                FormatFeeFactor(row.FeeFactor),
                 FormatToggle(row.BusinessFee13Enabled),
                 FormatToggle(row.TermFee12Enabled),
                 FormatToggle(row.SettlementFee10Enabled),
@@ -578,10 +635,7 @@ public sealed class ReportsViewModel : ViewModelBase
 
     private List<ExportRow> BuildExportRows()
     {
-        var selectedMatterIds = MatterFilters
-            .Where(filter => filter.IsSelected)
-            .Select(filter => filter.Matter.Id)
-            .ToList();
+        var selectedMatterIds = GetSelectedMatterIds();
 
         if (selectedMatterIds.Count == 0)
         {
@@ -680,7 +734,7 @@ public sealed class ReportsViewModel : ViewModelBase
             sheet.Cell(rowIndex, 10).Value = row.HonorarStundenMatter;
             sheet.Cell(rowIndex, 11).Value = row.HonorarRvgMatter;
             sheet.Cell(rowIndex, 12).Value = row.SubjectValueEur;
-            sheet.Cell(rowIndex, 13).Value = row.FeeFactor;
+            sheet.Cell(rowIndex, 13).Value = row.FeeFactor.HasValue ? (double)row.FeeFactor.Value : null;
             sheet.Cell(rowIndex, 14).Value = FormatToggle(row.BusinessFee13Enabled);
             sheet.Cell(rowIndex, 15).Value = FormatToggle(row.TermFee12Enabled);
             sheet.Cell(rowIndex, 16).Value = FormatToggle(row.SettlementFee10Enabled);
@@ -715,6 +769,11 @@ public sealed class ReportsViewModel : ViewModelBase
     }
 
     private static string FormatToggle(bool enabled) => enabled ? "on" : "off";
+
+    private static string FormatFeeFactor(decimal? feeFactor)
+    {
+        return feeFactor.HasValue ? feeFactor.Value.ToString("F1") : string.Empty;
+    }
 
     private static void WriteSummariesByMatterSheet(XLWorkbook workbook, IReadOnlyList<ExportRow> rows)
     {
@@ -776,7 +835,7 @@ public sealed record ExportRow(
     decimal HonorarStundenMatter,
     decimal HonorarRvgMatter,
     decimal SubjectValueEur,
-    decimal FeeFactor,
+    decimal? FeeFactor,
     bool BusinessFee13Enabled,
     bool TermFee12Enabled,
     bool SettlementFee10Enabled,
@@ -785,8 +844,6 @@ public sealed record ExportRow(
 
 public sealed class MatterFilterItem : ViewModelBase
 {
-    private bool _isSelected;
-
     public MatterFilterItem(Matter matter)
     {
         Matter = matter;
@@ -794,25 +851,13 @@ public sealed class MatterFilterItem : ViewModelBase
 
     public Matter Matter { get; }
 
-    public string DisplayName => Matter.FileRef;
+    public string DisplayName => string.IsNullOrWhiteSpace(Matter.Title)
+        ? Matter.FileRef
+        : $"{Matter.FileRef} – {Matter.Title}";
 
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
-        {
-            if (_isSelected == value)
-            {
-                return;
-            }
-
-            _isSelected = value;
-            NotifyPropertyChanged();
-            SelectionChanged?.Invoke(this);
-        }
-    }
-
-    public event Action<MatterFilterItem>? SelectionChanged;
+    public string SearchText => string.IsNullOrWhiteSpace(Matter.Title)
+        ? Matter.FileRef
+        : $"{Matter.FileRef} {Matter.Title}";
 }
 
 public sealed class ReportEntryViewModel : ViewModelBase
@@ -822,7 +867,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
     private readonly Action<long>? _matterUpdated;
     private decimal _hourlyRate;
     private decimal _subjectValueEur;
-    private decimal _feeFactor;
+    private decimal? _feeFactor;
     private bool _businessFee13Enabled;
     private bool _termFee12Enabled;
     private bool _settlementFee10Enabled;
@@ -846,7 +891,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
         BillingType = matter?.BillingType ?? BillingType.Hourly;
         _hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
         _subjectValueEur = matter?.SubjectValueEur ?? 0m;
-        _feeFactor = matter?.FeeFactor ?? 0m;
+        _feeFactor = matter?.FeeFactor;
         _businessFee13Enabled = matter?.BusinessFee13Enabled ?? false;
         _termFee12Enabled = matter?.TermFee12Enabled ?? false;
         _settlementFee10Enabled = matter?.SettlementFee10Enabled ?? false;
@@ -908,21 +953,20 @@ public sealed class ReportEntryViewModel : ViewModelBase
         }
     }
 
-    public decimal FeeFactor
+    public decimal? FeeFactor
     {
         get => _feeFactor;
         set
         {
-            var clamped = Math.Clamp(value, 0m, 3m);
-            var rounded = Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
-            if (_feeFactor == rounded)
+            var normalized = NormalizeFeeFactor(value);
+            if (_feeFactor == normalized)
             {
                 return;
             }
 
-            _feeFactor = rounded;
+            _feeFactor = normalized;
             NotifyPropertyChanged();
-            UpdateMatter(matter => matter.FeeFactor = rounded);
+            UpdateMatter(matter => matter.FeeFactor = normalized);
         }
     }
 
@@ -1036,6 +1080,17 @@ public sealed class ReportEntryViewModel : ViewModelBase
     }
 
     public static decimal RoundCurrency(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+
+    private static decimal? NormalizeFeeFactor(decimal? value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var clamped = Math.Clamp(value.Value, 0m, 3m);
+        return Math.Round(clamped, 1, MidpointRounding.AwayFromZero);
+    }
 
     private void UpdateMatter(Action<Matter> updateAction)
     {

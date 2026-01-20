@@ -1,7 +1,10 @@
 using System;
+using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Markup;
 using AkteTimer.Services;
 using AkteTimer.Views;
 using MessageBox = System.Windows.MessageBox;
@@ -21,6 +24,7 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ApplyCulture();
 
         _dataDirectoryService = new DataDirectoryService();
         var startupDirectory = ResolveStartupDirectory(_dataDirectoryService);
@@ -64,6 +68,18 @@ public partial class App : System.Windows.Application
         _trayService.Initialize();
 
         HandleRecovery();
+    }
+
+    private static void ApplyCulture()
+    {
+        var culture = CultureInfo.GetCultureInfo("de-DE");
+        Thread.CurrentThread.CurrentCulture = culture;
+        Thread.CurrentThread.CurrentUICulture = culture;
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+        FrameworkElement.LanguageProperty.OverrideMetadata(
+            typeof(FrameworkElement),
+            new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(culture.IetfLanguageTag)));
     }
 
     private static void RegisterGlobalExceptionHandlers()

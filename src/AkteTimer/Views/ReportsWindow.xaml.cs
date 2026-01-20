@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using AkteTimer.Services;
 using AkteTimer.ViewModels;
@@ -8,13 +9,17 @@ public partial class ReportsWindow : Window
 {
     private readonly ReportsViewModel _viewModel;
     private readonly TimeEntryService _timeEntryService;
+    private readonly SettingsService _settingsService;
 
-    public ReportsWindow(TimeEntryService timeEntryService)
+    public ReportsWindow(TimeEntryService timeEntryService, SettingsService settingsService)
     {
         _timeEntryService = timeEntryService;
+        _settingsService = settingsService;
         InitializeComponent();
         _viewModel = new ReportsViewModel(_timeEntryService);
         DataContext = _viewModel;
+        Loaded += OnLoaded;
+        Closing += OnClosing;
     }
 
     private void OnEntryDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -38,5 +43,29 @@ public partial class ReportsWindow : Window
         {
             _viewModel.RefreshEntries();
         }
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        var placement = _settingsService.GetReportsWindowPlacement();
+        if (placement == null)
+        {
+            WindowState = WindowState.Maximized;
+            return;
+        }
+
+        Left = placement.Left;
+        Top = placement.Top;
+        Width = placement.Width;
+        Height = placement.Height;
+        WindowState = placement.State == WindowState.Minimized ? WindowState.Normal : placement.State;
+    }
+
+    private void OnClosing(object? sender, CancelEventArgs e)
+    {
+        var state = WindowState == WindowState.Minimized ? WindowState.Normal : WindowState;
+        var bounds = state == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+        var placement = new ReportsWindowPlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, state);
+        _settingsService.SetReportsWindowPlacement(placement);
     }
 }
