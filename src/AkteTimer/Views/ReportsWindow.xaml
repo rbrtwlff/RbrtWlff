@@ -627,57 +627,6 @@
           </ScrollViewer>
         </DockPanel>
       </TabItem>
-      <TabItem Header="Akte-Details">
-        <Grid Margin="0,8,0,0">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <ListBox ItemsSource="{Binding MatterDetails}"
-                   SelectedItem="{Binding SelectedMatterDetails}"
-                   DisplayMemberPath="FileRef" />
-          <ScrollViewer Grid.Column="1" Margin="12,0,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-              <TextBlock FontWeight="Bold" FontSize="14"
-                         Text="{Binding SelectedMatterDetails.FileRef, StringFormat=Akte: {0}}" />
-              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <TextBlock Text="Abrechnungstyp" Width="140" VerticalAlignment="Center" />
-                <ComboBox Width="160"
-                          ItemsSource="{Binding DataContext.BillingTypeOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                          SelectedItem="{Binding SelectedMatterDetails.BillingType, Mode=TwoWay}" />
-              </StackPanel>
-              <StackPanel Visibility="{Binding SelectedMatterDetails.ShowRvgFields, Converter={StaticResource BoolToVis}}">
-                <TextBlock Margin="0,10,0,6"
-                           Foreground="DarkRed"
-                           Text="RVG-Schätzung für internes Controlling – keine Abrechnung und keine Kostenfestsetzung." />
-                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                  <TextBlock Text="Streitwert (EUR)" Width="180" VerticalAlignment="Center" />
-                  <TextBox Width="140"
-                           Style="{StaticResource NumericTextBoxStyle}"
-                           Text="{Binding SelectedMatterDetails.SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                  <TextBlock Text="Gebührensatz/Faktor" Width="180" VerticalAlignment="Center" />
-                  <TextBox Width="140"
-                           Style="{StaticResource NumericTextBoxStyle}"
-                           Text="{Binding SelectedMatterDetails.FeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                  <TextBlock Text="Stundensatz (EUR/h)" Width="180" VerticalAlignment="Center" />
-                  <TextBox Width="140"
-                           Style="{StaticResource NumericTextBoxStyle}"
-                           Text="{Binding SelectedMatterDetails.HourlyRateEurPerHour, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}" />
-                </StackPanel>
-                <Separator Margin="0,8,0,8" />
-                <TextBlock Text="{Binding SelectedMatterDetails.Fee1_0EurText, StringFormat='1,0-Gebühr: {0} €'}" />
-                <TextBlock Text="{Binding SelectedMatterDetails.RvgEstimateEurText, StringFormat=RVG-Schätzung: {0} €}" />
-                <TextBlock Text="{Binding SelectedMatterDetails.EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
-                <TextBlock Text="{Binding SelectedMatterDetails.BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
-              </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
-        </Grid>
-      </TabItem>
     </TabControl>
 
     <TextBlock Grid.Row="2"

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -35,7 +34,6 @@ public sealed class ReportsViewModel : ViewModelBase
     private string _matterFilterSearchText = string.Empty;
     private MatterFilterItem? _selectedMatterFilter;
     private ICollectionView? _matterFilterView;
-    private MatterDetailsViewModel? _selectedMatterDetails;
     private string _autoBillingHint = string.Empty;
     private bool _showAutoBillingHint;
 
@@ -48,9 +46,6 @@ public sealed class ReportsViewModel : ViewModelBase
         foreach (var matter in _timeEntryService.GetAllMatters())
         {
             MatterFilters.Add(new MatterFilterItem(matter));
-            var detailsViewModel = new MatterDetailsViewModel(matter, _timeEntryService, _rvgFeeTableService);
-            detailsViewModel.PropertyChanged += HandleMatterDetailsChanged;
-            MatterDetails.Add(detailsViewModel);
         }
 
         _exportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => CanExport());
@@ -60,7 +55,6 @@ public sealed class ReportsViewModel : ViewModelBase
         _matterFilterView = CollectionViewSource.GetDefaultView(MatterFilters);
         _matterFilterView.Filter = FilterMatter;
 
-        SelectedMatterDetails = MatterDetails.FirstOrDefault();
         RefreshToday();
         RefreshRangeAndMatters();
     }
@@ -75,15 +69,12 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public ObservableCollection<MatterGroupViewModel> MatterGroups { get; } = new();
 
-    public ObservableCollection<MatterDetailsViewModel> MatterDetails { get; } = new();
 
     public RelayCommand ExportCsvCommand => _exportCsvCommand;
 
     public RelayCommand ExportExcelCommand => _exportExcelCommand;
 
     public RelayCommand ResetMatterFilterCommand => _resetMatterFilterCommand;
-
-    public IReadOnlyList<BillingType> BillingTypeOptions { get; } = Enum.GetValues<BillingType>();
 
     public string AutoBillingHint
     {
@@ -114,21 +105,6 @@ public sealed class ReportsViewModel : ViewModelBase
             NotifyPropertyChanged();
         }
     }
-    public MatterDetailsViewModel? SelectedMatterDetails
-    {
-        get => _selectedMatterDetails;
-        set
-        {
-            if (_selectedMatterDetails == value)
-            {
-                return;
-            }
-
-            _selectedMatterDetails = value;
-            NotifyPropertyChanged();
-        }
-    }
-
     public string MatterFilterSearchText
     {
         get => _matterFilterSearchText;
@@ -301,18 +277,6 @@ public sealed class ReportsViewModel : ViewModelBase
         RefreshRangeAndMatters();
     }
 
-    private void HandleMatterDetailsChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(MatterDetailsViewModel.HourlyRateEurPerHour)
-            || e.PropertyName == nameof(MatterDetailsViewModel.SubjectValueEur)
-            || e.PropertyName == nameof(MatterDetailsViewModel.FeeFactor)
-            || e.PropertyName == nameof(MatterDetailsViewModel.BillingType))
-        {
-            RefreshToday();
-            RefreshRangeAndMatters();
-        }
-    }
-
     private void RefreshToday()
     {
         TodayEntries.Clear();
@@ -482,7 +446,7 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         if (autoBillingApplied)
         {
-            AutoBillingHint = "Akte wurde auf RVG-Abrechnung umgestellt (wegen Streitwert).";
+            AutoBillingHint = "Akte wurde automatisch auf RVG-Abrechnung umgestellt.";
             ShowAutoBillingHint = true;
         }
 
@@ -1033,22 +997,9 @@ public sealed class ReportEntryViewModel : ViewModelBase
                 return;
             }
 
-            var shouldAutoSwitch = next > 0m && _matter?.BillingType != BillingType.Rvg;
             _subjectValueEur = next;
             NotifyPropertyChanged();
-            UpdateMatter(matter =>
-            {
-                matter.SubjectValueEur = next;
-                if (shouldAutoSwitch)
-                {
-                    matter.BillingType = BillingType.Rvg;
-                }
-            }, shouldAutoSwitch);
-
-            if (shouldAutoSwitch)
-            {
-                BillingType = BillingType.Rvg;
-            }
+            UpdateMatter(matter => matter.SubjectValueEur = next, recomputeBillingType: true);
         }
     }
 
@@ -1066,7 +1017,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
             _customFeeFactor = normalized;
             NotifyPropertyChanged();
             NotifyPropertyChanged(nameof(CustomFeeEurText));
-            UpdateMatter(matter => matter.CustomFeeFactor = normalized);
+            UpdateMatter(matter => matter.CustomFeeFactor = normalized, recomputeBillingType: true);
         }
     }
 
@@ -1082,7 +1033,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
 
             _businessFee13Enabled = value;
             NotifyPropertyChanged();
-            UpdateMatter(matter => matter.BusinessFee13Enabled = value);
+            UpdateMatter(matter => matter.BusinessFee13Enabled = value, recomputeBillingType: true);
         }
     }
 
@@ -1098,7 +1049,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
 
             _termFee12Enabled = value;
             NotifyPropertyChanged();
-            UpdateMatter(matter => matter.TermFee12Enabled = value);
+            UpdateMatter(matter => matter.TermFee12Enabled = value, recomputeBillingType: true);
         }
     }
 
@@ -1114,7 +1065,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
 
             _settlementFee10Enabled = value;
             NotifyPropertyChanged();
-            UpdateMatter(matter => matter.SettlementFee10Enabled = value);
+            UpdateMatter(matter => matter.SettlementFee10Enabled = value, recomputeBillingType: true);
         }
     }
 
@@ -1130,7 +1081,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
 
             _settlementFee15Enabled = value;
             NotifyPropertyChanged();
-            UpdateMatter(matter => matter.SettlementFee15Enabled = value);
+            UpdateMatter(matter => matter.SettlementFee15Enabled = value, recomputeBillingType: true);
         }
     }
 
@@ -1217,7 +1168,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
         return $"{amount:N2} €";
     }
 
-    private void UpdateMatter(Action<Matter> updateAction, bool autoBillingApplied = false)
+    private void UpdateMatter(Action<Matter> updateAction, bool recomputeBillingType = false)
     {
         if (_matter == null)
         {
@@ -1225,6 +1176,17 @@ public sealed class ReportEntryViewModel : ViewModelBase
         }
 
         updateAction(_matter);
+        var autoBillingApplied = false;
+        if (recomputeBillingType)
+        {
+            var nextBillingType = BillingTypeRules.RecomputeBillingType(_matter);
+            if (_matter.BillingType != nextBillingType)
+            {
+                _matter.BillingType = nextBillingType;
+                BillingType = nextBillingType;
+                autoBillingApplied = nextBillingType == BillingType.Rvg;
+            }
+        }
         _timeEntryService.UpdateMatter(_matter);
         _matterUpdated?.Invoke(_matter.Id, autoBillingApplied);
     }
