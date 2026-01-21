@@ -627,6 +627,31 @@
           </ScrollViewer>
         </DockPanel>
       </TabItem>
+
+      <TabItem Header="Löschung">
+        <DockPanel Margin="0,8,0,0">
+          <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding DeleteEntries}" IsReadOnly="True">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Datum" Binding="{Binding DateLocal, StringFormat=dd.MM.yyyy}" />
+              <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
+              <DataGridTextColumn Header="Ende" Binding="{Binding EndText}" />
+              <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
+              <DataGridTextColumn Header="Hashtag" Binding="{Binding Hashtag}" />
+              <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
+              <DataGridTextColumn Header="Beschreibung/Note" Binding="{Binding Note}" />
+              <DataGridTemplateColumn Header="Löschen">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Button Content="Löschen"
+                            Command="{Binding DataContext.DeleteEntryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </TabItem>
     </TabControl>
 
     <TextBlock Grid.Row="2"

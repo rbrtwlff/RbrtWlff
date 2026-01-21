@@ -237,6 +237,23 @@ public sealed class TimeEntryService
         OnStateChanged();
     }
 
+    public void DeleteTimeEntry(long entryId)
+    {
+        var entry = _database.GetTimeEntryById(entryId);
+        if (entry == null)
+        {
+            return;
+        }
+
+        if (entry.EndUtc == null)
+        {
+            throw new InvalidOperationException("Laufende Einträge können nicht gelöscht werden.");
+        }
+
+        _database.DeleteTimeEntry(entryId);
+        OnStateChanged();
+    }
+
     public void UpdateMatter(Matter matter)
     {
         _database.UpdateMatter(matter);

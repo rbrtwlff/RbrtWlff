@@ -31,6 +31,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly RelayCommand _exportCsvCommand;
     private readonly RelayCommand _exportExcelCommand;
     private readonly RelayCommand _resetMatterFilterCommand;
+    private readonly RelayCommand _deleteEntryCommand;
     private string _matterFilterSearchText = string.Empty;
     private MatterFilterItem? _selectedMatterFilter;
     private ICollectionView? _matterFilterView;
@@ -51,6 +52,7 @@ public sealed class ReportsViewModel : ViewModelBase
         _exportCsvCommand = new RelayCommand(_ => ExportCsv(), _ => CanExport());
         _exportExcelCommand = new RelayCommand(_ => ExportExcel(), _ => CanExport());
         _resetMatterFilterCommand = new RelayCommand(_ => ResetMatterFilter(), _ => CanResetMatterFilter());
+        _deleteEntryCommand = new RelayCommand(DeleteEntry);
 
         _matterFilterView = CollectionViewSource.GetDefaultView(MatterFilters);
         _matterFilterView.Filter = FilterMatter;
@@ -69,12 +71,16 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public ObservableCollection<MatterGroupViewModel> MatterGroups { get; } = new();
 
+    public ObservableCollection<DeleteEntryViewModel> DeleteEntries { get; } = new();
+
 
     public RelayCommand ExportCsvCommand => _exportCsvCommand;
 
     public RelayCommand ExportExcelCommand => _exportExcelCommand;
 
     public RelayCommand ResetMatterFilterCommand => _resetMatterFilterCommand;
+
+    public RelayCommand DeleteEntryCommand => _deleteEntryCommand;
 
     public string AutoBillingHint
     {
@@ -317,6 +323,7 @@ public sealed class ReportsViewModel : ViewModelBase
 
         RangeGroups.Clear();
         MatterGroups.Clear();
+        DeleteEntries.Clear();
 
         if (selectedMatterIds.Count == 0)
         {
@@ -331,6 +338,7 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         var entries = _timeEntryService.GetEntriesInRange(FromDate, ToDate, selectedMatterIds);
+        RefreshDeleteEntries(entries);
         var matters = _timeEntryService.GetAllMatters();
         var matterLookup = matters.ToDictionary(matter => matter.Id);
         var entryViewModels = entries
@@ -387,6 +395,15 @@ public sealed class ReportsViewModel : ViewModelBase
         MatterTotalMinutes = RangeTotalMinutes;
         MatterTotalRoundedMinutes = RangeTotalRoundedMinutes;
         RaiseExportCanExecute();
+    }
+
+    private void RefreshDeleteEntries(IEnumerable<TimeEntry> entries)
+    {
+        DeleteEntries.Clear();
+        foreach (var entry in entries.OrderByDescending(entry => entry.StartUtc))
+        {
+            DeleteEntries.Add(new DeleteEntryViewModel(entry));
+        }
     }
 
     private static void ApplyMatterHonorarium(
@@ -540,6 +557,45 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         _exportCsvCommand.RaiseCanExecuteChanged();
         _exportExcelCommand.RaiseCanExecuteChanged();
+    }
+
+    private void DeleteEntry(object? parameter)
+    {
+        if (parameter is not DeleteEntryViewModel entryViewModel)
+        {
+            return;
+        }
+
+        if (entryViewModel.Entry.EndUtc == null)
+        {
+            MessageBox.Show(
+                "Laufende Einträge können nicht gelöscht werden. Bitte zuerst beenden.",
+                "Löschen",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            "Wirklich löschen?",
+            "Löschen",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            _timeEntryService.DeleteTimeEntry(entryViewModel.Entry.Id);
+            RefreshEntries();
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message, "Löschen", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void ExportCsv()
@@ -1237,4 +1293,29 @@ public sealed class MatterGroupViewModel
     public string RvgEstimateText { get; }
     public string EffectiveHourlyRateText { get; }
     public string BreakEvenTimeText { get; }
+}
+
+public sealed class DeleteEntryViewModel
+{
+    public DeleteEntryViewModel(TimeEntry entry)
+    {
+        Entry = entry;
+        var startLocal = entry.StartUtc.ToLocalTime();
+        DateLocal = startLocal.Date;
+        StartLocal = startLocal;
+        EndText = entry.EndUtc == null ? "läuft" : entry.EndUtc.Value.ToLocalTime().ToString("HH:mm:ss");
+        Matter = entry.MatterFileRef ?? "-";
+        Hashtag = entry.Hashtag ?? string.Empty;
+        Note = entry.Note ?? string.Empty;
+        DurationText = TimeEntryCalculations.GetDuration(entry).ToString(@"hh\:mm\:ss");
+    }
+
+    public TimeEntry Entry { get; }
+    public DateTime DateLocal { get; }
+    public DateTime StartLocal { get; }
+    public string EndText { get; }
+    public string Matter { get; }
+    public string Hashtag { get; }
+    public string DurationText { get; }
+    public string Note { get; }
 }
