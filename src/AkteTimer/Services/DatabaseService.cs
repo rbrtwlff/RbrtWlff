@@ -430,6 +430,24 @@ public sealed class DatabaseService
         });
     }
 
+    public void UpdateTimeEntryNote(long entryId, string? note)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE TimeEntries
+                SET note = $note, updated_utc = $updated_utc
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$note", string.IsNullOrWhiteSpace(note) ? DBNull.Value : note);
+            command.Parameters.AddWithValue("$updated_utc", DateTime.UtcNow.ToString("o"));
+            command.Parameters.AddWithValue("$id", entryId);
+            command.ExecuteNonQuery();
+        });
+    }
+
     public TimeEntry? GetTimeEntryById(long entryId)
     {
         using var connection = CreateConnection();

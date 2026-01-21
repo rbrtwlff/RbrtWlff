@@ -37,6 +37,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private ICollectionView? _matterFilterView;
     private string _autoBillingHint = string.Empty;
     private bool _showAutoBillingHint;
+    private bool _showDescription;
 
     public ReportsViewModel(TimeEntryService timeEntryService)
     {
@@ -108,6 +109,21 @@ public sealed class ReportsViewModel : ViewModelBase
             }
 
             _showAutoBillingHint = value;
+            NotifyPropertyChanged();
+        }
+    }
+
+    public bool ShowDescription
+    {
+        get => _showDescription;
+        set
+        {
+            if (_showDescription == value)
+            {
+                return;
+            }
+
+            _showDescription = value;
             NotifyPropertyChanged();
         }
     }
@@ -955,6 +971,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
     private decimal _settlementFee10Eur;
     private decimal _settlementFee15Eur;
     private decimal _customFeeEur;
+    private string _note = string.Empty;
 
     public ReportEntryViewModel(TimeEntry entry, Matter? matter, TimeEntryService timeEntryService, Action<long, bool> matterUpdated)
     {
@@ -971,6 +988,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
         DurationText = Duration.ToString(@"hh\:mm\:ss");
         ActualMinutes = TimeEntryCalculations.GetActualMinutes(Duration);
         RoundedMinutes = TimeEntryCalculations.GetRoundedMinutes(ActualMinutes);
+        _note = entry.Note ?? string.Empty;
         _billingType = matter?.BillingType ?? BillingType.Hourly;
         _hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
         _subjectValueEur = matter?.SubjectValueEur ?? 0m;
@@ -992,6 +1010,23 @@ public sealed class ReportEntryViewModel : ViewModelBase
     public string DurationText { get; }
     public int ActualMinutes { get; }
     public int RoundedMinutes { get; }
+    public string Note
+    {
+        get => _note;
+        set
+        {
+            var next = value ?? string.Empty;
+            if (_note == next)
+            {
+                return;
+            }
+
+            _note = next;
+            Entry.Note = string.IsNullOrWhiteSpace(next) ? null : next;
+            NotifyPropertyChanged();
+            _timeEntryService.UpdateTimeEntryNote(Entry.Id, Entry.Note);
+        }
+    }
     public BillingType BillingType
     {
         get => _billingType;

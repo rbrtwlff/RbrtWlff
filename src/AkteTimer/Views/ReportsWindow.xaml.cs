@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Windows;
 using AkteTimer.Services;
@@ -20,6 +21,7 @@ public partial class ReportsWindow : Window
         DataContext = _viewModel;
         Loaded += OnLoaded;
         Closing += OnClosing;
+        _timeEntryService.StateChanged += OnStateChanged;
     }
 
     private void OnEntryDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -63,9 +65,21 @@ public partial class ReportsWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        _timeEntryService.StateChanged -= OnStateChanged;
         var state = WindowState == WindowState.Minimized ? WindowState.Normal : WindowState;
         var bounds = state == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
         var placement = new ReportsWindowPlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, state);
         _settingsService.SetReportsWindowPlacement(placement);
+    }
+
+    private void OnStateChanged(object? sender, EventArgs e)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.Invoke(() => _viewModel.RefreshEntries());
+            return;
+        }
+
+        _viewModel.RefreshEntries();
     }
 }
