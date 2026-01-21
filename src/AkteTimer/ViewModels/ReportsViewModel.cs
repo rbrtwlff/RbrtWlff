@@ -376,7 +376,7 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup, _rvgFeeTableService);
+        ApplyMatterHonorarium(entryViewModels, matterLookup);
 
         var rangeGroups = entryViewModels
             .GroupBy(vm => vm.StartLocal.Date)
@@ -762,7 +762,7 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup, _rvgFeeTableService);
+        ApplyMatterHonorarium(entryViewModels, matterLookup);
 
         return entryViewModels
             .Select(CreateExportRow)
