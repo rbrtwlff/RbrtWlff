@@ -495,6 +495,18 @@ public sealed class DatabaseService
         return entry;
     }
 
+    public void DeleteTimeEntry(long entryId)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM TimeEntries WHERE id = $id;";
+            command.Parameters.AddWithValue("$id", entryId);
+            command.ExecuteNonQuery();
+        });
+    }
+
     public (TimeEntry UpdatedEntry, TimeEntry NewEntry) SplitTimeEntry(long entryId, DateTime splitUtc)
     {
         var now = DateTime.UtcNow;
