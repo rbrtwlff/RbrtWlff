@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using AkteTimer.Models;
 using AkteTimer.Services;
 using AkteTimer.ViewModels;
 using MessageBox = System.Windows.MessageBox;
@@ -150,8 +151,10 @@ public partial class PopupWindow : Window
             matter = _timeEntryService.CreateMatter(fileRef);
         }
 
+        var runningEntry = _timeEntryService.GetRunningEntry();
         PromptForHashtagIfMissing();
         _timeEntryService.SwitchMatter(matter);
+        PromptForNoteIfNeeded(runningEntry);
         vm.ClearInput();
         vm.Refresh();
     }
@@ -163,8 +166,10 @@ public partial class PopupWindow : Window
             return;
         }
 
+        var runningEntry = _timeEntryService.GetRunningEntry();
         PromptForHashtagIfMissing();
         _timeEntryService.Stop();
+        PromptForNoteIfNeeded(runningEntry);
         vm.Refresh();
         FocusInput();
     }
@@ -201,6 +206,45 @@ public partial class PopupWindow : Window
         if (result == true && !string.IsNullOrWhiteSpace(prompt.SelectedHashtag))
         {
             _timeEntryService.SetEntryHashtag(runningEntry.Id, prompt.SelectedHashtag);
+        }
+    }
+
+    public void StopWithNotePrompt()
+    {
+        var runningEntry = _timeEntryService.GetRunningEntry();
+        if (runningEntry == null)
+        {
+            _timeEntryService.Stop();
+            return;
+        }
+
+        PromptForHashtagIfMissing();
+        _timeEntryService.Stop();
+        PromptForNoteIfNeeded(runningEntry);
+
+        if (DataContext is PopupViewModel vm)
+        {
+            vm.Refresh();
+        }
+        FocusInput();
+    }
+
+    private void PromptForNoteIfNeeded(TimeEntry? entry)
+    {
+        if (entry == null)
+        {
+            return;
+        }
+
+        var prompt = new NotePromptWindow
+        {
+            Owner = this
+        };
+
+        var result = prompt.ShowDialog();
+        if (result == true && !string.IsNullOrWhiteSpace(prompt.NoteText))
+        {
+            _timeEntryService.UpdateTimeEntryNote(entry.Id, prompt.NoteText.Trim());
         }
     }
 }

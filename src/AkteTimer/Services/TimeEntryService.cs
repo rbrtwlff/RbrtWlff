@@ -183,6 +183,12 @@ public sealed class TimeEntryService
         _settings.SetLastHashtag(hashtag);
     }
 
+    public void UpdateTimeEntryNote(long entryId, string? note)
+    {
+        _database.UpdateTimeEntryNote(entryId, note);
+        OnStateChanged();
+    }
+
     public void UpdateTimeEntry(long entryId, string matterFileRef, DateTime startLocal, DateTime endLocal, string? hashtag, string? note)
     {
         if (endLocal < startLocal)

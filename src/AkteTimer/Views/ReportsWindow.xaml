@@ -33,6 +33,10 @@
     <Style x:Key="RvgTooltipTextStyle" TargetType="TextBlock" BasedOn="{StaticResource NumericTextBlockStyle}">
       <Setter Property="ToolTip" Value="{Binding RvgFormulaTooltip}" />
     </Style>
+    <Style x:Key="NoteTextStyle" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="DimGray" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
   </Window.Resources>
   <Grid Margin="12">
     <Grid.RowDefinitions>
@@ -57,6 +61,10 @@
           <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
             <Button Content="Export CSV" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" />
             <Button Content="Export Excel" Command="{Binding ExportExcelCommand}" />
+            <CheckBox Content="Beschreibung anzeigen"
+                      Margin="16,0,0,0"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding ShowDescription}" />
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1">
@@ -247,6 +255,20 @@
                                   Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
                                   ElementStyle="{StaticResource EffectivityTextStyle}"
                                   IsReadOnly="True" />
+              <DataGridTemplateColumn Header="Beschreibung"
+                                      Visibility="{Binding DataContext.ShowDescription, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Note}" Style="{StaticResource NoteTextStyle}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+                <DataGridTemplateColumn.CellEditingTemplate>
+                  <DataTemplate>
+                    <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}"
+                             MinWidth="160" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellEditingTemplate>
+              </DataGridTemplateColumn>
             </DataGrid.Columns>
           </DataGrid>
         </DockPanel>
@@ -428,6 +450,20 @@
                                             Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource EffectivityTextStyle}"
                                             IsReadOnly="True" />
+                        <DataGridTemplateColumn Header="Beschreibung"
+                                                Visibility="{Binding DataContext.ShowDescription, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="{Binding Note}" Style="{StaticResource NoteTextStyle}" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                          <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                              <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}"
+                                       MinWidth="160" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                       </DataGrid.Columns>
                     </DataGrid>
                   </StackPanel>
@@ -618,6 +654,20 @@
                                             Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource EffectivityTextStyle}"
                                             IsReadOnly="True" />
+                        <DataGridTemplateColumn Header="Beschreibung"
+                                                Visibility="{Binding DataContext.ShowDescription, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="{Binding Note}" Style="{StaticResource NoteTextStyle}" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                          <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                              <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}"
+                                       MinWidth="160" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                       </DataGrid.Columns>
                     </DataGrid>
                   </StackPanel>
