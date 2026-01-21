@@ -328,7 +328,7 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup, _rvgFeeTableService);
+        ApplyMatterHonorarium(entryViewModels, matterLookup);
         TodayTotalDuration = totalDuration.ToString(@"hh\:mm\:ss");
         TodayTotalMinutes = totalMinutes;
         TodayTotalRoundedMinutes = totalRoundedMinutes;
@@ -423,22 +423,22 @@ public sealed class ReportsViewModel : ViewModelBase
         }
     }
 
-    private static void ApplyMatterHonorarium(
+    private void ApplyMatterHonorarium(
         IEnumerable<ReportEntryViewModel> entries,
-        IReadOnlyDictionary<long, Matter> matterLookup,
-        RvgFeeTableService rvgFeeTableService)
+        IReadOnlyDictionary<long, Matter> matterLookup)
     {
         var honorariumByMatter = entries
-            .GroupBy(vm => vm.MatterId)
+            .Select(vm => vm.MatterId)
+            .Distinct()
             .ToDictionary(
-                group => group.Key,
-                group =>
+                matterId => matterId,
+                matterId =>
                 {
-                    matterLookup.TryGetValue(group.Key, out var matter);
+                    matterLookup.TryGetValue(matterId, out var matter);
                     var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
-                    var totalRoundedMinutes = group.Sum(vm => vm.RoundedMinutes);
+                    var totalRoundedMinutes = GetTotalRoundedMinutesForMatter(matterId);
                     var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
-                    var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, rvgFeeTableService);
+                    var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, _rvgFeeTableService);
 
                     return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown);
                 });
@@ -454,6 +454,21 @@ public sealed class ReportsViewModel : ViewModelBase
                     values.breakdown);
             }
         }
+    }
+
+    private int GetTotalRoundedMinutesForMatter(long matterId)
+    {
+        var entries = _timeEntryService.GetEntriesForMatter(matterId);
+        var totalRoundedMinutes = 0;
+
+        foreach (var entry in entries)
+        {
+            var duration = TimeEntryCalculations.GetDuration(entry);
+            var actualMinutes = TimeEntryCalculations.GetActualMinutes(duration);
+            totalRoundedMinutes += TimeEntryCalculations.GetRoundedMinutes(actualMinutes);
+        }
+
+        return totalRoundedMinutes;
     }
 
     private Dictionary<long, RvgMetrics?> BuildRvgMetricsByMatter(
