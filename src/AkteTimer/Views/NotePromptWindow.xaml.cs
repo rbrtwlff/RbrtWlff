@@ -18,7 +18,7 @@ public partial class NotePromptWindow : Window
 
     public string NoteText => NoteBox.Text;
 
-    private void HandleKeyDown(object sender, KeyEventArgs e)
+    private void HandleKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {
