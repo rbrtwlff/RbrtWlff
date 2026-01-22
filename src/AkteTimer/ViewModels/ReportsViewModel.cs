@@ -655,37 +655,34 @@ public sealed class ReportsViewModel : ViewModelBase
         var builder = new StringBuilder();
         WriteCsvRow(
             builder,
-            "Datum",
             "Start",
             "Ende",
-            "IstDauer_hhmmss",
-            "IstMinuten",
-            "Abrechnung6Minuten",
-            "Aktenzeichen",
-            "Einzel-Honorar",
+            "Akte",
+            "Hashtag",
+            "Dauer",
+            "6-Minuten",
             "Stundensatz",
-            "Honorar Stunden",
-            "Honorar RVG",
+            "Zeit-Honorar",
+            "RVG-Honorar",
             "Streitwert",
             "Gebühr (wahl)",
-            "GB 1,3",
+            "Geschäft 1,3",
             "Termin 1,2",
             "Vergleich 1,0",
             "Vergleich 1,5",
-            "Effektivität");
+            "Effektivität",
+            "Beschreibung");
 
         foreach (var row in exportRows)
         {
             WriteCsvRow(
                 builder,
-                row.Date.ToString("dd.MM.yyyy"),
-                row.Start.ToString("HH:mm:ss"),
-                row.End.ToString("HH:mm:ss"),
-                row.Duration.ToString(@"hh\:mm\:ss"),
-                row.ActualMinutes.ToString(),
-                row.RoundedMinutes.ToString(),
+                row.Start.ToString("dd.MM.yyyy HH:mm:ss"),
+                row.End.ToString("dd.MM.yyyy HH:mm:ss"),
                 row.Matter,
-                row.EinzelHonorar.ToString("N2"),
+                row.Hashtag,
+                row.Duration.ToString(@"hh\:mm\:ss"),
+                row.RoundedMinutes.ToString(),
                 row.HourlyRate.ToString("N2"),
                 row.HonorarStundenMatter.ToString("N2"),
                 row.HonorarRvgMatter.ToString("N2"),
@@ -695,7 +692,8 @@ public sealed class ReportsViewModel : ViewModelBase
                 FormatToggle(row.TermFee12Enabled),
                 FormatToggle(row.SettlementFee10Enabled),
                 FormatToggle(row.SettlementFee15Enabled),
-                row.EffektivitätMatter.ToString("N2"));
+                row.EffektivitätMatter.ToString("N2"),
+                row.Note);
         }
 
         try
@@ -787,7 +785,7 @@ public sealed class ReportsViewModel : ViewModelBase
             entryViewModel.ActualMinutes,
             entryViewModel.RoundedMinutes,
             entryViewModel.Matter,
-            entryViewModel.EinzelHonorar,
+            entryViewModel.Hashtag,
             entryViewModel.HourlyRate,
             entryViewModel.HonorarStundenMatter,
             entryViewModel.HonorarRvgMatter,
@@ -797,7 +795,8 @@ public sealed class ReportsViewModel : ViewModelBase
             entryViewModel.TermFee12Enabled,
             entryViewModel.SettlementFee10Enabled,
             entryViewModel.SettlementFee15Enabled,
-            entryViewModel.EffektivitätMatter);
+            entryViewModel.EffektivitätMatter,
+            entryViewModel.Note);
     }
 
     private static void WriteCsvRow(StringBuilder builder, params string[] values)
@@ -829,50 +828,55 @@ public sealed class ReportsViewModel : ViewModelBase
         var rowIndex = 2;
         foreach (var row in rows)
         {
-            sheet.Cell(rowIndex, 1).Value = row.Date.ToString("dd.MM.yyyy");
-            sheet.Cell(rowIndex, 2).Value = row.Start.ToString("HH:mm:ss");
-            sheet.Cell(rowIndex, 3).Value = row.End.ToString("HH:mm:ss");
-            sheet.Cell(rowIndex, 4).Value = row.Duration.ToString(@"hh\:mm\:ss");
-            sheet.Cell(rowIndex, 5).Value = row.ActualMinutes;
+            sheet.Cell(rowIndex, 1).Value = row.Start.ToString("dd.MM.yyyy HH:mm:ss");
+            sheet.Cell(rowIndex, 2).Value = row.End.ToString("dd.MM.yyyy HH:mm:ss");
+            sheet.Cell(rowIndex, 3).Value = row.Matter;
+            sheet.Cell(rowIndex, 4).Value = row.Hashtag;
+            sheet.Cell(rowIndex, 5).Value = row.Duration.ToString(@"hh\:mm\:ss");
             sheet.Cell(rowIndex, 6).Value = row.RoundedMinutes;
-            sheet.Cell(rowIndex, 7).Value = row.Matter;
-            sheet.Cell(rowIndex, 8).Value = row.EinzelHonorar;
-            sheet.Cell(rowIndex, 9).Value = row.HourlyRate;
-            sheet.Cell(rowIndex, 10).Value = row.HonorarStundenMatter;
-            sheet.Cell(rowIndex, 11).Value = row.HonorarRvgMatter;
-            sheet.Cell(rowIndex, 12).Value = row.SubjectValueEur;
-            sheet.Cell(rowIndex, 13).Value = row.CustomFeeFactor.HasValue ? (double)row.CustomFeeFactor.Value : string.Empty;
-            sheet.Cell(rowIndex, 14).Value = FormatToggle(row.BusinessFee13Enabled);
-            sheet.Cell(rowIndex, 15).Value = FormatToggle(row.TermFee12Enabled);
-            sheet.Cell(rowIndex, 16).Value = FormatToggle(row.SettlementFee10Enabled);
-            sheet.Cell(rowIndex, 17).Value = FormatToggle(row.SettlementFee15Enabled);
-            sheet.Cell(rowIndex, 18).Value = row.EffektivitätMatter;
+            sheet.Cell(rowIndex, 7).Value = row.HourlyRate;
+            sheet.Cell(rowIndex, 8).Value = row.HonorarStundenMatter;
+            sheet.Cell(rowIndex, 9).Value = row.HonorarRvgMatter;
+            sheet.Cell(rowIndex, 10).Value = row.SubjectValueEur;
+            sheet.Cell(rowIndex, 11).Value = row.CustomFeeFactor.HasValue ? (double)row.CustomFeeFactor.Value : string.Empty;
+            sheet.Cell(rowIndex, 12).Value = FormatToggle(row.BusinessFee13Enabled);
+            sheet.Cell(rowIndex, 13).Value = FormatToggle(row.TermFee12Enabled);
+            sheet.Cell(rowIndex, 14).Value = FormatToggle(row.SettlementFee10Enabled);
+            sheet.Cell(rowIndex, 15).Value = FormatToggle(row.SettlementFee15Enabled);
+            sheet.Cell(rowIndex, 16).Value = row.EffektivitätMatter;
+            sheet.Cell(rowIndex, 17).Value = row.Note;
             rowIndex++;
         }
 
+        sheet.Column(6).Style.NumberFormat.Format = "0";
+        sheet.Column(7).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Column(8).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Column(9).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Column(10).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Column(11).Style.NumberFormat.Format = "0.0";
+        sheet.Column(16).Style.NumberFormat.Format = "#,##0.00";
         sheet.Columns().AdjustToContents();
     }
 
     private static void WriteEntriesHeader(IXLWorksheet sheet)
     {
-        sheet.Cell(1, 1).Value = "Datum";
-        sheet.Cell(1, 2).Value = "Start";
-        sheet.Cell(1, 3).Value = "Ende";
-        sheet.Cell(1, 4).Value = "IstDauer_hhmmss";
-        sheet.Cell(1, 5).Value = "IstMinuten";
-        sheet.Cell(1, 6).Value = "Abrechnung6Minuten";
-        sheet.Cell(1, 7).Value = "Aktenzeichen";
-        sheet.Cell(1, 8).Value = "Einzel-Honorar";
-        sheet.Cell(1, 9).Value = "Stundensatz";
-        sheet.Cell(1, 10).Value = "Honorar Stunden";
-        sheet.Cell(1, 11).Value = "Honorar RVG";
-        sheet.Cell(1, 12).Value = "Streitwert";
-        sheet.Cell(1, 13).Value = "Gebühr (wahl)";
-        sheet.Cell(1, 14).Value = "GB 1,3";
-        sheet.Cell(1, 15).Value = "Termin 1,2";
-        sheet.Cell(1, 16).Value = "Vergleich 1,0";
-        sheet.Cell(1, 17).Value = "Vergleich 1,5";
-        sheet.Cell(1, 18).Value = "Effektivität";
+        sheet.Cell(1, 1).Value = "Start";
+        sheet.Cell(1, 2).Value = "Ende";
+        sheet.Cell(1, 3).Value = "Akte";
+        sheet.Cell(1, 4).Value = "Hashtag";
+        sheet.Cell(1, 5).Value = "Dauer";
+        sheet.Cell(1, 6).Value = "6-Minuten";
+        sheet.Cell(1, 7).Value = "Stundensatz";
+        sheet.Cell(1, 8).Value = "Zeit-Honorar";
+        sheet.Cell(1, 9).Value = "RVG-Honorar";
+        sheet.Cell(1, 10).Value = "Streitwert";
+        sheet.Cell(1, 11).Value = "Gebühr (wahl)";
+        sheet.Cell(1, 12).Value = "Geschäft 1,3";
+        sheet.Cell(1, 13).Value = "Termin 1,2";
+        sheet.Cell(1, 14).Value = "Vergleich 1,0";
+        sheet.Cell(1, 15).Value = "Vergleich 1,5";
+        sheet.Cell(1, 16).Value = "Effektivität";
+        sheet.Cell(1, 17).Value = "Beschreibung";
     }
 
     private static string FormatToggle(bool enabled) => enabled ? "on" : "off";
@@ -886,8 +890,7 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         var sheet = workbook.Worksheets.Add("Summen_Pro_Akte");
         sheet.Cell(1, 1).Value = "Akte";
-        sheet.Cell(1, 2).Value = "IstMinuten";
-        sheet.Cell(1, 3).Value = "Abrechnung6Minuten";
+        sheet.Cell(1, 2).Value = "6-Minuten";
 
         var rowIndex = 2;
         var groups = rows
@@ -897,8 +900,7 @@ public sealed class ReportsViewModel : ViewModelBase
         foreach (var group in groups)
         {
             sheet.Cell(rowIndex, 1).Value = group.Key;
-            sheet.Cell(rowIndex, 2).Value = group.Sum(entry => entry.ActualMinutes);
-            sheet.Cell(rowIndex, 3).Value = group.Sum(entry => entry.RoundedMinutes);
+            sheet.Cell(rowIndex, 2).Value = group.Sum(entry => entry.RoundedMinutes);
             rowIndex++;
         }
 
@@ -909,8 +911,7 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         var sheet = workbook.Worksheets.Add("Summen_Pro_Tag");
         sheet.Cell(1, 1).Value = "Datum";
-        sheet.Cell(1, 2).Value = "IstMinuten";
-        sheet.Cell(1, 3).Value = "Abrechnung6Minuten";
+        sheet.Cell(1, 2).Value = "6-Minuten";
 
         var rowIndex = 2;
         var groups = rows
@@ -920,8 +921,7 @@ public sealed class ReportsViewModel : ViewModelBase
         foreach (var group in groups)
         {
             sheet.Cell(rowIndex, 1).Value = group.Key.ToString("dd.MM.yyyy");
-            sheet.Cell(rowIndex, 2).Value = group.Sum(entry => entry.ActualMinutes);
-            sheet.Cell(rowIndex, 3).Value = group.Sum(entry => entry.RoundedMinutes);
+            sheet.Cell(rowIndex, 2).Value = group.Sum(entry => entry.RoundedMinutes);
             rowIndex++;
         }
 
@@ -937,7 +937,7 @@ public sealed record ExportRow(
     int ActualMinutes,
     int RoundedMinutes,
     string Matter,
-    decimal EinzelHonorar,
+    string Hashtag,
     decimal HourlyRate,
     decimal HonorarStundenMatter,
     decimal HonorarRvgMatter,
@@ -947,7 +947,8 @@ public sealed record ExportRow(
     bool TermFee12Enabled,
     bool SettlementFee10Enabled,
     bool SettlementFee15Enabled,
-    decimal EffektivitätMatter);
+    decimal EffektivitätMatter,
+    string Note);
 
 public sealed record RvgBreakdown(
     decimal Fee1_0Eur,
