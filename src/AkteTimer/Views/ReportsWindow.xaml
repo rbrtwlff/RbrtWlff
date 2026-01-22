@@ -32,6 +32,7 @@
     </Style>
     <Style x:Key="RvgTooltipTextStyle" TargetType="TextBlock" BasedOn="{StaticResource NumericTextBlockStyle}">
       <Setter Property="ToolTip" Value="{Binding RvgFormulaTooltip}" />
+      <Setter Property="Foreground" Value="DimGray" />
     </Style>
     <Style x:Key="NoteTextStyle" TargetType="TextBlock">
       <Setter Property="Foreground" Value="DimGray" />
