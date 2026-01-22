@@ -31,8 +31,8 @@
       <Setter Property="Foreground" Value="{Binding EffektivitätMatter, Converter={StaticResource PositiveNegativeBrushConverter}}" />
     </Style>
     <Style x:Key="RvgTooltipTextStyle" TargetType="TextBlock" BasedOn="{StaticResource NumericTextBlockStyle}">
-      <Setter Property="ToolTip" Value="{Binding RvgFormulaTooltip}" />
-      <Setter Property="Foreground" Value="DimGray" />
+      <Setter Property="ToolTip" Value="Gesamtakte" />
+      <Setter Property="Foreground" Value="DarkGray" />
     </Style>
     <Style x:Key="NoteTextStyle" TargetType="TextBlock">
       <Setter Property="Foreground" Value="DimGray" />
