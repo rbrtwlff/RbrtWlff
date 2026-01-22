@@ -65,6 +65,8 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public ObservableCollection<ReportEntryViewModel> TodayEntries { get; } = new();
 
+    public ObservableCollection<DayGroupViewModel> TodayGroups { get; } = new();
+
     public ObservableCollection<MatterFilterItem> MatterFilters { get; } = new();
 
     public ICollectionView MatterFilterView => _matterFilterView ??= CollectionViewSource.GetDefaultView(MatterFilters);
@@ -303,6 +305,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private void RefreshToday()
     {
         TodayEntries.Clear();
+        TodayGroups.Clear();
         var totalDuration = TimeSpan.Zero;
         var totalMinutes = 0;
         var totalRoundedMinutes = 0;
@@ -329,6 +332,10 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         ApplyMatterHonorarium(entryViewModels, matterLookup);
+        if (entryViewModels.Count > 0)
+        {
+            TodayGroups.Add(new DayGroupViewModel(DateTime.Today, entryViewModels.OrderBy(vm => vm.StartLocal)));
+        }
         TodayTotalDuration = totalDuration.ToString(@"hh\:mm\:ss");
         TodayTotalMinutes = totalMinutes;
         TodayTotalRoundedMinutes = totalRoundedMinutes;
@@ -1309,14 +1316,17 @@ public sealed class DayGroupViewModel
         TotalDurationText = totalDuration.ToString(@"hh\:mm\:ss");
         TotalActualMinutes = Entries.Sum(vm => vm.ActualMinutes);
         TotalRoundedMinutes = Entries.Sum(vm => vm.RoundedMinutes);
+        TotalHonorarEur = ReportEntryViewModel.RoundCurrency(Entries.Sum(vm => vm.EinzelHonorar));
     }
 
     public DateTime Date { get; }
     public string DateText => Date.ToString("dd.MM.yyyy");
+    public string DateLongText => Date.ToString("dddd, d. MMMM yyyy");
     public ObservableCollection<ReportEntryViewModel> Entries { get; }
     public string TotalDurationText { get; }
     public int TotalActualMinutes { get; }
     public int TotalRoundedMinutes { get; }
+    public decimal TotalHonorarEur { get; }
 }
 
 public sealed class MatterGroupViewModel

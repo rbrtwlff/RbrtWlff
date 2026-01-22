@@ -50,6 +50,27 @@
       <Setter Property="FontSize" Value="12" />
       <Setter Property="Foreground" Value="#374151" />
     </Style>
+    <Style x:Key="DayCardStyle" TargetType="Border">
+      <Setter Property="Background" Value="#F9FAFB" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style x:Key="DayCardTitleStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style x:Key="KpiLabelStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="DimGray" />
+      <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+    <Style x:Key="KpiValueStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="TextAlignment" Value="Right" />
+    </Style>
   </Window.Resources>
   <Grid Margin="12">
     <Grid.RowDefinitions>
@@ -102,214 +123,39 @@
 
     <TabControl Grid.Row="1">
       <TabItem Header="Heute">
-        <DockPanel Margin="0,8,0,0">
-          <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-            <TextBlock FontWeight="Bold"
-                       Text="{Binding TodayTotalDuration, StringFormat=Summe Ist: {0}}" />
-            <TextBlock FontWeight="Bold"
-                       Text="{Binding TodayTotalMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
-            <TextBlock FontWeight="Bold"
-                       Text="{Binding TodayTotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
-          </StackPanel>
-          <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding TodayEntries}" IsReadOnly="False" MouseDoubleClick="OnEntryDoubleClick">
-            <DataGrid.Columns>
-              <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
-              <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
-              <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
-              <DataGridTemplateColumn Header="Hashtag">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <Border Style="{StaticResource HashtagBadgeStyle}">
-                      <TextBlock Text="{Binding Hashtag}" Style="{StaticResource HashtagTextStyle}" />
-                    </Border>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
-              <DataGridTextColumn Header="6-Minuten" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-              <DataGridTextColumn Header="Stundensatz"
-                                  Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
-                                  ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                  EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-              <DataGridTextColumn Header="Zeit-Honorar"
-                                  Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
-                                  ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                  IsReadOnly="True" />
-              <DataGridTextColumn Header="RVG-Honorar"
-                                  Binding="{Binding HonorarRvgMatter, Converter={StaticResource CurrencyConverter}}"
-                                  ElementStyle="{StaticResource RvgTooltipTextStyle}"
-                                  IsReadOnly="True" />
-              <DataGridTextColumn Header="Streitwert"
-                                  Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
-                                  ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                  EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-              <DataGridTemplateColumn Header="Gebühr (wahl)">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <Grid>
+        <ScrollViewer Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding TodayGroups}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource DayCardStyle}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <Grid Margin="0,0,0,8">
                       <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="60" />
                         <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <TextBox Grid.Column="0"
-                               Margin="0,0,6,0"
-                               MinWidth="50"
-                               Style="{StaticResource NumericTextBoxStyle}"
-                               Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
-                      <TextBlock Grid.Column="1"
-                                 Style="{StaticResource NumericTextBlockStyle}"
-                                 Text="{Binding CustomFeeEurText}" />
-                    </Grid>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Geschäft 1,3">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <Grid>
-                      <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
-                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
-                                IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding BusinessFee13EurText}">
-                        <TextBlock.Style>
-                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding BusinessFee13Enabled}" Value="False">
-                                <Setter Property="Foreground" Value="DarkGray" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </TextBlock.Style>
-                      </TextBlock>
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource DayCardTitleStyle}" Text="{Binding DateLongText}" />
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding TotalDurationText, StringFormat=Tagessumme: {0}}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <StackPanel Margin="12,0,0,0">
+                          <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Ist-Min" />
+                          <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalActualMinutes}" />
+                        </StackPanel>
+                        <StackPanel Margin="12,0,0,0">
+                          <TextBlock Style="{StaticResource KpiLabelStyle}" Text="6-Min" />
+                          <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalRoundedMinutes}" />
+                        </StackPanel>
+                        <StackPanel Margin="12,0,0,0">
+                          <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Tageshonorar" />
+                          <TextBlock Style="{StaticResource KpiValueStyle}"
+                                     Text="{Binding TotalHonorarEur, Converter={StaticResource CurrencyConverter}}" />
+                        </StackPanel>
+                      </StackPanel>
                     </Grid>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Termin 1,2">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
-                                IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding TermFee12EurText}">
-                        <TextBlock.Style>
-                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding TermFee12Enabled}" Value="False">
-                                <Setter Property="Foreground" Value="DarkGray" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </TextBlock.Style>
-                      </TextBlock>
-                    </Grid>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Vergleich 1,0">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
-                                IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding SettlementFee10EurText}">
-                        <TextBlock.Style>
-                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding SettlementFee10Enabled}" Value="False">
-                                <Setter Property="Foreground" Value="DarkGray" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </TextBlock.Style>
-                      </TextBlock>
-                    </Grid>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Vergleich 1,5">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
-                                IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding SettlementFee15EurText}">
-                        <TextBlock.Style>
-                          <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding SettlementFee15Enabled}" Value="False">
-                                <Setter Property="Foreground" Value="DarkGray" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </TextBlock.Style>
-                      </TextBlock>
-                    </Grid>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTextColumn Header="Effektivität"
-                                  Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
-                                  ElementStyle="{StaticResource EffectivityTextStyle}"
-                                  IsReadOnly="True" />
-              <DataGridTemplateColumn Header="Beschreibung"
-                                      Visibility="{Binding DataContext.ShowDescription, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding Note}" Style="{StaticResource NoteTextStyle}" />
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-                <DataGridTemplateColumn.CellEditingTemplate>
-                  <DataTemplate>
-                    <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}"
-                             MinWidth="160" />
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellEditingTemplate>
-              </DataGridTemplateColumn>
-            </DataGrid.Columns>
-          </DataGrid>
-        </DockPanel>
-      </TabItem>
-
-      <TabItem Header="Zeitraum">
-        <DockPanel Margin="0,8,0,0">
-          <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-            <TextBlock FontWeight="Bold"
-                       Text="{Binding RangeTotalDuration, StringFormat=Summe Ist: {0}}" />
-            <TextBlock FontWeight="Bold"
-                       Text="{Binding RangeTotalMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
-            <TextBlock FontWeight="Bold"
-                       Text="{Binding RangeTotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
-          </StackPanel>
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding RangeGroups}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <StackPanel Margin="0,0,0,12">
-                    <TextBlock FontWeight="Bold" Text="{Binding DateText, StringFormat=Tag: {0}}" />
-                    <TextBlock Text="{Binding TotalDurationText, StringFormat=Summe Ist: {0}}" />
-                    <TextBlock Text="{Binding TotalActualMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
-                    <TextBlock Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
-                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick">
+                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" MouseDoubleClick="OnEntryDoubleClick">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
@@ -486,6 +332,233 @@
                       </DataGrid.Columns>
                     </DataGrid>
                   </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Zeitraum">
+        <DockPanel Margin="0,8,0,0">
+          <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <TextBlock FontWeight="Bold"
+                       Text="{Binding RangeTotalDuration, StringFormat=Summe Ist: {0}}" />
+            <TextBlock FontWeight="Bold"
+                       Text="{Binding RangeTotalMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
+            <TextBlock FontWeight="Bold"
+                       Text="{Binding RangeTotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
+          </StackPanel>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding RangeGroups}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource DayCardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                      <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                          <TextBlock Style="{StaticResource DayCardTitleStyle}" Text="{Binding DateLongText}" />
+                          <TextBlock FontWeight="SemiBold"
+                                     Text="{Binding TotalDurationText, StringFormat=Tagessumme: {0}}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                          <StackPanel Margin="12,0,0,0">
+                            <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Ist-Min" />
+                            <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalActualMinutes}" />
+                          </StackPanel>
+                          <StackPanel Margin="12,0,0,0">
+                            <TextBlock Style="{StaticResource KpiLabelStyle}" Text="6-Min" />
+                            <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalRoundedMinutes}" />
+                          </StackPanel>
+                          <StackPanel Margin="12,0,0,0">
+                            <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Tageshonorar" />
+                            <TextBlock Style="{StaticResource KpiValueStyle}"
+                                       Text="{Binding TotalHonorarEur, Converter={StaticResource CurrencyConverter}}" />
+                          </StackPanel>
+                        </StackPanel>
+                      </Grid>
+                      <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
+                        <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
+                        <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
+                        <DataGridTemplateColumn Header="Hashtag">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Border Style="{StaticResource HashtagBadgeStyle}">
+                                <TextBlock Text="{Binding Hashtag}" Style="{StaticResource HashtagTextStyle}" />
+                              </Border>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
+                        <DataGridTextColumn Header="6-Minuten" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
+                        <DataGridTextColumn Header="Stundensatz"
+                                            Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
+                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
+                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                        <DataGridTextColumn Header="Zeit-Honorar"
+                                            Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
+                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
+                                            IsReadOnly="True" />
+                        <DataGridTextColumn Header="RVG-Honorar"
+                                            Binding="{Binding HonorarRvgMatter, Converter={StaticResource CurrencyConverter}}"
+                                            ElementStyle="{StaticResource RvgTooltipTextStyle}"
+                                            IsReadOnly="True" />
+                        <DataGridTextColumn Header="Streitwert"
+                                            Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
+                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
+                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                        <DataGridTemplateColumn Header="Gebühr (wahl)">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="60" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Margin="0,0,6,0"
+                                         MinWidth="50"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
+                                <TextBlock Grid.Column="1"
+                                           Style="{StaticResource NumericTextBlockStyle}"
+                                           Text="{Binding CustomFeeEurText}" />
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Geschäft 1,3">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding BusinessFee13EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding BusinessFee13Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Termin 1,2">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding TermFee12EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TermFee12Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Vergleich 1,0">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SettlementFee10EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SettlementFee10Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Vergleich 1,5">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="Auto" />
+                                  <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                          IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SettlementFee15EurText}">
+                                  <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource RvgAmountTextStyle}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SettlementFee15Enabled}" Value="False">
+                                          <Setter Property="Foreground" Value="DarkGray" />
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBlock.Style>
+                                </TextBlock>
+                              </Grid>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Effektivität"
+                                            Binding="{Binding EffektivitätMatter, Converter={StaticResource CurrencyConverter}}"
+                                            ElementStyle="{StaticResource EffectivityTextStyle}"
+                                            IsReadOnly="True" />
+                        <DataGridTemplateColumn Header="Beschreibung"
+                                                Visibility="{Binding DataContext.ShowDescription, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="{Binding Note}" Style="{StaticResource NoteTextStyle}" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                          <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                              <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}"
+                                       MinWidth="160" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                      </DataGrid.Columns>
+                    </DataGrid>
+                    </StackPanel>
+                  </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
