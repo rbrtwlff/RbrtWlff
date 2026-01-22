@@ -38,6 +38,18 @@
       <Setter Property="Foreground" Value="DimGray" />
       <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
+    <Style x:Key="HashtagBadgeStyle" TargetType="Border">
+      <Setter Property="Background" Value="#E5E7EB" />
+      <Setter Property="BorderBrush" Value="#D1D5DB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style x:Key="HashtagTextStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="#374151" />
+    </Style>
   </Window.Resources>
   <Grid Margin="12">
     <Grid.RowDefinitions>
@@ -104,23 +116,26 @@
               <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
               <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
               <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
-              <DataGridTextColumn Header="Hashtag" Binding="{Binding Hashtag}" />
+              <DataGridTemplateColumn Header="Hashtag">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <Border Style="{StaticResource HashtagBadgeStyle}">
+                      <TextBlock Text="{Binding Hashtag}" Style="{StaticResource HashtagTextStyle}" />
+                    </Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
               <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
-              <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-              <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-              <DataGridTextColumn Header="Einzel-Honorar"
-                                  Binding="{Binding EinzelHonorar, Converter={StaticResource CurrencyConverter}}"
-                                  ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                  IsReadOnly="True" />
+              <DataGridTextColumn Header="6-Minuten" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
               <DataGridTextColumn Header="Stundensatz"
                                   Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                   ElementStyle="{StaticResource NumericTextBlockStyle}"
                                   EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-              <DataGridTextColumn Header="Honorar Stunden"
+              <DataGridTextColumn Header="Zeit-Honorar"
                                   Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
                                   ElementStyle="{StaticResource NumericTextBlockStyle}"
                                   IsReadOnly="True" />
-              <DataGridTextColumn Header="Honorar RVG"
+              <DataGridTextColumn Header="RVG-Honorar"
                                   Binding="{Binding HonorarRvgMatter, Converter={StaticResource CurrencyConverter}}"
                                   ElementStyle="{StaticResource RvgTooltipTextStyle}"
                                   IsReadOnly="True" />
@@ -148,7 +163,7 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Geschäftsgebühr 1,3">
+              <DataGridTemplateColumn Header="Geschäft 1,3">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Grid>
@@ -174,7 +189,7 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Terminsgebühr 1,2">
+              <DataGridTemplateColumn Header="Termin 1,2">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Grid>
@@ -200,7 +215,7 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Vergleichsgebühr 1,0">
+              <DataGridTemplateColumn Header="Vergleich 1,0">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Grid>
@@ -226,7 +241,7 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Vergleichsgebühr 1,5">
+              <DataGridTemplateColumn Header="Vergleich 1,5">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <Grid>
@@ -299,23 +314,26 @@
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
                         <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
-                        <DataGridTextColumn Header="Hashtag" Binding="{Binding Hashtag}" />
+                        <DataGridTemplateColumn Header="Hashtag">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Border Style="{StaticResource HashtagBadgeStyle}">
+                                <TextBlock Text="{Binding Hashtag}" Style="{StaticResource HashtagTextStyle}" />
+                              </Border>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
-                        <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-                        <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-                        <DataGridTextColumn Header="Einzel-Honorar"
-                                            Binding="{Binding EinzelHonorar, Converter={StaticResource CurrencyConverter}}"
-                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            IsReadOnly="True" />
+                        <DataGridTextColumn Header="6-Minuten" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
                         <DataGridTextColumn Header="Stundensatz"
                                             Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
                                             EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-                        <DataGridTextColumn Header="Honorar Stunden"
+                        <DataGridTextColumn Header="Zeit-Honorar"
                                             Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
                                             IsReadOnly="True" />
-                        <DataGridTextColumn Header="Honorar RVG"
+                        <DataGridTextColumn Header="RVG-Honorar"
                                             Binding="{Binding HonorarRvgMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource RvgTooltipTextStyle}"
                                             IsReadOnly="True" />
@@ -343,7 +361,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Geschäftsgebühr 1,3">
+                        <DataGridTemplateColumn Header="Geschäft 1,3">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -369,7 +387,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Terminsgebühr 1,2">
+                        <DataGridTemplateColumn Header="Termin 1,2">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -395,7 +413,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,0">
+                        <DataGridTemplateColumn Header="Vergleich 1,0">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -421,7 +439,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,5">
+                        <DataGridTemplateColumn Header="Vergleich 1,5">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -503,23 +521,27 @@
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
-                        <DataGridTextColumn Header="Hashtag" Binding="{Binding Hashtag}" />
+                        <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
+                        <DataGridTemplateColumn Header="Hashtag">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <Border Style="{StaticResource HashtagBadgeStyle}">
+                                <TextBlock Text="{Binding Hashtag}" Style="{StaticResource HashtagTextStyle}" />
+                              </Border>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" />
-                        <DataGridTextColumn Header="Ist-Min" Binding="{Binding ActualMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-                        <DataGridTextColumn Header="6-Min" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
-                        <DataGridTextColumn Header="Einzel-Honorar"
-                                            Binding="{Binding EinzelHonorar, Converter={StaticResource CurrencyConverter}}"
-                                            ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            IsReadOnly="True" />
+                        <DataGridTextColumn Header="6-Minuten" Binding="{Binding RoundedMinutes}" ElementStyle="{StaticResource NumericTextBlockStyle}" />
                         <DataGridTextColumn Header="Stundensatz"
                                             Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
                                             EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
-                        <DataGridTextColumn Header="Honorar Stunden"
+                        <DataGridTextColumn Header="Zeit-Honorar"
                                             Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
                                             IsReadOnly="True" />
-                        <DataGridTextColumn Header="Honorar RVG"
+                        <DataGridTextColumn Header="RVG-Honorar"
                                             Binding="{Binding HonorarRvgMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource RvgTooltipTextStyle}"
                                             IsReadOnly="True" />
@@ -547,7 +569,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Geschäftsgebühr 1,3">
+                        <DataGridTemplateColumn Header="Geschäft 1,3">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -573,7 +595,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Terminsgebühr 1,2">
+                        <DataGridTemplateColumn Header="Termin 1,2">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -599,7 +621,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,0">
+                        <DataGridTemplateColumn Header="Vergleich 1,0">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
@@ -625,7 +647,7 @@
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="Vergleichsgebühr 1,5">
+                        <DataGridTemplateColumn Header="Vergleich 1,5">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                               <Grid>
