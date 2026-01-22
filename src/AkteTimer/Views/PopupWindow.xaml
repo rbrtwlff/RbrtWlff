@@ -14,14 +14,14 @@
 
     <Style x:Key="CardStyle" TargetType="Border">
       <Setter Property="Background" Value="White" />
-      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="CornerRadius" Value="12" />
       <Setter Property="BorderBrush" Value="#E3E6EE" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="16" />
+      <Setter Property="Padding" Value="14" />
       <Setter Property="Margin" Value="0,0,0,12" />
       <Setter Property="Effect">
         <Setter.Value>
-          <DropShadowEffect BlurRadius="12" ShadowDepth="1" Opacity="0.15" />
+          <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.1" />
         </Setter.Value>
       </Setter>
     </Style>
@@ -124,6 +124,7 @@
           <TextBlock Text="Aktenzeichen" FontSize="13" FontWeight="SemiBold" />
           <TextBox x:Name="FileRefBox"
                    Style="{StaticResource ValidatedTextBoxStyle}"
+                   KeyboardNavigation.TabIndex="0"
                    ToolTip="z.B. 1234/25"
                    Text="{Binding FileRefInput, UpdateSourceTrigger=PropertyChanged}" />
           <TextBlock Text="{Binding FileRefValidationMessage}"
@@ -146,6 +147,7 @@
                     Height="40"
                     Margin="0,0,8,0"
                     Command="{Binding ToggleCommand}"
+                    KeyboardNavigation.TabIndex="1"
                     IsEnabled="{Binding CanStart}">
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <TextBlock FontFamily="Segoe MDL2 Assets" Text="" FontSize="14" Margin="0,0,6,0" />
@@ -157,6 +159,7 @@
                     Height="40"
                     Margin="0,0,8,0"
                     Command="{Binding ToggleCommand}"
+                    KeyboardNavigation.TabIndex="2"
                     IsEnabled="{Binding CanPause}">
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <TextBlock FontFamily="Segoe MDL2 Assets" Text="" FontSize="14" Margin="0,0,6,0" />
@@ -167,6 +170,7 @@
                     Width="130"
                     Height="40"
                     Click="StopButton_Click"
+                    KeyboardNavigation.TabIndex="3"
                     IsEnabled="{Binding CanStop}">
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <TextBlock FontFamily="Segoe MDL2 Assets" Text="" FontSize="14" Margin="0,0,6,0" />
@@ -191,6 +195,7 @@
                 <Button Style="{StaticResource HashtagChipStyle}"
                         Command="{Binding DataContext.SelectHashtagCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                         CommandParameter="{Binding}"
+                        KeyboardNavigation.TabIndex="4"
                         ToolTip="{Binding Hotkey}">
                   <TextBlock Text="{Binding Text}" />
                 </Button>
@@ -208,6 +213,7 @@
                     Height="28"
                     Margin="12,0,0,0"
                     Padding="10,2"
+                    KeyboardNavigation.TabIndex="6"
                     Click="ShowToday_Click">
               <TextBlock Text="Alle sehen" FontSize="12" />
             </Button>
@@ -217,6 +223,7 @@
                    SelectedItem="{Binding SelectedRecentEntry, Mode=TwoWay}"
                    Background="Transparent"
                    BorderThickness="0"
+                   KeyboardNavigation.TabIndex="5"
                    Margin="0,12,0,0">
             <ListBox.ItemTemplate>
               <DataTemplate>
@@ -246,7 +253,7 @@
 
       <Border Grid.Row="5" Style="{StaticResource CardStyle}" Margin="0">
         <StackPanel>
-          <CheckBox Content="Hotkey-Hilfe" IsChecked="{Binding IsHotkeyHelpVisible}" />
+          <CheckBox Content="Hotkey-Hilfe" IsChecked="{Binding IsHotkeyHelpVisible}" KeyboardNavigation.TabIndex="7" />
           <Border Margin="0,10,0,0"
                   Padding="10"
                   Background="#F9FAFB"
