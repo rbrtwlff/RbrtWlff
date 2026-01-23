@@ -5,10 +5,10 @@
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
     <ResourceDictionary>
-      <materialDesign:BundledTheme BaseTheme="Light"
-                                   PrimaryColor="Indigo"
-                                   SecondaryColor="DeepOrange" />
       <ResourceDictionary.MergedDictionaries>
+        <materialDesign:BundledTheme BaseTheme="Light"
+                                     PrimaryColor="Indigo"
+                                     SecondaryColor="DeepOrange" />
         <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml" />
         <ResourceDictionary Source="Styles/Colors.xaml" />
         <ResourceDictionary Source="Styles/Typography.xaml" />
