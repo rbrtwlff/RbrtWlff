@@ -54,7 +54,6 @@
           <StackPanel>
             <TextBlock Text="Aktenzeichen" Style="{StaticResource CardTitleTextStyle}" />
             <TextBox x:Name="FileRefBox"
-                     Style="{StaticResource ModernTextBoxStyle}"
                      KeyboardNavigation.TabIndex="0"
                      ToolTip="z.B. 1234/25"
                      Text="{Binding FileRefInput, UpdateSourceTrigger=PropertyChanged}">
