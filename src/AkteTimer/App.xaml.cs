@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -24,58 +23,51 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        try
+        base.OnStartup(e);
+        ApplyCulture();
+
+        _dataDirectoryService = new DataDirectoryService();
+        var startupDirectory = ResolveStartupDirectory(_dataDirectoryService);
+        if (startupDirectory == null)
         {
-            base.OnStartup(e);
-            ApplyCulture();
-
-            _dataDirectoryService = new DataDirectoryService();
-            var startupDirectory = ResolveStartupDirectory(_dataDirectoryService);
-            if (startupDirectory == null)
-            {
-                Shutdown();
-                return;
-            }
-
-            _dataDirectoryService.SetCurrentDirectory(startupDirectory);
-            _dataDirectoryService.PersistDirectory(startupDirectory);
-
-            LogService.Initialize(_dataDirectoryService.LogsDirectory);
-            RegisterGlobalExceptionHandlers();
-            LogService.LogInfo("App-Start.");
-
-            _databaseService = new DatabaseService(_dataDirectoryService);
-            _databaseService.Initialize();
-
-            _settingsService = new SettingsService(_databaseService);
-            _settingsService.EnsureDefaults();
-            if (!ApplyStoredDataDirectory(_dataDirectoryService, _databaseService, _settingsService))
-            {
-                Shutdown();
-                return;
-            }
-
-            _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
-
-            _popupWindow = new PopupWindow(_timeEntryService, _settingsService);
-
-            _hotkeyService = new HotkeyService(_settingsService);
-            _hotkeyService.HotkeyPressed += (_, _) =>
-            {
-                _popupWindow.ToggleVisibility();
-                _popupWindow.FocusInput();
-            };
-            _hotkeyService.Register();
-
-            _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService, _dataDirectoryService, _databaseService);
-            _trayService.Initialize();
-
-            HandleRecovery();
+            Shutdown();
+            return;
         }
-        catch (Exception ex)
+
+        _dataDirectoryService.SetCurrentDirectory(startupDirectory);
+        _dataDirectoryService.PersistDirectory(startupDirectory);
+
+        LogService.Initialize(_dataDirectoryService.LogsDirectory);
+        RegisterGlobalExceptionHandlers();
+        LogService.LogInfo("App-Start.");
+
+        _databaseService = new DatabaseService(_dataDirectoryService);
+        _databaseService.Initialize();
+
+        _settingsService = new SettingsService(_databaseService);
+        _settingsService.EnsureDefaults();
+        if (!ApplyStoredDataDirectory(_dataDirectoryService, _databaseService, _settingsService))
         {
-            HandleStartupFailure(ex);
+            Shutdown();
+            return;
         }
+
+        _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
+
+        _popupWindow = new PopupWindow(_timeEntryService, _settingsService);
+
+        _hotkeyService = new HotkeyService(_settingsService);
+        _hotkeyService.HotkeyPressed += (_, _) =>
+        {
+            _popupWindow.ToggleVisibility();
+            _popupWindow.FocusInput();
+        };
+        _hotkeyService.Register();
+
+        _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService, _dataDirectoryService, _databaseService);
+        _trayService.Initialize();
+
+        HandleRecovery();
     }
 
     private static void ApplyCulture()
@@ -151,52 +143,6 @@ public partial class App : System.Windows.Application
         _trayService?.Dispose();
         LogService.LogInfo("App-Ende.");
         base.OnExit(e);
-    }
-
-    private static void HandleStartupFailure(Exception exception)
-    {
-        try
-        {
-            LogService.LogException(exception, "Startup");
-        }
-        catch
-        {
-        }
-
-        var logPath = TryWriteBootstrapLog(exception);
-        var message = logPath == null
-            ? "Beim Starten ist ein Fehler aufgetreten. Bitte prüfen Sie die Windows-Ereignisanzeige."
-            : $"Beim Starten ist ein Fehler aufgetreten.\n\nBootstrap-Log:\n{logPath}";
-
-        MessageBox.Show(message, "AkteTimer", MessageBoxButton.OK, MessageBoxImage.Error);
-        Current?.Shutdown();
-    }
-
-    private static string? TryWriteBootstrapLog(Exception exception)
-    {
-        var content = $"{DateTime.UtcNow:o} [STARTUP-ERROR]{Environment.NewLine}{exception}";
-        var directories = new[]
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AkteTimer"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AkteTimer"),
-            Path.GetTempPath()
-        };
-
-        foreach (var directory in directories)
-        {
-            try
-            {
-                Directory.CreateDirectory(directory);
-                var path = Path.Combine(directory, $"AkteTimer-bootstrap-{DateTime.UtcNow:yyyyMMdd-HHmmss}.log");
-                File.WriteAllText(path, content);
-                return path;
-            }
-            catch
-            {
-            }
-        }
-
-        return null;
     }
 
     private static string? ResolveStartupDirectory(DataDirectoryService dataDirectoryService)
@@ -282,27 +228,15 @@ public partial class App : System.Windows.Application
             return true;
         }
 
-        if (!dataDirectoryService.TryEnsureWritable(storedDirectory, out var storedError))
+        if (!dataDirectoryService.TryEnsureWritable(storedDirectory, out _))
         {
-            LogService.LogError($"Gespeicherter Datenordner nicht erreichbar: {storedDirectory}", storedError == null ? null : new InvalidOperationException(storedError));
-
-            var defaultDirectory = dataDirectoryService.DefaultDirectory;
-            if (dataDirectoryService.TryEnsureWritable(defaultDirectory, out var defaultError))
+            var fallback = PromptForUnavailableDirectory(dataDirectoryService, storedDirectory);
+            if (fallback == null)
             {
-                LogService.LogInfo($"Wechsle auf Standard-Datenordner: {defaultDirectory}");
-                storedDirectory = defaultDirectory;
+                return false;
             }
-            else
-            {
-                LogService.LogError($"Standard-Datenordner nicht erreichbar: {defaultDirectory}", defaultError == null ? null : new InvalidOperationException(defaultError));
-                var fallback = PromptForUnavailableDirectory(dataDirectoryService, storedDirectory);
-                if (fallback == null)
-                {
-                    return false;
-                }
 
-                storedDirectory = fallback;
-            }
+            storedDirectory = fallback;
         }
 
         dataDirectoryService.SetCurrentDirectory(storedDirectory);
