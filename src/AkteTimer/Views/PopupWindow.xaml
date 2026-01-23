@@ -84,7 +84,7 @@
             <Border Background="#FFF3F4F6" CornerRadius="999" Padding="10,4" HorizontalAlignment="Left" Margin="0,8,0,0">
               <TextBlock>
                 <Run Text="Heute: " />
-                <Run Text="{Binding TodayDurationText}" />
+                <Run Text="{Binding TodayDurationText, Mode=OneWay}" />
               </TextBlock>
             </Border>
           </StackPanel>
