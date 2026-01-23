@@ -96,7 +96,7 @@ public partial class PopupWindow : Window
             return;
         }
 
-        if (e.Key == Key.Enter && (FileRefBox.IsFocused || RecentEntriesListBox.IsFocused))
+        if (e.Key == Key.Enter && FileRefBox.IsFocused)
         {
             ConfirmMatter(vm);
             return;
