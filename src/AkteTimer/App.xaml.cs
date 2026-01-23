@@ -228,15 +228,27 @@ public partial class App : System.Windows.Application
             return true;
         }
 
-        if (!dataDirectoryService.TryEnsureWritable(storedDirectory, out _))
+        if (!dataDirectoryService.TryEnsureWritable(storedDirectory, out var storedError))
         {
-            var fallback = PromptForUnavailableDirectory(dataDirectoryService, storedDirectory);
-            if (fallback == null)
-            {
-                return false;
-            }
+            LogService.LogError($"Gespeicherter Datenordner nicht erreichbar: {storedDirectory}", storedError == null ? null : new InvalidOperationException(storedError));
 
-            storedDirectory = fallback;
+            var defaultDirectory = dataDirectoryService.DefaultDirectory;
+            if (dataDirectoryService.TryEnsureWritable(defaultDirectory, out var defaultError))
+            {
+                LogService.LogInfo($"Wechsle auf Standard-Datenordner: {defaultDirectory}");
+                storedDirectory = defaultDirectory;
+            }
+            else
+            {
+                LogService.LogError($"Standard-Datenordner nicht erreichbar: {defaultDirectory}", defaultError == null ? null : new InvalidOperationException(defaultError));
+                var fallback = PromptForUnavailableDirectory(dataDirectoryService, storedDirectory);
+                if (fallback == null)
+                {
+                    return false;
+                }
+
+                storedDirectory = fallback;
+            }
         }
 
         dataDirectoryService.SetCurrentDirectory(storedDirectory);
