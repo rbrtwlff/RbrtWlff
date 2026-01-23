@@ -12,11 +12,10 @@
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
   </Window.Resources>
-  <Border Padding="24">
+  <Border Padding="16">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <Grid FocusManager.FocusedElement="{Binding ElementName=FileRefBox}">
         <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
@@ -160,53 +159,7 @@
           </StackPanel>
         </Border>
 
-        <Border Grid.Row="6" Style="{StaticResource CardStyle}">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <TextBlock Text="Letzte Einträge" Style="{StaticResource CardTitleTextStyle}" />
-              <Button Style="{StaticResource SecondaryButtonStyle}"
-                      Height="28"
-                      Margin="12,0,0,0"
-                      Padding="10,2"
-                      KeyboardNavigation.TabIndex="6"
-                      Click="ShowToday_Click">
-                <TextBlock Text="Alle sehen" FontSize="12" />
-              </Button>
-            </StackPanel>
-            <ListBox x:Name="RecentEntriesListBox"
-                     ItemsSource="{Binding RecentEntries}"
-                     SelectedItem="{Binding SelectedRecentEntry, Mode=TwoWay}"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     KeyboardNavigation.TabIndex="5"
-                     Margin="0,12,0,0">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <Border Padding="12" CornerRadius="12" Background="#FFF9FAFB" Margin="0,0,0,8">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <StackPanel>
-                        <TextBlock Text="{Binding MatterFileRef}" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding Hashtag}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
-                        <TextBlock Text="{Binding StartedText}" FontSize="12" Foreground="{StaticResource TextTertiaryBrush}" />
-                      </StackPanel>
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding DurationText}"
-                                 FontWeight="SemiBold"
-                                 VerticalAlignment="Center"
-                                 Margin="12,0,0,0" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </StackPanel>
-        </Border>
-
-        <Border Grid.Row="7" Style="{StaticResource CardStyle}" Margin="0">
+        <Border Grid.Row="6" Style="{StaticResource CardStyle}" Margin="0">
           <StackPanel>
             <CheckBox Content="Hotkey-Hilfe" IsChecked="{Binding IsHotkeyHelpVisible}" KeyboardNavigation.TabIndex="7" />
             <Border Margin="0,10,0,0"
