@@ -11,6 +11,66 @@
         FontFamily="Segoe UI Variable, Segoe UI">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <Style x:Key="CardBorderStyle" TargetType="Border">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="Effect">
+        <Setter.Value>
+          <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.12" />
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PillBorderStyle" TargetType="Border">
+      <Setter Property="Background" Value="#EEF2F7" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="14,6" />
+      <Setter Property="BorderBrush" Value="#D8DDE6" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style x:Key="ActionButtonBaseStyle" TargetType="Button">
+      <Setter Property="Height" Value="104" />
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="18"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.4" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PrimaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+      <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource PrimaryDarkBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style x:Key="SecondaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+      <Setter Property="Background" Value="{StaticResource NeutralBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource NeutralDarkBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    </Style>
+    <Style x:Key="DangerActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+      <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource DangerDarkBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
     <Style x:Key="HashtagPillToggleStyle" TargetType="ToggleButton">
       <Setter Property="Background" Value="#EEF2F7" />
       <Setter Property="Foreground" Value="#1E293B" />
@@ -27,7 +87,7 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="16">
+                    CornerRadius="18">
               <ContentPresenter HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
             </Border>
@@ -53,16 +113,17 @@
       <Setter Property="CornerRadius" Value="16" />
       <Setter Property="Padding" Value="14,6" />
     </Style>
-    <Style x:Key="StatusChipDotStyle" TargetType="Ellipse">
+    <Style x:Key="StatusChipDotStyle" TargetType="Border">
       <Setter Property="Width" Value="6" />
       <Setter Property="Height" Value="6" />
-      <Setter Property="Fill" Value="{StaticResource ChipIdleDotBrush}" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Background" Value="{StaticResource ChipIdleDotBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding StateText}" Value="Running">
-          <Setter Property="Fill" Value="{StaticResource ChipRunningDotBrush}" />
+          <Setter Property="Background" Value="{StaticResource ChipRunningDotBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding StateText}" Value="Paused">
-          <Setter Property="Fill" Value="{StaticResource ChipPausedDotBrush}" />
+          <Setter Property="Background" Value="{StaticResource ChipPausedDotBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -93,7 +154,7 @@
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
@@ -105,14 +166,14 @@
             </StackPanel>
             <Border Grid.Column="1" Style="{StaticResource StatusChipBorderStyle}" VerticalAlignment="Top" HorizontalAlignment="Right">
               <StackPanel Orientation="Horizontal">
-                <Ellipse Style="{StaticResource StatusChipDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Border Style="{StaticResource StatusChipDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBlock Style="{StaticResource StatusChipTextStyle}" />
               </StackPanel>
             </Border>
           </Grid>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
           <StackPanel>
             <TextBlock Text="Aktenzeichen" Style="{StaticResource CardTitleTextStyle}" />
             <TextBox x:Name="FileRefBox"
@@ -139,11 +200,11 @@
           </StackPanel>
         </Border>
 
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}">
           <StackPanel>
             <TextBlock Text="Aktuelle Sitzung" Style="{StaticResource CardTitleTextStyle}" />
             <TextBlock Text="{Binding EntryDurationText}" Style="{StaticResource TimerTextStyle}" Margin="0,10,0,0" HorizontalAlignment="Center" />
-            <Border Style="{StaticResource TodayChipStyle}" HorizontalAlignment="Left" Margin="0,12,0,0">
+            <Border Style="{StaticResource PillBorderStyle}" HorizontalAlignment="Left" Margin="0,12,0,0">
               <TextBlock>
                 <Run Text="Heute: " />
                 <Run Text="{Binding TodayDurationText, Mode=OneWay}" />
@@ -165,7 +226,7 @@
                   KeyboardNavigation.TabIndex="1"
                   IsEnabled="{Binding CanStart}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="40" Height="40" CornerRadius="20" Background="#33FFFFFF" HorizontalAlignment="Center">
+              <Border Width="40" Height="40" CornerRadius="10" Background="#33FFFFFF" HorizontalAlignment="Center">
                 <Path Data="{StaticResource IconPlay}" Fill="White" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Start" Margin="0,10,0,0" HorizontalAlignment="Center" />
@@ -178,7 +239,7 @@
                   KeyboardNavigation.TabIndex="2"
                   IsEnabled="{Binding CanPause}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="40" Height="40" CornerRadius="20" Background="#FFE5E7EB" HorizontalAlignment="Center">
+              <Border Width="40" Height="40" CornerRadius="10" Background="#FFE5E7EB" HorizontalAlignment="Center">
                 <Path Data="{StaticResource IconPause}" Fill="{StaticResource TextPrimaryBrush}" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Pause" Margin="0,10,0,0" HorizontalAlignment="Center" />
@@ -190,7 +251,7 @@
                   KeyboardNavigation.TabIndex="3"
                   IsEnabled="{Binding CanStop}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="40" Height="40" CornerRadius="20" Background="#33FFFFFF" HorizontalAlignment="Center">
+              <Border Width="40" Height="40" CornerRadius="10" Background="#33FFFFFF" HorizontalAlignment="Center">
                 <Path Data="{StaticResource IconStop}" Fill="White" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Stopp" Margin="0,10,0,0" HorizontalAlignment="Center" />
@@ -198,7 +259,7 @@
           </Button>
         </Grid>
 
-        <Border Grid.Row="4" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="4" Style="{StaticResource CardBorderStyle}">
           <StackPanel>
             <TextBlock Text="TÄTIGKEIT AUSWÄHLEN" Style="{StaticResource OverlineTextStyle}" />
             <ItemsControl ItemsSource="{Binding HashtagOptions}" Margin="0,12,0,0">
@@ -222,7 +283,7 @@
           </StackPanel>
         </Border>
 
-        <Border Grid.Row="5" Style="{StaticResource CardStyle}" Margin="0">
+        <Border Grid.Row="5" Style="{StaticResource CardBorderStyle}" Margin="0">
           <StackPanel>
             <CheckBox Content="Hotkey-Hilfe" IsChecked="{Binding IsHotkeyHelpVisible}" KeyboardNavigation.TabIndex="7" />
             <Border Margin="0,10,0,0"
