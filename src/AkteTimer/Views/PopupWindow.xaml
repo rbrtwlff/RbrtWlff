@@ -11,6 +11,75 @@
         FontFamily="Segoe UI Variable, Segoe UI">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <Style x:Key="HashtagChipStyle" TargetType="ToggleButton">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="Foreground" Value="#1E293B" />
+      <Setter Property="BorderBrush" Value="#CBD5E1" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="18,10" />
+      <Setter Property="Margin" Value="0,0,12,12" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="18">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="#F1F5F9" />
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="#2563EB" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter TargetName="Root" Property="BorderBrush" Value="#2563EB" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="StatusChipBorderStyle" TargetType="Border">
+      <Setter Property="Background" Value="#EEF2F7" />
+      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="Padding" Value="14,6" />
+    </Style>
+    <Style x:Key="StatusChipDotStyle" TargetType="Ellipse">
+      <Setter Property="Width" Value="6" />
+      <Setter Property="Height" Value="6" />
+      <Setter Property="Fill" Value="{StaticResource ChipIdleDotBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StateText}" Value="Running">
+          <Setter Property="Fill" Value="{StaticResource ChipRunningDotBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StateText}" Value="Paused">
+          <Setter Property="Fill" Value="{StaticResource ChipPausedDotBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="StatusChipTextStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+      <Setter Property="Text" Value="IDLE" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StateText}" Value="Running">
+          <Setter Property="Text" Value="RUNNING" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StateText}" Value="Paused">
+          <Setter Property="Text" Value="PAUSED" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
   </Window.Resources>
   <Border Padding="16">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -34,8 +103,11 @@
               <TextBlock Text="AKTUELLE AKTE" Style="{StaticResource OverlineTextStyle}" />
               <TextBlock Text="{Binding ActiveMatterText}" Style="{StaticResource LargeValueTextStyle}" Margin="0,6,0,0" />
             </StackPanel>
-            <Border Grid.Column="1" Style="{StaticResource StatusChipStyle}" VerticalAlignment="Top" HorizontalAlignment="Right">
-              <TextBlock Style="{StaticResource StatusChipTextStyle}" />
+            <Border Grid.Column="1" Style="{StaticResource StatusChipBorderStyle}" VerticalAlignment="Top" HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Ellipse Style="{StaticResource StatusChipDotStyle}" VerticalAlignment="Center" />
+                <TextBlock Style="{StaticResource StatusChipTextStyle}" />
+              </StackPanel>
             </Border>
           </Grid>
         </Border>
@@ -137,13 +209,13 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Button Style="{StaticResource ChipButtonStyle}"
+                  <ToggleButton Style="{StaticResource HashtagChipStyle}"
                           Command="{Binding DataContext.SelectHashtagCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                           CommandParameter="{Binding}"
                           KeyboardNavigation.TabIndex="4"
-                          ToolTip="{Binding Hotkey}">
-                    <TextBlock Text="{Binding Text}" />
-                  </Button>
+                          ToolTip="{Binding Hotkey}"
+                          IsChecked="{Binding IsSelected, Mode=OneWay}"
+                          Content="{Binding Text}" />
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
