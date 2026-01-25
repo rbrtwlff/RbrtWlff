@@ -104,8 +104,8 @@
               <TextBlock Text="{Binding ActiveMatterText}" Style="{StaticResource LargeValueTextStyle}" Margin="0,6,0,0" />
             </StackPanel>
             <Border Grid.Column="1" Style="{StaticResource StatusChipBorderStyle}" VerticalAlignment="Top" HorizontalAlignment="Right">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <Ellipse Style="{StaticResource StatusChipDotStyle}" VerticalAlignment="Center" />
+              <StackPanel Orientation="Horizontal">
+                <Ellipse Style="{StaticResource StatusChipDotStyle}" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBlock Style="{StaticResource StatusChipTextStyle}" />
               </StackPanel>
             </Border>
