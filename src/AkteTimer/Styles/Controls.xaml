@@ -32,11 +32,11 @@
   </Style>
 
   <Style x:Key="ChipButtonStyle" TargetType="Button">
-    <Setter Property="Padding" Value="12,6" />
-    <Setter Property="Margin" Value="0,0,8,8" />
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="Margin" Value="0,0,12,12" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+    <Setter Property="Background" Value="White" />
+    <Setter Property="BorderBrush" Value="#FFD1D5DB" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
     <Setter Property="Template">
@@ -55,7 +55,7 @@
     <Style.Triggers>
       <DataTrigger Binding="{Binding IsSelected}" Value="True">
         <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PrimaryDarkBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
         <Setter Property="Foreground" Value="White" />
       </DataTrigger>
       <Trigger Property="IsEnabled" Value="False">
@@ -65,9 +65,9 @@
   </Style>
 
   <Style x:Key="ActionButtonBaseStyle" TargetType="Button">
-    <Setter Property="Height" Value="96" />
-    <Setter Property="Padding" Value="12" />
-    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Height" Value="104" />
+    <Setter Property="Padding" Value="16" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="FontSize" Value="14" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Template">
@@ -76,7 +76,7 @@
           <Border Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="14"
+                  CornerRadius="18"
                   Padding="{TemplateBinding Padding}">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
@@ -135,19 +135,16 @@
   </Style>
 
   <Style x:Key="StatusChipStyle" TargetType="Border">
-    <Setter Property="Padding" Value="10,6" />
+    <Setter Property="Padding" Value="10,4" />
     <Setter Property="CornerRadius" Value="999" />
     <Setter Property="Background" Value="{StaticResource ChipIdleBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ChipIdleBorderBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderThickness" Value="0" />
     <Style.Triggers>
       <DataTrigger Binding="{Binding StateText}" Value="Running">
         <Setter Property="Background" Value="{StaticResource ChipRunningBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource ChipRunningBorderBrush}" />
       </DataTrigger>
       <DataTrigger Binding="{Binding StateText}" Value="Paused">
         <Setter Property="Background" Value="{StaticResource ChipPausedBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource ChipPausedBorderBrush}" />
       </DataTrigger>
     </Style.Triggers>
   </Style>
@@ -168,7 +165,7 @@
 
   <Style x:Key="StatusChipTextStyle" TargetType="TextBlock">
     <Setter Property="FontSize" Value="11" />
-    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
     <Setter Property="Text" Value="IDLE" />
     <Style.Triggers>
@@ -179,5 +176,11 @@
         <Setter Property="Text" Value="PAUSED" />
       </DataTrigger>
     </Style.Triggers>
+  </Style>
+
+  <Style x:Key="TodayChipStyle" TargetType="Border">
+    <Setter Property="Background" Value="{StaticResource NeutralBrush}" />
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="Padding" Value="12,6" />
   </Style>
 </ResourceDictionary>
