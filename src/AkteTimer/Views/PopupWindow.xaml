@@ -8,7 +8,7 @@
         ShowInTaskbar="False"
         Topmost="True"
         Background="{StaticResource BackgroundBrush}"
-        FontFamily="Segoe UI">
+        FontFamily="Segoe UI Variable, Segoe UI">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
   </Window.Resources>
@@ -21,35 +21,26 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
-          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,20">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <StackPanel>
-            <TextBlock Text="Zeiterfassung" Style="{StaticResource PageTitleTextStyle}" />
-            <TextBlock Text="Willkommen zurück" Style="{StaticResource SubtitleTextStyle}" Margin="0,6,0,0" />
-          </StackPanel>
-          <Border Grid.Column="1" Style="{StaticResource StatusChipStyle}" VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal">
-              <Ellipse Style="{StaticResource StatusChipDotStyle}" VerticalAlignment="Center" />
-              <TextBlock Style="{StaticResource StatusChipTextStyle}" Margin="8,0,0,0" VerticalAlignment="Center" />
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="AKTUELLE AKTE" Style="{StaticResource OverlineTextStyle}" />
+              <TextBlock Text="{Binding ActiveMatterText}" Style="{StaticResource LargeValueTextStyle}" Margin="0,6,0,0" />
             </StackPanel>
-          </Border>
-        </Grid>
-
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}">
-          <StackPanel>
-            <TextBlock Text="AKTUELLE AKTE" Style="{StaticResource OverlineTextStyle}" />
-            <TextBlock Text="{Binding ActiveMatterText}" Style="{StaticResource LargeValueTextStyle}" Margin="0,6,0,0" />
-          </StackPanel>
+            <Border Grid.Column="1" Style="{StaticResource StatusChipStyle}" VerticalAlignment="Top" HorizontalAlignment="Right">
+              <TextBlock Style="{StaticResource StatusChipTextStyle}" />
+            </Border>
+          </Grid>
         </Border>
 
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}">
           <StackPanel>
             <TextBlock Text="Aktenzeichen" Style="{StaticResource CardTitleTextStyle}" />
             <TextBox x:Name="FileRefBox"
@@ -76,11 +67,11 @@
           </StackPanel>
         </Border>
 
-        <Border Grid.Row="3" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
           <StackPanel>
             <TextBlock Text="Aktuelle Sitzung" Style="{StaticResource CardTitleTextStyle}" />
-            <TextBlock Text="{Binding EntryDurationText}" Style="{StaticResource TimerTextStyle}" Margin="0,10,0,0" />
-            <Border Background="#FFF3F4F6" CornerRadius="999" Padding="10,4" HorizontalAlignment="Left" Margin="0,8,0,0">
+            <TextBlock Text="{Binding EntryDurationText}" Style="{StaticResource TimerTextStyle}" Margin="0,10,0,0" HorizontalAlignment="Center" />
+            <Border Style="{StaticResource TodayChipStyle}" HorizontalAlignment="Left" Margin="0,12,0,0">
               <TextBlock>
                 <Run Text="Heute: " />
                 <Run Text="{Binding TodayDurationText, Mode=OneWay}" />
@@ -89,7 +80,7 @@
           </StackPanel>
         </Border>
 
-        <Grid Grid.Row="4" Margin="0,0,0,16">
+        <Grid Grid.Row="3" Margin="0,0,0,16">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
@@ -102,7 +93,7 @@
                   KeyboardNavigation.TabIndex="1"
                   IsEnabled="{Binding CanStart}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="36" Height="36" CornerRadius="18" Background="#33FFFFFF" HorizontalAlignment="Center">
+              <Border Width="40" Height="40" CornerRadius="20" Background="#33FFFFFF" HorizontalAlignment="Center">
                 <Path Data="{StaticResource IconPlay}" Fill="White" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Start" Margin="0,10,0,0" HorizontalAlignment="Center" />
@@ -115,7 +106,7 @@
                   KeyboardNavigation.TabIndex="2"
                   IsEnabled="{Binding CanPause}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="36" Height="36" CornerRadius="18" Background="#FFE5E7EB" HorizontalAlignment="Center">
+              <Border Width="40" Height="40" CornerRadius="20" Background="#FFE5E7EB" HorizontalAlignment="Center">
                 <Path Data="{StaticResource IconPause}" Fill="{StaticResource TextPrimaryBrush}" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Pause" Margin="0,10,0,0" HorizontalAlignment="Center" />
@@ -127,7 +118,7 @@
                   KeyboardNavigation.TabIndex="3"
                   IsEnabled="{Binding CanStop}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="36" Height="36" CornerRadius="18" Background="#33FFFFFF" HorizontalAlignment="Center">
+              <Border Width="40" Height="40" CornerRadius="20" Background="#33FFFFFF" HorizontalAlignment="Center">
                 <Path Data="{StaticResource IconStop}" Fill="White" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Stopp" Margin="0,10,0,0" HorizontalAlignment="Center" />
@@ -135,7 +126,7 @@
           </Button>
         </Grid>
 
-        <Border Grid.Row="5" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="4" Style="{StaticResource CardStyle}">
           <StackPanel>
             <TextBlock Text="TÄTIGKEIT AUSWÄHLEN" Style="{StaticResource OverlineTextStyle}" />
             <ItemsControl ItemsSource="{Binding HashtagOptions}" Margin="0,12,0,0">
@@ -159,7 +150,7 @@
           </StackPanel>
         </Border>
 
-        <Border Grid.Row="6" Style="{StaticResource CardStyle}" Margin="0">
+        <Border Grid.Row="5" Style="{StaticResource CardStyle}" Margin="0">
           <StackPanel>
             <CheckBox Content="Hotkey-Hilfe" IsChecked="{Binding IsHotkeyHelpVisible}" KeyboardNavigation.TabIndex="7" />
             <Border Margin="0,10,0,0"

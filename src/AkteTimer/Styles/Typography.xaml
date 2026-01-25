@@ -32,9 +32,11 @@
 
   <Style x:Key="TimerTextStyle" TargetType="TextBlock">
     <Setter Property="FontSize" Value="56" />
-    <Setter Property="FontWeight" Value="Bold" />
-    <Setter Property="FontFamily" Value="Consolas" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />
+    <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
     <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+    <Setter Property="TextAlignment" Value="Center" />
   </Style>
 
   <Style x:Key="HintTextStyle" TargetType="TextBlock">
