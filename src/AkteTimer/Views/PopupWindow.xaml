@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Zeiterfassung"
         Width="420"
-        MinHeight="720"
-        SizeToContent="Height"
+        Height="820"
+        MinHeight="820"
         WindowStyle="ToolWindow"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -68,6 +68,19 @@
       <Setter Property="BorderBrush" Value="{StaticResource NeutralDarkBrush}" />
       <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
     </Style>
+    <Style x:Key="PauseActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+      <Setter Property="Background" Value="#60A5FA" />
+      <Setter Property="BorderBrush" Value="#3B82F6" />
+      <Setter Property="Foreground" Value="White" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#3B82F6" />
+        </Trigger>
+        <Trigger Property="IsPressed" Value="True">
+          <Setter Property="Background" Value="#2563EB" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
     <Style x:Key="DangerActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
       <Setter Property="Background" Value="{StaticResource DangerBrush}" />
       <Setter Property="BorderBrush" Value="{StaticResource DangerDarkBrush}" />
@@ -78,9 +91,10 @@
       <Setter Property="Foreground" Value="#1E293B" />
       <Setter Property="BorderBrush" Value="#D8DDE6" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="14,6" />
-      <Setter Property="Margin" Value="0,0,12,12" />
+      <Setter Property="Padding" Value="20,10" />
+      <Setter Property="Margin" Value="0,0,10,10" />
       <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Template">
         <Setter.Value>
@@ -89,7 +103,8 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="16">
+                    CornerRadius="18"
+                    Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
             </Border>
@@ -234,14 +249,14 @@
             </StackPanel>
           </Button>
           <Button Grid.Column="1"
-                  Style="{StaticResource SecondaryActionButtonStyle}"
+                  Style="{StaticResource PauseActionButtonStyle}"
                   Margin="0,0,12,0"
                   Command="{Binding ToggleCommand}"
                   KeyboardNavigation.TabIndex="2"
                   IsEnabled="{Binding CanPause}">
             <StackPanel HorizontalAlignment="Center">
-              <Border Width="40" Height="40" CornerRadius="10" Background="#FFE5E7EB" HorizontalAlignment="Center">
-                <Path Data="{StaticResource IconPause}" Fill="{StaticResource TextPrimaryBrush}" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <Border Width="40" Height="40" CornerRadius="10" Background="#93C5FD" HorizontalAlignment="Center">
+                <Path Data="{StaticResource IconPause}" Fill="White" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="Pause" Margin="0,10,0,0" HorizontalAlignment="Center" />
             </StackPanel>
