@@ -14,7 +14,7 @@
       <Setter Property="BorderBrush" Value="#FFE0E0E0" />
       <Setter Property="Foreground" Value="Black" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="Padding" Value="14,6" />
       <Setter Property="MinWidth" Value="90" />
       <Setter Property="Template">
         <Setter.Value>
@@ -22,7 +22,7 @@
             <Border Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="999">
+                    CornerRadius="16">
               <ContentPresenter HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
             </Border>
