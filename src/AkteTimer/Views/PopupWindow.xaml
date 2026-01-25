@@ -11,12 +11,12 @@
         FontFamily="Segoe UI Variable, Segoe UI">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-    <Style x:Key="HashtagChipStyle" TargetType="ToggleButton">
-      <Setter Property="Background" Value="White" />
+    <Style x:Key="HashtagPillToggleStyle" TargetType="ToggleButton">
+      <Setter Property="Background" Value="#EEF2F7" />
       <Setter Property="Foreground" Value="#1E293B" />
-      <Setter Property="BorderBrush" Value="#CBD5E1" />
+      <Setter Property="BorderBrush" Value="#D8DDE6" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="18,10" />
+      <Setter Property="Padding" Value="14,6" />
       <Setter Property="Margin" Value="0,0,12,12" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -27,21 +27,21 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="18">
+                    CornerRadius="16">
               <ContentPresenter HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Root" Property="Background" Value="#F1F5F9" />
+                <Setter TargetName="Root" Property="Background" Value="#E2E8F0" />
               </Trigger>
               <Trigger Property="IsChecked" Value="True">
                 <Setter TargetName="Root" Property="Background" Value="#2563EB" />
-                <Setter Property="Foreground" Value="White" />
                 <Setter TargetName="Root" Property="BorderBrush" Value="#2563EB" />
+                <Setter Property="Foreground" Value="White" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -209,7 +209,7 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <ToggleButton Style="{StaticResource HashtagChipStyle}"
+                  <ToggleButton Style="{StaticResource HashtagPillToggleStyle}"
                           Command="{Binding DataContext.SelectHashtagCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                           CommandParameter="{Binding}"
                           KeyboardNavigation.TabIndex="4"
