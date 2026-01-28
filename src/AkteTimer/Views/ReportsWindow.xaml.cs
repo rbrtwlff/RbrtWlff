@@ -31,7 +31,8 @@ public partial class ReportsWindow : Window
             return;
         }
 
-        if (grid.SelectedItem is not ReportEntryViewModel entryViewModel)
+        ReportEntryViewModel? entryViewModel = grid.SelectedItem as ReportEntryViewModel;
+        if (entryViewModel == null)
         {
             var row = System.Windows.Controls.ItemsControl.ContainerFromElement(
                 grid,
@@ -63,7 +64,7 @@ public partial class ReportsWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 $"Eintrag konnte nicht geöffnet werden: {ex.Message}",
                 "Fehler",
                 MessageBoxButton.OK,
