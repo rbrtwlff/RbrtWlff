@@ -26,24 +26,48 @@ public partial class ReportsWindow : Window
 
     private void OnEntryDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (sender is not System.Windows.Controls.DataGrid grid || grid.SelectedItem is not ReportEntryViewModel entryViewModel)
+        if (sender is not System.Windows.Controls.DataGrid grid)
         {
             return;
         }
 
-        var viewModel = new EditTimeEntryViewModel(
-            entryViewModel.Entry,
-            _timeEntryService.GetAllMatters(),
-            TimeEntryService.DefaultHashtags);
-
-        var dialog = new EditTimeEntryWindow(_timeEntryService, viewModel)
+        if (grid.SelectedItem is not ReportEntryViewModel entryViewModel)
         {
-            Owner = this
-        };
+            var row = System.Windows.Controls.ItemsControl.ContainerFromElement(
+                grid,
+                e.OriginalSource as DependencyObject) as System.Windows.Controls.DataGridRow;
+            entryViewModel = row?.Item as ReportEntryViewModel;
+        }
 
-        if (dialog.ShowDialog() == true)
+        if (entryViewModel == null)
         {
-            _viewModel.RefreshEntries();
+            return;
+        }
+
+        try
+        {
+            var viewModel = new EditTimeEntryViewModel(
+                entryViewModel.Entry,
+                _timeEntryService.GetAllMatters(),
+                TimeEntryService.DefaultHashtags);
+
+            var dialog = new EditTimeEntryWindow(_timeEntryService, viewModel)
+            {
+                Owner = this
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _viewModel.RefreshEntries();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Eintrag konnte nicht geöffnet werden: {ex.Message}",
+                "Fehler",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
