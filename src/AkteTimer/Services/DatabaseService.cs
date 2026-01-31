@@ -877,6 +877,88 @@ public sealed class DatabaseService
         return MapBillingCase(reader);
     }
 
+    public BillingAdjustment? GetBillingAdjustmentForCase(long caseId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, case_id, minutes_delta, reason, amount_delta
+            FROM BillingAdjustments
+            WHERE case_id = $case_id
+            ORDER BY id DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$case_id", caseId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new BillingAdjustment
+        {
+            Id = reader.GetInt64(0),
+            CaseId = reader.GetInt64(1),
+            MinutesDelta = reader.GetInt32(2),
+            Reason = reader.IsDBNull(3) ? null : reader.GetString(3),
+            AmountDelta = (decimal)reader.GetDouble(4)
+        };
+    }
+
+    public void SaveBillingAdjustmentForCase(
+        long caseId,
+        int minutesDelta,
+        decimal amountDelta,
+        string? reason,
+        int dummyMinutes,
+        decimal dummyAmount,
+        int totalMinutes,
+        decimal totalAmount)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using (var delete = connection.CreateCommand())
+            {
+                delete.Transaction = transaction;
+                delete.CommandText = "DELETE FROM BillingAdjustments WHERE case_id = $case_id;";
+                delete.Parameters.AddWithValue("$case_id", caseId);
+                delete.ExecuteNonQuery();
+            }
+
+            using (var insert = connection.CreateCommand())
+            {
+                insert.Transaction = transaction;
+                insert.CommandText = """
+                    INSERT INTO BillingAdjustments (case_id, minutes_delta, reason, amount_delta)
+                    VALUES ($case_id, $minutes_delta, $reason, $amount_delta);
+                    """;
+                insert.Parameters.AddWithValue("$case_id", caseId);
+                insert.Parameters.AddWithValue("$minutes_delta", minutesDelta);
+                insert.Parameters.AddWithValue("$reason", string.IsNullOrWhiteSpace(reason) ? DBNull.Value : reason);
+                insert.Parameters.AddWithValue("$amount_delta", (double)amountDelta);
+                insert.ExecuteNonQuery();
+            }
+
+            using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = """
+                UPDATE BillingCases
+                SET dummy_minutes = $dummy_minutes,
+                    dummy_amount = $dummy_amount,
+                    total_minutes = $total_minutes,
+                    total_amount = $total_amount
+                WHERE id = $id;
+                """;
+            update.Parameters.AddWithValue("$dummy_minutes", dummyMinutes);
+            update.Parameters.AddWithValue("$dummy_amount", (double)dummyAmount);
+            update.Parameters.AddWithValue("$total_minutes", totalMinutes);
+            update.Parameters.AddWithValue("$total_amount", (double)totalAmount);
+            update.Parameters.AddWithValue("$id", caseId);
+            update.ExecuteNonQuery();
+        });
+    }
+
     public void UpdateBillingCaseApprovedUtc(long caseId, DateTime? approvedUtc)
     {
         ExecuteInTransaction((connection, transaction) =>
