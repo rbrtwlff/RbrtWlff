@@ -11,6 +11,46 @@ namespace AkteTimer.Tests;
 public sealed class BillingServiceTests
 {
     [Fact]
+    public void ComputeRvgSignature_BuildsStableSignature()
+    {
+        var matter = new Matter
+        {
+            SubjectValueEur = 100m,
+            CustomFeeFactor = null,
+            BusinessFee13Enabled = true,
+            TermFee12Enabled = false,
+            SettlementFee10Enabled = true,
+            SettlementFee15Enabled = false
+        };
+
+        var signature = BillingService.ComputeRvgSignature(matter);
+
+        Assert.Equal("SV=100;CF=null;B13=1;T12=0;S10=1;S15=0", signature);
+    }
+
+    [Fact]
+    public void ComputeRvgSignature_ChangesWhenTermFeeToggles()
+    {
+        var matter = new Matter
+        {
+            SubjectValueEur = 100m,
+            CustomFeeFactor = 1.5m,
+            BusinessFee13Enabled = true,
+            TermFee12Enabled = false,
+            SettlementFee10Enabled = true,
+            SettlementFee15Enabled = false
+        };
+
+        var withoutTermFee = BillingService.ComputeRvgSignature(matter);
+
+        matter.TermFee12Enabled = true;
+
+        var withTermFee = BillingService.ComputeRvgSignature(matter);
+
+        Assert.NotEqual(withoutTermFee, withTermFee);
+    }
+
+    [Fact]
     public void CreateBillingBatchDraft_CreatesBatchAndCasesWithRoundedMinutes()
     {
         using var fixture = new BillingFixture();

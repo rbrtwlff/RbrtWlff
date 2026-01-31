@@ -13,6 +13,7 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
@@ -32,7 +33,14 @@
       <TextBlock Text="{Binding CurrentCase.ApprovalStatusText}" Margin="6,0,0,0" />
     </StackPanel>
 
-    <DataGrid Grid.Row="2"
+    <StackPanel Grid.Row="2"
+                Margin="0,0,0,8"
+                Visibility="{Binding CurrentCase.IsRvgBilling, Converter={StaticResource BoolToVis}}">
+      <TextBlock Text="RVG-Status:" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding CurrentCase.RvgStatusText}" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <DataGrid Grid.Row="3"
               ItemsSource="{Binding CurrentCase.TimeEntries}"
               AutoGenerateColumns="False"
               IsReadOnly="True"
@@ -46,7 +54,7 @@
       </DataGrid.Columns>
     </DataGrid>
 
-    <StackPanel Grid.Row="3"
+    <StackPanel Grid.Row="4"
                 Margin="0,0,0,8"
                 Visibility="{Binding CurrentCase.IsHourlyBilling, Converter={StaticResource BoolToVis}}">
       <TextBlock Text="Dummy/Nachtrag (nur Stundenabrechnung)" FontWeight="SemiBold" />
@@ -111,7 +119,7 @@
       </Grid>
     </StackPanel>
 
-    <Grid Grid.Row="4">
+    <Grid Grid.Row="5">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
@@ -124,6 +132,10 @@
         <StackPanel Margin="0,0,24,0">
           <TextBlock Text="Tracked Betrag" FontSize="11" Foreground="DimGray" />
           <TextBlock Text="{Binding CurrentCase.TrackedAmount, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Margin="0,0,24,0" Visibility="{Binding CurrentCase.ShowRvgTotal, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="RVG Gesamt" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.RvgTotal, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
         </StackPanel>
         <StackPanel Margin="0,0,24,0" Visibility="{Binding CurrentCase.IsHourlyBilling, Converter={StaticResource BoolToVis}}">
           <TextBlock Text="Dummy Minuten" FontSize="11" Foreground="DimGray" />

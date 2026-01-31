@@ -9,6 +9,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
 {
     private readonly DatabaseService _databaseService;
     private readonly List<BillingCaseDisplayViewModel> _cases;
+    private readonly RvgFeeTableService _rvgFeeTableService = new();
     private readonly RelayCommand _approveCommand;
     private readonly RelayCommand _saveCommand;
     private readonly RelayCommand _prevCommand;
@@ -42,6 +43,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 .ToList();
 
             var adjustment = databaseService.GetBillingAdjustmentForCase(item.billingCase.Id);
+            var rvgEvaluation = EvaluateRvgBilling(item.billingCase, item.matter);
             _cases.Add(new BillingCaseDisplayViewModel(
                 item.billingCase.Id,
                 item.matter.FileRef,
@@ -55,7 +57,10 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 item.billingCase.TotalAmount,
                 item.matter.HourlyRateEurPerHour,
                 adjustment?.Reason,
-                timeEntryViewModels));
+                timeEntryViewModels,
+                rvgEvaluation.StatusText,
+                rvgEvaluation.Total,
+                rvgEvaluation.IsApprovalBlocked));
         }
 
         _currentIndex = 0;
@@ -93,7 +98,8 @@ public sealed class BillingWizardViewModel : ViewModelBase
 
     private bool CanMoveNext() => _currentIndex < _cases.Count - 1;
 
-    private bool CanApproveCurrentCase() => CurrentCase != null && !CurrentCase.IsApproved;
+    private bool CanApproveCurrentCase() =>
+        CurrentCase != null && !CurrentCase.IsApproved && !CurrentCase.IsRvgApprovalBlocked;
 
     private bool CanSaveCurrentCase() => CurrentCase != null && CurrentCase.IsHourlyBilling;
 
@@ -210,6 +216,48 @@ public sealed class BillingWizardViewModel : ViewModelBase
             return false;
         }
     }
+
+    private RvgBillingEvaluation EvaluateRvgBilling(BillingCase billingCase, Matter matter)
+    {
+        if (billingCase.BillingType != BillingType.Rvg)
+        {
+            return new RvgBillingEvaluation(string.Empty, 0m, false);
+        }
+
+        var signature = BillingService.ComputeRvgSignature(matter);
+        var snapshot = _databaseService.GetLatestRvgBillingSnapshot(matter.Id);
+        if (snapshot != null && string.Equals(snapshot.Signature, signature, StringComparison.Ordinal))
+        {
+            return new RvgBillingEvaluation(
+                "RVG bereits abgerechnet – kein neuer Tatbestand (Freigabe gesperrt).",
+                0m,
+                true);
+        }
+
+        var total = CalculateRvgTotal(matter);
+        _databaseService.UpdateBillingCaseRvgData(billingCase.Id, signature, total);
+
+        var statusText = snapshot == null
+            ? "RVG bereit zur Abrechnung."
+            : "RVG neuer Tatbestand – Freigabe möglich.";
+
+        return new RvgBillingEvaluation(statusText, total, false);
+    }
+
+    private decimal CalculateRvgTotal(Matter matter)
+    {
+        var fee1_0 = _rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
+        var businessFee = matter.BusinessFee13Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.3m) : 0m;
+        var termFee = matter.TermFee12Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.2m) : 0m;
+        var settlement10Fee = matter.SettlementFee10Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.0m) : 0m;
+        var settlement15Fee = matter.SettlementFee15Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.5m) : 0m;
+        var customFee = matter.CustomFeeFactor.HasValue
+            ? RvgCalculator.RoundCurrency(fee1_0 * matter.CustomFeeFactor.Value)
+            : 0m;
+        return RvgCalculator.RoundCurrency(businessFee + termFee + settlement10Fee + settlement15Fee + customFee);
+    }
+
+    private readonly record struct RvgBillingEvaluation(string StatusText, decimal Total, bool IsApprovalBlocked);
 }
 
 public sealed class BillingCaseDisplayViewModel : ViewModelBase
@@ -227,7 +275,10 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         decimal totalAmount,
         decimal hourlyRate,
         string? dummyReason,
-        IReadOnlyList<TimeEntryRowViewModel> timeEntries)
+        IReadOnlyList<TimeEntryRowViewModel> timeEntries,
+        string rvgStatusText,
+        decimal rvgTotal,
+        bool isRvgApprovalBlocked)
     {
         BillingCaseId = billingCaseId;
         FileRef = fileRef;
@@ -243,6 +294,9 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         _dummyHours = dummyMinutes / 60m;
         _dummyReason = dummyReason ?? string.Empty;
         TimeEntries = timeEntries;
+        RvgStatusText = rvgStatusText;
+        RvgTotal = rvgTotal;
+        IsRvgApprovalBlocked = isRvgApprovalBlocked;
     }
 
     public long BillingCaseId { get; }
@@ -255,11 +309,21 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
 
     public bool IsHourlyBilling => BillingType == BillingType.Hourly;
 
+    public bool IsRvgBilling => BillingType == BillingType.Rvg;
+
     public decimal HourlyRate { get; }
 
     public bool IsApproved => ApprovedUtc.HasValue;
 
     public string ApprovalStatusText => ApprovedUtc.HasValue ? "freigegeben" : "nicht freigegeben";
+
+    public string RvgStatusText { get; }
+
+    public bool IsRvgApprovalBlocked { get; }
+
+    public decimal RvgTotal { get; }
+
+    public bool ShowRvgTotal => IsRvgBilling && !IsRvgApprovalBlocked;
 
     public IReadOnlyList<TimeEntryRowViewModel> TimeEntries { get; }
 
