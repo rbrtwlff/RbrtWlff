@@ -38,6 +38,18 @@
       <Setter Property="Foreground" Value="DimGray" />
       <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
+    <Style x:Key="BilledRowStyle" TargetType="DataGridRow">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsBilled}" Value="True">
+          <Setter Property="Foreground" Value="DimGray" />
+          <Setter Property="FontStyle" Value="Italic" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="BilledBadgeTextStyle" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="DimGray" />
+      <Setter Property="FontStyle" Value="Italic" />
+    </Style>
     <Style x:Key="HashtagBadgeStyle" TargetType="Border">
       <Setter Property="Background" Value="#E5E7EB" />
       <Setter Property="BorderBrush" Value="#D1D5DB" />
@@ -167,10 +179,19 @@
                         </StackPanel>
                       </StackPanel>
                     </Grid>
-                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" MouseDoubleClick="OnEntryDoubleClick">
+                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" MouseDoubleClick="OnEntryDoubleClick" RowStyle="{StaticResource BilledRowStyle}">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
+                        <DataGridTemplateColumn Header="Status" MinWidth="110">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="✓ abgerechnet"
+                                         Style="{StaticResource BilledBadgeTextStyle}"
+                                         Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
                         <DataGridTemplateColumn Header="Hashtag">
                           <DataGridTemplateColumn.CellTemplate>
@@ -393,10 +414,19 @@
                           </StackPanel>
                         </StackPanel>
                       </Grid>
-                      <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick">
+                      <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick" RowStyle="{StaticResource BilledRowStyle}">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=HH:mm:ss}" />
+                        <DataGridTemplateColumn Header="Status" MinWidth="110">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="✓ abgerechnet"
+                                         Style="{StaticResource BilledBadgeTextStyle}"
+                                         Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
                         <DataGridTemplateColumn Header="Hashtag">
                           <DataGridTemplateColumn.CellTemplate>
@@ -602,10 +632,19 @@
                       <TextBlock Text="{Binding EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
                       <TextBlock Text="{Binding BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
                     </StackPanel>
-                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick">
+                    <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick" RowStyle="{StaticResource BilledRowStyle}">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
                         <DataGridTextColumn Header="Ende" Binding="{Binding EndLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
+                        <DataGridTemplateColumn Header="Status" MinWidth="110">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="✓ abgerechnet"
+                                         Style="{StaticResource BilledBadgeTextStyle}"
+                                         Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Akte" Binding="{Binding Matter}" />
                         <DataGridTemplateColumn Header="Hashtag">
                           <DataGridTemplateColumn.CellTemplate>

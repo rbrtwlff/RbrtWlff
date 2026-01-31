@@ -685,20 +685,22 @@ public sealed class ReportsViewModel : ViewModelBase
         if (billedEntryIds.Count > 0)
         {
             var result = MessageBox.Show(
-                "Es sind bereits abgerechnete Einträge enthalten. Ausschließen?",
+                $"{billedEntryIds.Count} Einträge bereits abgerechnet. Ausschließen?",
                 "Abrechnung",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning,
                 MessageBoxResult.Yes);
 
-            if (result == MessageBoxResult.Yes)
+            if (result != MessageBoxResult.Yes)
             {
-                entryIds = entryIds.Except(billedEntryIds).ToList();
-                if (entryIds.Count == 0)
-                {
-                    MessageBox.Show("Keine Einträge", "Abrechnung", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
+                return;
+            }
+
+            entryIds = entryIds.Except(billedEntryIds).ToList();
+            if (entryIds.Count == 0)
+            {
+                MessageBox.Show("Keine Einträge", "Abrechnung", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
         }
 
@@ -1094,6 +1096,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
     }
 
     public TimeEntry Entry { get; }
+    public bool IsBilled => Entry.Billed;
     public long MatterId { get; }
     public string Matter { get; }
     public string Hashtag { get; }
