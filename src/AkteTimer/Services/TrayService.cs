@@ -18,6 +18,7 @@ public sealed class TrayService : IDisposable
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
     private TodayWindow? _todayWindow;
+    private DashboardWindow? _dashboardWindow;
     private ReportsWindow? _reportsWindow;
     private SettingsWindow? _settingsWindow;
 
@@ -46,6 +47,7 @@ public sealed class TrayService : IDisposable
         menu.Items.Add("Start/Pause", null, (_, _) => RunOnUiThread(() => _timeEntryService.ToggleStartPause()));
         menu.Items.Add("Stop", null, (_, _) => RunOnUiThread(() => _popupWindow.StopWithNotePrompt()));
         menu.Items.Add("Heute", null, (_, _) => RunOnUiThread(ShowToday));
+        menu.Items.Add("Dashboard", null, (_, _) => RunOnUiThread(ShowDashboard));
         menu.Items.Add("Auswertung", null, (_, _) => RunOnUiThread(ShowReports));
         menu.Items.Add("Einstellungen", null, (_, _) => RunOnUiThread(ShowSettings));
         menu.Items.Add(new ToolStripSeparator());
@@ -82,6 +84,11 @@ public sealed class TrayService : IDisposable
     private void ShowReports()
     {
         ShowWindow(ref _reportsWindow, () => new ReportsWindow(_timeEntryService, _settingsService, _billingService, _databaseService));
+    }
+
+    private void ShowDashboard()
+    {
+        ShowWindow(ref _dashboardWindow, () => new DashboardWindow(_timeEntryService, _databaseService));
     }
 
     private void ShowSettings()
