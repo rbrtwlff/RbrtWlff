@@ -232,7 +232,8 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.end_utc IS NULL
@@ -283,7 +284,8 @@ public sealed class DatabaseService
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
         select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.rowid = last_insert_rowid();
@@ -305,7 +307,8 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.start_utc >= $start AND te.start_utc < $end
@@ -382,7 +385,8 @@ public sealed class DatabaseService
             ? string.Empty
             : $" AND te.matter_id IN ({string.Join(", ", matterIds.Select((_, index) => $"$matter_{index}"))})";
         command.CommandText = $"""
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.start_utc >= $start AND te.start_utc < $end{matterFilters}
@@ -413,7 +417,8 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.matter_id = $matter_id
@@ -499,7 +504,8 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.id = $id;
@@ -545,7 +551,8 @@ public sealed class DatabaseService
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
         select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.id = $id;
@@ -580,7 +587,8 @@ public sealed class DatabaseService
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
         select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.id = $id;
@@ -630,7 +638,8 @@ public sealed class DatabaseService
         using var selectUpdated = connection.CreateCommand();
         selectUpdated.Transaction = transaction;
         selectUpdated.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.id = $id;
@@ -643,7 +652,8 @@ public sealed class DatabaseService
         using var selectNew = connection.CreateCommand();
         selectNew.Transaction = transaction;
         selectNew.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc, te.manual_adjustment, m.file_ref
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
             FROM TimeEntries te
             JOIN Matters m ON te.matter_id = m.id
             WHERE te.rowid = last_insert_rowid();
@@ -704,7 +714,10 @@ public sealed class DatabaseService
             CreatedUtc = DateTime.Parse(reader.GetString(6)).ToUniversalTime(),
             UpdatedUtc = DateTime.Parse(reader.GetString(7)).ToUniversalTime(),
             ManualAdjustment = reader.GetInt64(8) == 1,
-            MatterFileRef = reader.IsDBNull(9) ? null : reader.GetString(9)
+            Billed = !reader.IsDBNull(9) && reader.GetInt64(9) != 0,
+            BilledUtc = reader.IsDBNull(10) ? null : DateTime.Parse(reader.GetString(10)).ToUniversalTime(),
+            BillingBatchId = reader.IsDBNull(11) ? null : reader.GetInt64(11),
+            MatterFileRef = reader.IsDBNull(12) ? null : reader.GetString(12)
         };
     }
 
