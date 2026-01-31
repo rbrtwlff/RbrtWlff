@@ -1009,6 +1009,23 @@ public sealed class DatabaseService
         });
     }
 
+    public void UpdateBillingBatchPdfPath(long batchId, string pdfPath)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE BillingBatches
+                SET pdf_path = $pdf_path
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$pdf_path", pdfPath);
+            command.Parameters.AddWithValue("$id", batchId);
+            command.ExecuteNonQuery();
+        });
+    }
+
     public RvgBillingSnapshot? GetLatestRvgBillingSnapshot(long matterId)
     {
         using var connection = CreateConnection();
