@@ -110,6 +110,73 @@ public sealed class BillingServiceTests
         Assert.Equal(expectedCaseIds, result.CaseIds);
     }
 
+    [Fact]
+    public void FinalizeBatch_MarksEntriesWritesSnapshotsAndFinalizesBatch()
+    {
+        using var fixture = new BillingFixture();
+        var database = fixture.Database;
+        var billingService = fixture.Service;
+
+        var matterHourly = database.CreateMatter("111/24");
+        var matterRvg = database.CreateMatter("222/24");
+        matterRvg.BillingType = BillingType.Rvg;
+        matterRvg.SubjectValueEur = 500m;
+        matterRvg.BusinessFee13Enabled = true;
+        database.UpdateMatter(matterRvg);
+
+        var now = DateTime.UtcNow;
+        var hourlyEntry = database.CreateTimeEntry(matterHourly.Id, now.AddMinutes(-30), "#Test");
+        hourlyEntry = database.UpdateTimeEntry(hourlyEntry.Id, matterHourly.Id, now.AddMinutes(-30), now.AddMinutes(-20), null, null);
+
+        var rvgEntry = database.CreateTimeEntry(matterRvg.Id, now.AddMinutes(-20), "#Test");
+        rvgEntry = database.UpdateTimeEntry(rvgEntry.Id, matterRvg.Id, now.AddMinutes(-20), now.AddMinutes(-10), null, null);
+
+        var ignoredMatter = database.CreateMatter("333/24");
+        var ignoredEntry = database.CreateTimeEntry(ignoredMatter.Id, now.AddMinutes(-10), "#Test");
+        ignoredEntry = database.UpdateTimeEntry(ignoredEntry.Id, ignoredMatter.Id, now.AddMinutes(-10), now.AddMinutes(-5), null, null);
+
+        var batch = billingService.CreateBillingBatchDraft(new[] { hourlyEntry.Id, rvgEntry.Id });
+        var cases = database.GetBillingCasesForBatch(batch.BatchId);
+        var rvgCase = cases.Single(billingCase => billingCase.MatterId == matterRvg.Id);
+
+        database.UpdateBillingCaseRvgData(
+            rvgCase.Id,
+            "SIG-1",
+            250m,
+            false,
+            null,
+            0m);
+
+        database.UpdateBillingBatchPdfPath(batch.BatchId, "export.pdf");
+
+        billingService.FinalizeBatch(batch.BatchId);
+
+        var updatedHourlyEntry = database.GetTimeEntryById(hourlyEntry.Id);
+        var updatedRvgEntry = database.GetTimeEntryById(rvgEntry.Id);
+        var updatedIgnoredEntry = database.GetTimeEntryById(ignoredEntry.Id);
+
+        Assert.NotNull(updatedHourlyEntry);
+        Assert.NotNull(updatedRvgEntry);
+        Assert.NotNull(updatedIgnoredEntry);
+        Assert.True(updatedHourlyEntry!.Billed);
+        Assert.True(updatedRvgEntry!.Billed);
+        Assert.Equal(batch.BatchId, updatedHourlyEntry.BillingBatchId);
+        Assert.Equal(batch.BatchId, updatedRvgEntry.BillingBatchId);
+        Assert.NotNull(updatedHourlyEntry.BilledUtc);
+        Assert.NotNull(updatedRvgEntry.BilledUtc);
+        Assert.False(updatedIgnoredEntry!.Billed);
+
+        var snapshot = database.GetLatestRvgBillingSnapshot(matterRvg.Id);
+        Assert.NotNull(snapshot);
+        Assert.Equal("SIG-1", snapshot!.Signature);
+        Assert.Equal(250m, snapshot.Total);
+        Assert.Equal(batch.BatchId, snapshot.BatchId);
+
+        var finalizedBatch = database.GetBillingBatchById(batch.BatchId);
+        Assert.NotNull(finalizedBatch);
+        Assert.NotNull(finalizedBatch!.FinalizedUtc);
+    }
+
     private sealed class BillingFixture : IDisposable
     {
         public BillingFixture()

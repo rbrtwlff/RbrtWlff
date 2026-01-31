@@ -1026,6 +1026,69 @@ public sealed class DatabaseService
         });
     }
 
+    public void FinalizeBillingBatch(
+        long batchId,
+        IReadOnlyCollection<long> matterIds,
+        IReadOnlyCollection<RvgBillingSnapshot> rvgSnapshots,
+        DateTime finalizedUtc)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            if (matterIds.Count > 0)
+            {
+                using var updateEntries = connection.CreateCommand();
+                updateEntries.Transaction = transaction;
+                var matterFilters = string.Join(", ", matterIds.Select((_, index) => $"$matter_{index}"));
+                updateEntries.CommandText = $"""
+                    UPDATE TimeEntries
+                    SET billed = 1,
+                        billed_utc = $billed_utc,
+                        billing_batch_id = $batch_id
+                    WHERE matter_id IN ({matterFilters})
+                      AND end_utc IS NOT NULL
+                      AND billed = 0;
+                    """;
+                updateEntries.Parameters.AddWithValue("$billed_utc", finalizedUtc.ToString("o"));
+                updateEntries.Parameters.AddWithValue("$batch_id", batchId);
+                var index = 0;
+                foreach (var matterId in matterIds)
+                {
+                    updateEntries.Parameters.AddWithValue($"$matter_{index}", matterId);
+                    index++;
+                }
+
+                updateEntries.ExecuteNonQuery();
+            }
+
+            foreach (var snapshot in rvgSnapshots)
+            {
+                using var insertSnapshot = connection.CreateCommand();
+                insertSnapshot.Transaction = transaction;
+                insertSnapshot.CommandText = """
+                    INSERT INTO RvgBillingSnapshots (matter_id, billed_utc, signature, total, batch_id)
+                    VALUES ($matter_id, $billed_utc, $signature, $total, $batch_id);
+                    """;
+                insertSnapshot.Parameters.AddWithValue("$matter_id", snapshot.MatterId);
+                insertSnapshot.Parameters.AddWithValue("$billed_utc", snapshot.BilledUtc.ToString("o"));
+                insertSnapshot.Parameters.AddWithValue("$signature", snapshot.Signature);
+                insertSnapshot.Parameters.AddWithValue("$total", (double)snapshot.Total);
+                insertSnapshot.Parameters.AddWithValue("$batch_id", snapshot.BatchId);
+                insertSnapshot.ExecuteNonQuery();
+            }
+
+            using var updateBatch = connection.CreateCommand();
+            updateBatch.Transaction = transaction;
+            updateBatch.CommandText = """
+                UPDATE BillingBatches
+                SET finalized_utc = $finalized_utc
+                WHERE id = $id;
+                """;
+            updateBatch.Parameters.AddWithValue("$finalized_utc", finalizedUtc.ToString("o"));
+            updateBatch.Parameters.AddWithValue("$id", batchId);
+            updateBatch.ExecuteNonQuery();
+        });
+    }
+
     public RvgBillingSnapshot? GetLatestRvgBillingSnapshot(long matterId)
     {
         using var connection = CreateConnection();

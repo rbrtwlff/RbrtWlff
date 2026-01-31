@@ -188,6 +188,11 @@ public sealed class BillingBatchPdfDocument : IDocument
                 column.Item().Text("Differenzabrechnung").FontColor(Colors.Red.Darken1).SemiBold();
                 column.Item().Text(text =>
                 {
+                    text.Span("Neuer Gesamtbetrag: ").SemiBold();
+                    text.Span(FormatCurrency(caseData.BillingCase.RvgBaseTotal + caseData.BillingCase.RvgTotal));
+                });
+                column.Item().Text(text =>
+                {
                     text.Span("Basis-Snapshot: ").SemiBold();
                     text.Span($"{FormatCurrency(caseData.BillingCase.RvgBaseTotal)}");
                 });

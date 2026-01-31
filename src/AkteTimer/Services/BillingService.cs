@@ -127,6 +127,58 @@ public sealed class BillingService
         _database.UpdateBillingBatchPdfPath(batchId, filePath);
     }
 
+    public void FinalizeBatch(long batchId)
+    {
+        var batch = _database.GetBillingBatchById(batchId)
+                    ?? throw new InvalidOperationException("Abrechnungsbatch nicht gefunden.");
+
+        if (batch.FinalizedUtc.HasValue)
+        {
+            throw new InvalidOperationException("Der Abrechnungsbatch wurde bereits finalisiert.");
+        }
+
+        if (string.IsNullOrWhiteSpace(batch.PdfPath))
+        {
+            throw new InvalidOperationException("Der Abrechnungsbatch muss vor der Finalisierung als PDF exportiert werden.");
+        }
+
+        var cases = _database.GetBillingCasesForBatch(batchId);
+        var finalizedUtc = DateTime.UtcNow;
+        var matterIds = cases
+            .Select(billingCase => billingCase.MatterId)
+            .Distinct()
+            .ToList();
+
+        var snapshots = new List<RvgBillingSnapshot>();
+        foreach (var billingCase in cases)
+        {
+            if (billingCase.BillingType != BillingType.Rvg)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(billingCase.RvgSignature))
+            {
+                throw new InvalidOperationException("RVG-Signatur fehlt für die Finalisierung.");
+            }
+
+            var total = billingCase.RvgIsDifference
+                ? billingCase.RvgBaseTotal + billingCase.RvgTotal
+                : billingCase.RvgTotal;
+
+            snapshots.Add(new RvgBillingSnapshot
+            {
+                MatterId = billingCase.MatterId,
+                BilledUtc = finalizedUtc,
+                Signature = billingCase.RvgSignature,
+                Total = total,
+                BatchId = batchId
+            });
+        }
+
+        _database.FinalizeBillingBatch(batchId, matterIds, snapshots, finalizedUtc);
+    }
+
     private static string BuildRvgFeeSummary(Matter matter)
     {
         var parts = new List<string>
