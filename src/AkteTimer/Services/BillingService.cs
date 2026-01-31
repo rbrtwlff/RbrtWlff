@@ -1,3 +1,4 @@
+using System.Globalization;
 using AkteTimer.Models;
 using AkteTimer.ViewModels;
 
@@ -10,6 +11,21 @@ public sealed class BillingService
     public BillingService(DatabaseService database)
     {
         _database = database;
+    }
+
+    public static string ComputeRvgSignature(Matter matter)
+    {
+        var culture = CultureInfo.InvariantCulture;
+        var subjectValue = matter.SubjectValueEur.ToString("G29", culture);
+        var customFeeFactor = matter.CustomFeeFactor.HasValue
+            ? matter.CustomFeeFactor.Value.ToString("G29", culture)
+            : "null";
+        var businessFee = matter.BusinessFee13Enabled ? "1" : "0";
+        var termFee = matter.TermFee12Enabled ? "1" : "0";
+        var settlement10 = matter.SettlementFee10Enabled ? "1" : "0";
+        var settlement15 = matter.SettlementFee15Enabled ? "1" : "0";
+
+        return $"SV={subjectValue};CF={customFeeFactor};B13={businessFee};T12={termFee};S10={settlement10};S15={settlement15}";
     }
 
     public (long BatchId, List<long> CaseIds) CreateBillingBatchDraft(IEnumerable<long> timeEntryIds)

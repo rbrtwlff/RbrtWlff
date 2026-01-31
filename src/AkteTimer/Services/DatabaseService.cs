@@ -976,6 +976,55 @@ public sealed class DatabaseService
         });
     }
 
+    public void UpdateBillingCaseRvgData(long caseId, string signature, decimal total)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE BillingCases
+                SET rvg_signature = $rvg_signature,
+                    rvg_total = $rvg_total
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$rvg_signature", signature);
+            command.Parameters.AddWithValue("$rvg_total", (double)total);
+            command.Parameters.AddWithValue("$id", caseId);
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public RvgBillingSnapshot? GetLatestRvgBillingSnapshot(long matterId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, matter_id, billed_utc, signature, total, batch_id
+            FROM RvgBillingSnapshots
+            WHERE matter_id = $matter_id
+            ORDER BY billed_utc DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new RvgBillingSnapshot
+        {
+            Id = reader.GetInt64(0),
+            MatterId = reader.GetInt64(1),
+            BilledUtc = DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
+            Signature = reader.GetString(3),
+            Total = (decimal)reader.GetDouble(4),
+            BatchId = reader.GetInt64(5)
+        };
+    }
+
     public List<BillingCase> GetBillingCasesForBatch(long batchId)
     {
         using var connection = CreateConnection();
