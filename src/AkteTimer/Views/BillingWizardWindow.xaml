@@ -23,7 +23,9 @@
       <TextBlock Text="Akte:" FontWeight="SemiBold" />
       <TextBlock Text="{Binding CurrentCase.FileRef}" Margin="6,0,16,0" />
       <TextBlock Text="Abrechnung:" FontWeight="SemiBold" />
-      <TextBlock Text="{Binding CurrentCase.BillingType}" Margin="6,0,0,0" />
+      <TextBlock Text="{Binding CurrentCase.BillingType}" Margin="6,0,16,0" />
+      <TextBlock Text="Status:" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding CurrentCase.ApprovalStatusText}" Margin="6,0,0,0" />
     </StackPanel>
 
     <DataGrid Grid.Row="2"
@@ -65,6 +67,7 @@
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
         <Button Content="Zurück" Width="90" Command="{Binding PrevCommand}" Margin="0,0,8,0" />
+        <Button Content="Freigeben" Width="90" Command="{Binding ApproveCurrentCaseCommand}" Margin="0,0,8,0" />
         <Button Content="Weiter" Width="90" Command="{Binding NextCommand}" Margin="0,0,8,0" />
         <Button Content="Schließen" Width="90" Click="OnClose" />
       </StackPanel>

@@ -877,6 +877,23 @@ public sealed class DatabaseService
         return MapBillingCase(reader);
     }
 
+    public void UpdateBillingCaseApprovedUtc(long caseId, DateTime? approvedUtc)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE BillingCases
+                SET approved_utc = $approved_utc
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$approved_utc", approvedUtc.HasValue ? approvedUtc.Value.ToString("o") : DBNull.Value);
+            command.Parameters.AddWithValue("$id", caseId);
+            command.ExecuteNonQuery();
+        });
+    }
+
     public List<BillingCase> GetBillingCasesForBatch(long batchId)
     {
         using var connection = CreateConnection();
