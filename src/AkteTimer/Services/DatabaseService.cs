@@ -807,6 +807,31 @@ public sealed class DatabaseService
         return MapBillingBatch(reader);
     }
 
+    public List<BillingBatch> GetBillingBatchesInRange(DateTime startUtc, DateTime endUtc)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, created_utc, finalized_utc, pdf_path
+            FROM BillingBatches
+            WHERE finalized_utc IS NOT NULL
+              AND finalized_utc >= $start
+              AND finalized_utc < $end
+            ORDER BY finalized_utc ASC;
+            """;
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+        using var reader = command.ExecuteReader();
+        var batches = new List<BillingBatch>();
+        while (reader.Read())
+        {
+            batches.Add(MapBillingBatch(reader));
+        }
+
+        return batches;
+    }
+
     public BillingCase CreateBillingCase(BillingCase billingCase)
     {
         using var connection = CreateConnection();
@@ -1181,6 +1206,42 @@ public sealed class DatabaseService
         return cases;
     }
 
+    public List<BillingCase> GetBillingCasesForBatches(IReadOnlyCollection<long> batchIds)
+    {
+        if (batchIds.Count == 0)
+        {
+            return new List<BillingCase>();
+        }
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var batchFilters = string.Join(", ", batchIds.Select((_, index) => $"$batch_{index}"));
+        command.CommandText = $"""
+            SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
+                   tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
+                   rvg_is_difference, rvg_base_signature, rvg_base_total
+            FROM BillingCases
+            WHERE batch_id IN ({batchFilters})
+            ORDER BY id ASC;
+            """;
+        var index = 0;
+        foreach (var batchId in batchIds)
+        {
+            command.Parameters.AddWithValue($"$batch_{index}", batchId);
+            index++;
+        }
+
+        using var reader = command.ExecuteReader();
+        var cases = new List<BillingCase>();
+        while (reader.Read())
+        {
+            cases.Add(MapBillingCase(reader));
+        }
+
+        return cases;
+    }
+
     public int GetBillingAdjustmentMinutesDeltaSumInRange(DateTime startUtc, DateTime endUtc)
     {
         using var connection = CreateConnection();
@@ -1199,6 +1260,38 @@ public sealed class DatabaseService
         command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
         var result = command.ExecuteScalar();
         return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result, CultureInfo.InvariantCulture);
+    }
+
+    public List<BillingAdjustmentSummary> GetHourlyBillingAdjustmentsInRange(DateTime startUtc, DateTime endUtc)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT bc.matter_id, COALESCE(SUM(ba.minutes_delta), 0)
+            FROM BillingAdjustments ba
+            JOIN BillingCases bc ON bc.id = ba.case_id
+            JOIN BillingBatches bb ON bb.id = bc.batch_id
+            WHERE bc.billing_type = $billing_type
+              AND bb.finalized_utc IS NOT NULL
+              AND bb.finalized_utc >= $start
+              AND bb.finalized_utc < $end
+            GROUP BY bc.matter_id
+            ORDER BY bc.matter_id ASC;
+            """;
+        command.Parameters.AddWithValue("$billing_type", (int)BillingType.Hourly);
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+        using var reader = command.ExecuteReader();
+        var adjustments = new List<BillingAdjustmentSummary>();
+        while (reader.Read())
+        {
+            adjustments.Add(new BillingAdjustmentSummary(
+                reader.GetInt64(0),
+                reader.GetInt32(1)));
+        }
+
+        return adjustments;
     }
 
     public decimal GetBillingHourlyTotalAmountInRange(DateTime startUtc, DateTime endUtc)
@@ -1253,6 +1346,39 @@ public sealed class DatabaseService
         }
 
         return snapshots;
+    }
+
+    public List<TimeEntry> GetEntriesForBillingBatches(IReadOnlyCollection<long> batchIds)
+    {
+        if (batchIds.Count == 0)
+        {
+            return new List<TimeEntry>();
+        }
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var batchFilters = string.Join(", ", batchIds.Select((_, index) => $"$batch_{index}"));
+        command.CommandText = $"""
+            {TimeEntrySelect}
+            WHERE te.billing_batch_id IN ({batchFilters})
+            ORDER BY te.start_utc ASC;
+            """;
+        var index = 0;
+        foreach (var batchId in batchIds)
+        {
+            command.Parameters.AddWithValue($"$batch_{index}", batchId);
+            index++;
+        }
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
     }
 
     private static TimeEntry MapTimeEntry(SqliteDataReader reader)
