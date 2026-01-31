@@ -77,12 +77,57 @@ public sealed class DatabaseService
               value TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS BillingBatches (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              created_utc TEXT NOT NULL,
+              finalized_utc TEXT NULL,
+              pdf_path TEXT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS BillingCases (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              batch_id INTEGER NOT NULL,
+              matter_id INTEGER NOT NULL,
+              billing_type INTEGER NOT NULL,
+              approved_utc TEXT NULL,
+              tracked_minutes INTEGER NOT NULL DEFAULT 0,
+              dummy_minutes INTEGER NOT NULL DEFAULT 0,
+              total_minutes INTEGER NOT NULL DEFAULT 0,
+              tracked_amount REAL NOT NULL DEFAULT 0,
+              dummy_amount REAL NOT NULL DEFAULT 0,
+              total_amount REAL NOT NULL DEFAULT 0,
+              note_for_staff TEXT NULL,
+              rvg_signature TEXT NULL,
+              rvg_total REAL NOT NULL DEFAULT 0,
+              rvg_is_difference INTEGER NOT NULL DEFAULT 0,
+              rvg_base_signature TEXT NULL,
+              rvg_base_total REAL NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS BillingAdjustments (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              case_id INTEGER NOT NULL,
+              minutes_delta INTEGER NOT NULL,
+              reason TEXT NULL,
+              amount_delta REAL NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS RvgBillingSnapshots (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              matter_id INTEGER NOT NULL,
+              billed_utc TEXT NOT NULL,
+              signature TEXT NOT NULL,
+              total REAL NOT NULL,
+              batch_id INTEGER NOT NULL
+            );
+
             CREATE UNIQUE INDEX IF NOT EXISTS ux_time_entries_single_running
               ON TimeEntries (CASE WHEN end_utc IS NULL THEN 1 END);
             """;
         command.ExecuteNonQuery();
         EnsureHashtagColumn(connection);
         EnsureMatterColumns(connection);
+        EnsureTimeEntryBillingColumns(connection);
     }
 
     public SqliteConnection CreateConnection()
@@ -804,6 +849,41 @@ public sealed class DatabaseService
             using var update = connection.CreateCommand();
             update.CommandText = "UPDATE Matters SET hourly_rate_eur_per_hour = 230.0 WHERE hourly_rate_eur_per_hour IS NULL;";
             update.ExecuteNonQuery();
+        }
+    }
+
+    private static void EnsureTimeEntryBillingColumns(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(TimeEntries);";
+        using var reader = command.ExecuteReader();
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        var additions = new List<string>();
+        if (!columns.Contains("billed"))
+        {
+            additions.Add("ALTER TABLE TimeEntries ADD COLUMN billed INTEGER NOT NULL DEFAULT 0;");
+        }
+
+        if (!columns.Contains("billed_utc"))
+        {
+            additions.Add("ALTER TABLE TimeEntries ADD COLUMN billed_utc TEXT NULL;");
+        }
+
+        if (!columns.Contains("billing_batch_id"))
+        {
+            additions.Add("ALTER TABLE TimeEntries ADD COLUMN billing_batch_id INTEGER NULL;");
+        }
+
+        foreach (var statement in additions)
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = statement;
+            alter.ExecuteNonQuery();
         }
     }
 }
