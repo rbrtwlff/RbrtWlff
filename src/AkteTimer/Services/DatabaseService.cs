@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using Microsoft.Data.Sqlite;
 using AkteTimer.Models;
@@ -1141,6 +1142,79 @@ public sealed class DatabaseService
         }
 
         return cases;
+    }
+
+    public int GetBillingAdjustmentMinutesDeltaSumInRange(DateTime startUtc, DateTime endUtc)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COALESCE(SUM(ba.minutes_delta), 0)
+            FROM BillingAdjustments ba
+            JOIN BillingCases bc ON bc.id = ba.case_id
+            JOIN BillingBatches bb ON bb.id = bc.batch_id
+            WHERE bb.finalized_utc IS NOT NULL
+              AND bb.finalized_utc >= $start
+              AND bb.finalized_utc < $end;
+            """;
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+        var result = command.ExecuteScalar();
+        return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result, CultureInfo.InvariantCulture);
+    }
+
+    public decimal GetBillingHourlyTotalAmountInRange(DateTime startUtc, DateTime endUtc)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COALESCE(SUM(bc.total_amount), 0)
+            FROM BillingCases bc
+            JOIN BillingBatches bb ON bb.id = bc.batch_id
+            WHERE bc.billing_type = $billing_type
+              AND bb.finalized_utc IS NOT NULL
+              AND bb.finalized_utc >= $start
+              AND bb.finalized_utc < $end;
+            """;
+        command.Parameters.AddWithValue("$billing_type", (int)BillingType.Hourly);
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+        var result = command.ExecuteScalar();
+        return result == null || result == DBNull.Value ? 0m : Convert.ToDecimal(result, CultureInfo.InvariantCulture);
+    }
+
+    public List<RvgBillingSnapshot> GetRvgBillingSnapshotsInRange(DateTime startUtc, DateTime endUtc)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, matter_id, billed_utc, signature, total, batch_id
+            FROM RvgBillingSnapshots
+            WHERE billed_utc >= $start
+              AND billed_utc < $end
+            ORDER BY billed_utc ASC;
+            """;
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+        using var reader = command.ExecuteReader();
+        var snapshots = new List<RvgBillingSnapshot>();
+        while (reader.Read())
+        {
+            snapshots.Add(new RvgBillingSnapshot
+            {
+                Id = reader.GetInt64(0),
+                MatterId = reader.GetInt64(1),
+                BilledUtc = DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
+                Signature = reader.GetString(3),
+                Total = (decimal)reader.GetDouble(4),
+                BatchId = reader.GetInt64(5)
+            });
+        }
+
+        return snapshots;
     }
 
     private static TimeEntry MapTimeEntry(SqliteDataReader reader)

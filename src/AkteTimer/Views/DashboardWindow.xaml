@@ -1,0 +1,109 @@
+<Window x:Class="AkteTimer.Views.DashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:AkteTimer.Converters"
+        Title="Dashboard" Height="720" Width="980">
+  <Window.Resources>
+    <converters:FlexibleDecimalConverter x:Key="MinutesConverter" Format="N0" Suffix="min" />
+    <converters:FlexibleDecimalConverter x:Key="CurrencyConverter" Format="N2" Suffix="€" />
+    <converters:FlexibleDecimalConverter x:Key="HoursConverter" Format="N2" Suffix="h" />
+    <converters:FlexibleDecimalConverter x:Key="RateConverter" Format="N2" Suffix="€/h" AllowNull="True" />
+    <Style x:Key="KpiCardStyle" TargetType="Border">
+      <Setter Property="Background" Value="#F9FAFB" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="Margin" Value="0,0,12,12" />
+    </Style>
+    <Style x:Key="KpiLabelStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="DimGray" />
+    </Style>
+    <Style x:Key="KpiValueStyle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+  </Window.Resources>
+  <Grid Margin="12">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <GroupBox Header="Zeitraum" Grid.Row="0" Margin="0,0,0,8">
+      <StackPanel Orientation="Horizontal" Margin="8">
+        <TextBlock Text="Von" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <DatePicker SelectedDate="{Binding FromDate}" Margin="0,0,16,0" />
+        <TextBlock Text="Bis" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <DatePicker SelectedDate="{Binding ToDate}" />
+      </StackPanel>
+    </GroupBox>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <UniformGrid Columns="3" Margin="0,0,0,4">
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Tracked" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalTrackedMinutes, Converter={StaticResource MinutesConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Billed tracked" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalBilledTrackedMinutes, Converter={StaticResource MinutesConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Dummy" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalDummyMinutes, Converter={StaticResource MinutesConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Hourly €" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalBilledHourlyAmount, Converter={StaticResource CurrencyConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="RVG €" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalBilledRvgAmount, Converter={StaticResource CurrencyConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Effektiv €/h" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding OverallEffectiveRateText}" />
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <GroupBox Header="Top RVG nach Effektivität" Margin="0,8,0,12">
+          <DataGrid AutoGenerateColumns="False" IsReadOnly="True" ItemsSource="{Binding TopRvgEfficiencyRows}">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="FileRef" Binding="{Binding FileRef}" Width="*" />
+              <DataGridTextColumn Header="RVG €" Binding="{Binding RvgAmount, Converter={StaticResource CurrencyConverter}}" Width="120" />
+              <DataGridTextColumn Header="Work hours" Binding="{Binding WorkHours, Converter={StaticResource HoursConverter}}" Width="120" />
+              <DataGridTextColumn Header="Hypothetical €" Binding="{Binding HypotheticalTimeAmount, Converter={StaticResource CurrencyConverter}}" Width="140" />
+              <DataGridTextColumn Header="Delta" Binding="{Binding RvgEfficiencyDelta, Converter={StaticResource CurrencyConverter}}" Width="120" />
+              <DataGridTextColumn Header="Effektiv €/h" Binding="{Binding RvgEffectiveHourlyRate, Converter={StaticResource RateConverter}}" Width="130" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </GroupBox>
+
+        <GroupBox Header="Offene Zeiten">
+          <DataGrid AutoGenerateColumns="False" IsReadOnly="True" ItemsSource="{Binding OpenTimeRows}">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Matter" Binding="{Binding Matter}" Width="*" />
+              <DataGridTextColumn Header="Unbilled minutes" Binding="{Binding UnbilledMinutes, Converter={StaticResource MinutesConverter}}" Width="140" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </GroupBox>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>
