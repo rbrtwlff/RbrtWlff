@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:AkteTimer.Converters"
-        Title="Dashboard" Height="720" Width="980">
+        Title="Dashboard" Height="820" Width="1120">
   <Window.Resources>
     <converters:FlexibleDecimalConverter x:Key="MinutesConverter" Format="N0" Suffix="min" />
     <converters:FlexibleDecimalConverter x:Key="CurrencyConverter" Format="N2" Suffix="€" />
@@ -33,51 +33,89 @@
     </Grid.RowDefinitions>
 
     <GroupBox Header="Zeitraum" Grid.Row="0" Margin="0,0,0,8">
-      <StackPanel Orientation="Horizontal" Margin="8">
-        <TextBlock Text="Von" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <DatePicker SelectedDate="{Binding FromDate}" Margin="0,0,16,0" />
-        <TextBlock Text="Bis" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <DatePicker SelectedDate="{Binding ToDate}" />
+      <StackPanel Margin="8">
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+          <TextBlock Text="Von" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <DatePicker SelectedDate="{Binding FromDate}" Margin="0,0,16,0" />
+          <TextBlock Text="Bis" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <DatePicker SelectedDate="{Binding ToDate}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" />
+          <RadioButton Content="Nach Arbeitsdatum" IsChecked="{Binding IsWorkingDateMode}" Margin="0,0,16,0" />
+          <RadioButton Content="Nach Abrechnungsdatum" IsChecked="{Binding IsBillingDateMode}" />
+        </StackPanel>
       </StackPanel>
     </GroupBox>
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
       <StackPanel>
-        <UniformGrid Columns="3" Margin="0,0,0,4">
+        <UniformGrid Columns="4" Margin="0,0,0,4">
           <Border Style="{StaticResource KpiCardStyle}">
             <StackPanel>
-              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Tracked" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Gesamtzeit getrackt" />
               <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalTrackedMinutes, Converter={StaticResource MinutesConverter}}" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource KpiCardStyle}">
             <StackPanel>
-              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Billed tracked" />
-              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalBilledTrackedMinutes, Converter={StaticResource MinutesConverter}}" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Zeit in Zeithonorar-Akten" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding HourlyTrackedMinutes, Converter={StaticResource MinutesConverter}}" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource KpiCardStyle}">
             <StackPanel>
-              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Dummy" />
-              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalDummyMinutes, Converter={StaticResource MinutesConverter}}" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Zeit in RVG-Akten" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding RvgTrackedMinutes, Converter={StaticResource MinutesConverter}}" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource KpiCardStyle}">
             <StackPanel>
-              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Hourly €" />
-              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalBilledHourlyAmount, Converter={StaticResource CurrencyConverter}}" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Dummy-Zeit (Abrechnungsdatum)" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding HourlyDummyMinutes, Converter={StaticResource MinutesConverter}}" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource KpiCardStyle}">
             <StackPanel>
-              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="RVG €" />
-              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding TotalBilledRvgAmount, Converter={StaticResource CurrencyConverter}}" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Zeithonorar (nur tracked)" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding HourlyTrackedAmountTrackedOnly, Converter={StaticResource CurrencyConverter}}" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource KpiCardStyle}">
             <StackPanel>
-              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Effektiv €/h" />
-              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding OverallEffectiveRateText}" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Zeithonorar (tracked + Dummy)" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding HourlyTrackedAmountWithDummy, Converter={StaticResource CurrencyConverter}}" />
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="{Binding HourlyDummyMinutes, Converter={StaticResource MinutesConverter}, StringFormat=Dummy: {0}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="RVG fiktives Zeithonorar" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding RvgHypotheticalTimeAmount, Converter={StaticResource CurrencyConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="RVG Ist (Abrechnungsdatum)" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding RvgBilledAmount, Converter={StaticResource CurrencyConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="RVG Effektivität (Delta)" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding RvgEfficiencyDelta, Converter={StaticResource CurrencyConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="RVG effektive Stundenrate" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding RvgEffectiveHourlyRate, Converter={StaticResource RateConverter}}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource KpiCardStyle}">
+            <StackPanel>
+              <TextBlock Style="{StaticResource KpiLabelStyle}" Text="Effektive Stundenrate gesamt" />
+              <TextBlock Style="{StaticResource KpiValueStyle}" Text="{Binding OverallEffectiveHourlyRate, Converter={StaticResource RateConverter}}" />
             </StackPanel>
           </Border>
         </UniformGrid>
@@ -85,12 +123,12 @@
         <GroupBox Header="Top RVG nach Effektivität" Margin="0,8,0,12">
           <DataGrid AutoGenerateColumns="False" IsReadOnly="True" ItemsSource="{Binding TopRvgEfficiencyRows}">
             <DataGrid.Columns>
-              <DataGridTextColumn Header="FileRef" Binding="{Binding FileRef}" Width="*" />
-              <DataGridTextColumn Header="RVG €" Binding="{Binding RvgAmount, Converter={StaticResource CurrencyConverter}}" Width="120" />
-              <DataGridTextColumn Header="Work hours" Binding="{Binding WorkHours, Converter={StaticResource HoursConverter}}" Width="120" />
-              <DataGridTextColumn Header="Hypothetical €" Binding="{Binding HypotheticalTimeAmount, Converter={StaticResource CurrencyConverter}}" Width="140" />
+              <DataGridTextColumn Header="Aktenzeichen" Binding="{Binding FileRef}" Width="*" />
+              <DataGridTextColumn Header="RVG Ist" Binding="{Binding RvgAmount, Converter={StaticResource CurrencyConverter}}" Width="120" />
+              <DataGridTextColumn Header="RVG Zeit (h)" Binding="{Binding WorkHours, Converter={StaticResource HoursConverter}}" Width="120" />
+              <DataGridTextColumn Header="Fiktives Zeithonorar" Binding="{Binding HypotheticalTimeAmount, Converter={StaticResource CurrencyConverter}}" Width="160" />
               <DataGridTextColumn Header="Delta" Binding="{Binding RvgEfficiencyDelta, Converter={StaticResource CurrencyConverter}}" Width="120" />
-              <DataGridTextColumn Header="Effektiv €/h" Binding="{Binding RvgEffectiveHourlyRate, Converter={StaticResource RateConverter}}" Width="130" />
+              <DataGridTextColumn Header="Effektive RVG-Rate" Binding="{Binding RvgEffectiveHourlyRate, Converter={StaticResource RateConverter}}" Width="140" />
             </DataGrid.Columns>
           </DataGrid>
         </GroupBox>
