@@ -17,6 +17,7 @@ public partial class App : System.Windows.Application
     private HotkeyService? _hotkeyService;
     private DatabaseService? _databaseService;
     private TimeEntryService? _timeEntryService;
+    private BillingService? _billingService;
     private PopupWindow? _popupWindow;
     private SettingsService? _settingsService;
     private DataDirectoryService? _dataDirectoryService;
@@ -53,6 +54,7 @@ public partial class App : System.Windows.Application
         }
 
         _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
+        _billingService = new BillingService(_databaseService);
 
         _popupWindow = new PopupWindow(_timeEntryService, _settingsService);
 
@@ -64,7 +66,7 @@ public partial class App : System.Windows.Application
         };
         _hotkeyService.Register();
 
-        _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService, _dataDirectoryService, _databaseService);
+        _trayService = new TrayService(_popupWindow, _timeEntryService, _settingsService, _hotkeyService, _dataDirectoryService, _databaseService, _billingService);
         _trayService.Initialize();
 
         HandleRecovery();

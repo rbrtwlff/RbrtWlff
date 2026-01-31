@@ -11,13 +11,17 @@ public partial class ReportsWindow : Window
     private readonly ReportsViewModel _viewModel;
     private readonly TimeEntryService _timeEntryService;
     private readonly SettingsService _settingsService;
+    private readonly BillingService _billingService;
+    private readonly DatabaseService _databaseService;
 
-    public ReportsWindow(TimeEntryService timeEntryService, SettingsService settingsService)
+    public ReportsWindow(TimeEntryService timeEntryService, SettingsService settingsService, BillingService billingService, DatabaseService databaseService)
     {
         _timeEntryService = timeEntryService;
         _settingsService = settingsService;
+        _billingService = billingService;
+        _databaseService = databaseService;
         InitializeComponent();
-        _viewModel = new ReportsViewModel(_timeEntryService);
+        _viewModel = new ReportsViewModel(_timeEntryService, _databaseService, _billingService);
         DataContext = _viewModel;
         Loaded += OnLoaded;
         Closing += OnClosing;
