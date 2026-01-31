@@ -1,6 +1,7 @@
 using System;
 using AkteTimer.Models;
 using AkteTimer.Services;
+using RvgBreakdownModel = AkteTimer.Models.RvgBreakdown;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using MessageBox = System.Windows.MessageBox;
 
@@ -371,7 +372,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
         return evaluation;
     }
 
-    private RvgBreakdown CalculateRvgBreakdown(Matter matter)
+    private RvgBreakdownModel CalculateRvgBreakdown(Matter matter)
     {
         return RvgCalculator.CalculateBreakdown(matter, _rvgFeeTableService);
     }
@@ -381,7 +382,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
         decimal currentTotal,
         RvgBillingSnapshot? snapshot,
         bool useDifference,
-        RvgBreakdown breakdown)
+        RvgBreakdownModel breakdown)
     {
         var canToggleDifference = snapshot != null;
         if (useDifference && snapshot != null)
@@ -482,7 +483,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
         string CurrentSignature,
         decimal CurrentTotal,
         bool IsDifference,
-        RvgBreakdown? Breakdown,
+        RvgBreakdownModel? Breakdown,
         string? BreakdownNote);
 }
 
@@ -513,7 +514,7 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         decimal rvgBaseTotal,
         string rvgCurrentSignature,
         decimal rvgCurrentTotal,
-        RvgBreakdown? rvgBreakdown,
+        RvgBreakdownModel? rvgBreakdown,
         string? rvgBreakdownNote,
         Action<BillingCaseDisplayViewModel, bool>? onRvgDifferenceChanged)
     {
