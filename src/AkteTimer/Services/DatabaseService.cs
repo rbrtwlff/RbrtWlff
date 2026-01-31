@@ -181,6 +181,28 @@ public sealed class DatabaseService
         return MapMatter(reader);
     }
 
+    public Matter? GetMatterById(long matterId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
+                   target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
+            FROM Matters
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", matterId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return MapMatter(reader);
+    }
+
     public Matter CreateMatter(string fileRef)
     {
         using var connection = CreateConnection();
@@ -425,6 +447,43 @@ public sealed class DatabaseService
             ORDER BY te.start_utc ASC;
             """;
         command.Parameters.AddWithValue("$matter_id", matterId);
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
+    }
+
+    public List<TimeEntry> GetTimeEntriesByIds(IReadOnlyCollection<long> entryIds, bool onlyCompleted = true)
+    {
+        if (entryIds.Count == 0)
+        {
+            return new List<TimeEntry>();
+        }
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var entryFilters = string.Join(", ", entryIds.Select((_, index) => $"$entry_{index}"));
+        var completionFilter = onlyCompleted ? " AND te.end_utc IS NOT NULL" : string.Empty;
+        command.CommandText = $"""
+            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
+            FROM TimeEntries te
+            JOIN Matters m ON te.matter_id = m.id
+            WHERE te.id IN ({entryFilters}){completionFilter}
+            ORDER BY te.start_utc ASC;
+            """;
+        var index = 0;
+        foreach (var entryId in entryIds)
+        {
+            command.Parameters.AddWithValue($"$entry_{index}", entryId);
+            index++;
+        }
 
         using var reader = command.ExecuteReader();
         var entries = new List<TimeEntry>();
@@ -701,6 +760,151 @@ public sealed class DatabaseService
         });
     }
 
+    public BillingBatch CreateBillingBatch(DateTime createdUtc)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var insert = connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandText = """
+            INSERT INTO BillingBatches (created_utc, finalized_utc, pdf_path)
+            VALUES ($created_utc, NULL, NULL);
+            """;
+        insert.Parameters.AddWithValue("$created_utc", createdUtc.ToString("o"));
+        insert.ExecuteNonQuery();
+
+        using var select = connection.CreateCommand();
+        select.Transaction = transaction;
+        select.CommandText = """
+            SELECT id, created_utc, finalized_utc, pdf_path
+            FROM BillingBatches
+            WHERE rowid = last_insert_rowid();
+            """;
+        using var reader = select.ExecuteReader();
+        reader.Read();
+        var batch = MapBillingBatch(reader);
+        transaction.Commit();
+        return batch;
+    }
+
+    public BillingBatch? GetBillingBatchById(long batchId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, created_utc, finalized_utc, pdf_path
+            FROM BillingBatches
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", batchId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return MapBillingBatch(reader);
+    }
+
+    public BillingCase CreateBillingCase(BillingCase billingCase)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        using var insert = connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandText = """
+            INSERT INTO BillingCases (
+                batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
+                tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total, rvg_is_difference,
+                rvg_base_signature, rvg_base_total)
+            VALUES (
+                $batch_id, $matter_id, $billing_type, $approved_utc, $tracked_minutes, $dummy_minutes, $total_minutes,
+                $tracked_amount, $dummy_amount, $total_amount, $note_for_staff, $rvg_signature, $rvg_total,
+                $rvg_is_difference, $rvg_base_signature, $rvg_base_total);
+            """;
+        insert.Parameters.AddWithValue("$batch_id", billingCase.BatchId);
+        insert.Parameters.AddWithValue("$matter_id", billingCase.MatterId);
+        insert.Parameters.AddWithValue("$billing_type", (int)billingCase.BillingType);
+        insert.Parameters.AddWithValue("$approved_utc", billingCase.ApprovedUtc.HasValue ? billingCase.ApprovedUtc.Value.ToString("o") : DBNull.Value);
+        insert.Parameters.AddWithValue("$tracked_minutes", billingCase.TrackedMinutes);
+        insert.Parameters.AddWithValue("$dummy_minutes", billingCase.DummyMinutes);
+        insert.Parameters.AddWithValue("$total_minutes", billingCase.TotalMinutes);
+        insert.Parameters.AddWithValue("$tracked_amount", (double)billingCase.TrackedAmount);
+        insert.Parameters.AddWithValue("$dummy_amount", (double)billingCase.DummyAmount);
+        insert.Parameters.AddWithValue("$total_amount", (double)billingCase.TotalAmount);
+        insert.Parameters.AddWithValue("$note_for_staff", string.IsNullOrWhiteSpace(billingCase.NoteForStaff) ? DBNull.Value : billingCase.NoteForStaff);
+        insert.Parameters.AddWithValue("$rvg_signature", string.IsNullOrWhiteSpace(billingCase.RvgSignature) ? DBNull.Value : billingCase.RvgSignature);
+        insert.Parameters.AddWithValue("$rvg_total", (double)billingCase.RvgTotal);
+        insert.Parameters.AddWithValue("$rvg_is_difference", billingCase.RvgIsDifference ? 1 : 0);
+        insert.Parameters.AddWithValue("$rvg_base_signature", string.IsNullOrWhiteSpace(billingCase.RvgBaseSignature) ? DBNull.Value : billingCase.RvgBaseSignature);
+        insert.Parameters.AddWithValue("$rvg_base_total", (double)billingCase.RvgBaseTotal);
+        insert.ExecuteNonQuery();
+
+        using var select = connection.CreateCommand();
+        select.Transaction = transaction;
+        select.CommandText = """
+            SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
+                   tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
+                   rvg_is_difference, rvg_base_signature, rvg_base_total
+            FROM BillingCases
+            WHERE rowid = last_insert_rowid();
+            """;
+        using var reader = select.ExecuteReader();
+        reader.Read();
+        var createdCase = MapBillingCase(reader);
+        transaction.Commit();
+        return createdCase;
+    }
+
+    public BillingCase? GetBillingCaseById(long caseId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
+                   tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
+                   rvg_is_difference, rvg_base_signature, rvg_base_total
+            FROM BillingCases
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", caseId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return MapBillingCase(reader);
+    }
+
+    public List<BillingCase> GetBillingCasesForBatch(long batchId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
+                   tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
+                   rvg_is_difference, rvg_base_signature, rvg_base_total
+            FROM BillingCases
+            WHERE batch_id = $batch_id
+            ORDER BY id ASC;
+            """;
+        command.Parameters.AddWithValue("$batch_id", batchId);
+        using var reader = command.ExecuteReader();
+        var cases = new List<BillingCase>();
+        while (reader.Read())
+        {
+            cases.Add(MapBillingCase(reader));
+        }
+
+        return cases;
+    }
+
     private static TimeEntry MapTimeEntry(SqliteDataReader reader)
     {
         return new TimeEntry
@@ -753,6 +957,46 @@ public sealed class DatabaseService
             TermFee12Enabled = termFee12Enabled,
             SettlementFee10Enabled = settlementFee10Enabled,
             SettlementFee15Enabled = settlementFee15Enabled
+        };
+    }
+
+    private static BillingBatch MapBillingBatch(SqliteDataReader reader)
+    {
+        return new BillingBatch
+        {
+            Id = reader.GetInt64(0),
+            CreatedUtc = DateTime.Parse(reader.GetString(1)).ToUniversalTime(),
+            FinalizedUtc = reader.IsDBNull(2) ? null : DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
+            PdfPath = reader.IsDBNull(3) ? null : reader.GetString(3)
+        };
+    }
+
+    private static BillingCase MapBillingCase(SqliteDataReader reader)
+    {
+        var billingTypeValue = reader.GetInt32(3);
+        var billingType = Enum.IsDefined(typeof(BillingType), billingTypeValue)
+            ? (BillingType)billingTypeValue
+            : BillingType.Hourly;
+
+        return new BillingCase
+        {
+            Id = reader.GetInt64(0),
+            BatchId = reader.GetInt64(1),
+            MatterId = reader.GetInt64(2),
+            BillingType = billingType,
+            ApprovedUtc = reader.IsDBNull(4) ? null : DateTime.Parse(reader.GetString(4)).ToUniversalTime(),
+            TrackedMinutes = reader.GetInt32(5),
+            DummyMinutes = reader.GetInt32(6),
+            TotalMinutes = reader.GetInt32(7),
+            TrackedAmount = (decimal)reader.GetDouble(8),
+            DummyAmount = (decimal)reader.GetDouble(9),
+            TotalAmount = (decimal)reader.GetDouble(10),
+            NoteForStaff = reader.IsDBNull(11) ? null : reader.GetString(11),
+            RvgSignature = reader.IsDBNull(12) ? null : reader.GetString(12),
+            RvgTotal = (decimal)reader.GetDouble(13),
+            RvgIsDifference = !reader.IsDBNull(14) && reader.GetInt64(14) == 1,
+            RvgBaseSignature = reader.IsDBNull(15) ? null : reader.GetString(15),
+            RvgBaseTotal = (decimal)reader.GetDouble(16)
         };
     }
 
