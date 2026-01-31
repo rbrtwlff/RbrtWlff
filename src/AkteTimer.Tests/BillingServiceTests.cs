@@ -177,6 +177,55 @@ public sealed class BillingServiceTests
         Assert.NotNull(finalizedBatch!.FinalizedUtc);
     }
 
+    [Fact]
+    public void FinalizeBatch_WritesBreakdownJsonRoundtrip()
+    {
+        using var fixture = new BillingFixture();
+        var database = fixture.Database;
+        var billingService = fixture.Service;
+
+        var matterRvg = database.CreateMatter("444/24");
+        matterRvg.BillingType = BillingType.Rvg;
+        matterRvg.SubjectValueEur = 500m;
+        matterRvg.BusinessFee13Enabled = true;
+        database.UpdateMatter(matterRvg);
+
+        var now = DateTime.UtcNow;
+        var rvgEntry = database.CreateTimeEntry(matterRvg.Id, now.AddMinutes(-20), "#Test");
+        rvgEntry = database.UpdateTimeEntry(rvgEntry.Id, matterRvg.Id, now.AddMinutes(-20), now.AddMinutes(-10), null, null);
+
+        var batch = billingService.CreateBillingBatchDraft(new[] { rvgEntry.Id });
+        var cases = database.GetBillingCasesForBatch(batch.BatchId);
+        var rvgCase = cases.Single(billingCase => billingCase.MatterId == matterRvg.Id);
+
+        database.UpdateBillingCaseRvgData(
+            rvgCase.Id,
+            "SIG-2",
+            250m,
+            false,
+            null,
+            0m);
+
+        database.UpdateBillingBatchPdfPath(batch.BatchId, "export.pdf");
+
+        var expectedBreakdown = RvgCalculator.CalculateBreakdown(matterRvg, new RvgFeeTableService());
+
+        billingService.FinalizeBatch(batch.BatchId);
+
+        var snapshot = database.GetLatestRvgBillingSnapshot(matterRvg.Id);
+        Assert.NotNull(snapshot);
+        Assert.False(string.IsNullOrWhiteSpace(snapshot!.BreakdownJson));
+
+        var reloadedBreakdown = RvgBreakdownSerializer.Deserialize(snapshot.BreakdownJson);
+        Assert.NotNull(reloadedBreakdown);
+        Assert.Equal(expectedBreakdown.Total, reloadedBreakdown!.Total);
+        Assert.Equal(expectedBreakdown.Items.Count, reloadedBreakdown.Items.Count);
+        Assert.Equal(expectedBreakdown.Items[0].Name, reloadedBreakdown.Items[0].Name);
+        Assert.Equal(expectedBreakdown.Items[0].Factor, reloadedBreakdown.Items[0].Factor);
+        Assert.Equal(expectedBreakdown.Items[0].BaseFee, reloadedBreakdown.Items[0].BaseFee);
+        Assert.Equal(expectedBreakdown.Items[0].Amount, reloadedBreakdown.Items[0].Amount);
+    }
+
     private sealed class BillingFixture : IDisposable
     {
         public BillingFixture()

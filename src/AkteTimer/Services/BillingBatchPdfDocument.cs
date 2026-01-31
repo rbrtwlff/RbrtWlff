@@ -177,6 +177,44 @@ public sealed class BillingBatchPdfDocument : IDocument
                 text.Span(caseData.RvgFeeSummary);
             });
 
+            if (caseData.RvgBreakdown == null || caseData.RvgBreakdown.Items.Count == 0)
+            {
+                column.Item().Text("Aufschlüsselung (ohne Aufschlüsselung, Altbestand)")
+                    .FontColor(Colors.Grey.Darken1);
+            }
+            else
+            {
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.RelativeColumn();
+                        columns.ConstantColumn(70);
+                        columns.ConstantColumn(90);
+                        columns.ConstantColumn(90);
+                    });
+
+                    table.Header(header =>
+                    {
+                        header.Cell().Element(HeaderCellStyle).Text("Position");
+                        header.Cell().Element(HeaderCellStyle).Text("Faktor");
+                        header.Cell().Element(HeaderCellStyle).Text("Basis 1,0");
+                        header.Cell().Element(HeaderCellStyle).Text("Betrag");
+                    });
+
+                    foreach (var item in caseData.RvgBreakdown.Items)
+                    {
+                        table.Cell().Element(CellStyle).Text(item.Name);
+                        table.Cell().Element(CellStyle).AlignRight().Text(item.Factor.ToString("N2", _culture));
+                        table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(item.BaseFee));
+                        table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(item.Amount));
+                    }
+
+                    table.Cell().ColumnSpan(3).Element(CellStyle).AlignRight().Text("Summe (Aufschlüsselung)");
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(caseData.RvgBreakdown.Total));
+                });
+            }
+
             column.Item().Text(text =>
             {
                 text.Span("Betrag: ").SemiBold();
@@ -272,4 +310,5 @@ public sealed record BillingCasePdfData(
     Matter Matter,
     IReadOnlyList<TimeEntry> TimeEntries,
     string RvgSignature,
-    string RvgFeeSummary);
+    string RvgFeeSummary,
+    RvgBreakdown? RvgBreakdown);

@@ -76,6 +76,8 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 rvgEvaluation.BaseTotal,
                 rvgEvaluation.CurrentSignature,
                 rvgEvaluation.CurrentTotal,
+                rvgEvaluation.Breakdown,
+                rvgEvaluation.BreakdownNote,
                 OnRvgDifferenceChanged));
         }
 
@@ -330,13 +332,15 @@ public sealed class BillingWizardViewModel : ViewModelBase
     {
         if (billingCase.BillingType != BillingType.Rvg)
         {
-            return new RvgBillingEvaluation(string.Empty, 0m, false, false, null, 0m, string.Empty, 0m, false);
+            return new RvgBillingEvaluation(string.Empty, 0m, false, false, null, 0m, string.Empty, 0m, false, null, null);
         }
 
         var signature = BillingService.ComputeRvgSignature(matter);
         var snapshot = _databaseService.GetLatestRvgBillingSnapshot(matter.Id);
         if (snapshot != null && string.Equals(snapshot.Signature, signature, StringComparison.Ordinal))
         {
+            var breakdown = RvgBreakdownSerializer.Deserialize(snapshot.BreakdownJson);
+            var breakdownNote = breakdown == null ? "ohne Aufschlüsselung, Altbestand" : null;
             return new RvgBillingEvaluation(
                 "RVG bereits abgerechnet – kein neuer Tatbestand (Freigabe gesperrt).",
                 0m,
@@ -346,13 +350,16 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 snapshot.Total,
                 signature,
                 0m,
-                false);
+                false,
+                breakdown,
+                breakdownNote);
         }
 
-        var total = CalculateRvgTotal(matter);
+        var breakdownCurrent = CalculateRvgBreakdown(matter);
+        var total = breakdownCurrent.Total;
         var canToggleDifference = snapshot != null;
         var useDifference = billingCase.RvgIsDifference && canToggleDifference;
-        var evaluation = BuildRvgDifferenceEvaluation(signature, total, snapshot, useDifference);
+        var evaluation = BuildRvgDifferenceEvaluation(signature, total, snapshot, useDifference, breakdownCurrent);
         _databaseService.UpdateBillingCaseRvgData(
             billingCase.Id,
             signature,
@@ -364,24 +371,17 @@ public sealed class BillingWizardViewModel : ViewModelBase
         return evaluation;
     }
 
-    private decimal CalculateRvgTotal(Matter matter)
+    private RvgBreakdown CalculateRvgBreakdown(Matter matter)
     {
-        var fee1_0 = _rvgFeeTableService.LookupFee1_0(matter.SubjectValueEur);
-        var businessFee = matter.BusinessFee13Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.3m) : 0m;
-        var termFee = matter.TermFee12Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.2m) : 0m;
-        var settlement10Fee = matter.SettlementFee10Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.0m) : 0m;
-        var settlement15Fee = matter.SettlementFee15Enabled ? RvgCalculator.RoundCurrency(fee1_0 * 1.5m) : 0m;
-        var customFee = matter.CustomFeeFactor.HasValue
-            ? RvgCalculator.RoundCurrency(fee1_0 * matter.CustomFeeFactor.Value)
-            : 0m;
-        return RvgCalculator.RoundCurrency(businessFee + termFee + settlement10Fee + settlement15Fee + customFee);
+        return RvgCalculator.CalculateBreakdown(matter, _rvgFeeTableService);
     }
 
     private RvgBillingEvaluation BuildRvgDifferenceEvaluation(
         string signature,
         decimal currentTotal,
         RvgBillingSnapshot? snapshot,
-        bool useDifference)
+        bool useDifference,
+        RvgBreakdown breakdown)
     {
         var canToggleDifference = snapshot != null;
         if (useDifference && snapshot != null)
@@ -401,7 +401,9 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 snapshot.Total,
                 signature,
                 currentTotal,
-                true);
+                true,
+                breakdown,
+                null);
         }
 
         var defaultStatusText = snapshot == null
@@ -417,7 +419,9 @@ public sealed class BillingWizardViewModel : ViewModelBase
             snapshot?.Total ?? 0m,
             signature,
             currentTotal,
-            false);
+            false,
+            breakdown,
+            null);
     }
 
     private bool CanExportAndFinalize() => !_isBatchFinalized;
@@ -477,7 +481,9 @@ public sealed class BillingWizardViewModel : ViewModelBase
         decimal BaseTotal,
         string CurrentSignature,
         decimal CurrentTotal,
-        bool IsDifference);
+        bool IsDifference,
+        RvgBreakdown? Breakdown,
+        string? BreakdownNote);
 }
 
 public sealed class BillingCaseDisplayViewModel : ViewModelBase
@@ -507,6 +513,8 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         decimal rvgBaseTotal,
         string rvgCurrentSignature,
         decimal rvgCurrentTotal,
+        RvgBreakdown? rvgBreakdown,
+        string? rvgBreakdownNote,
         Action<BillingCaseDisplayViewModel, bool>? onRvgDifferenceChanged)
     {
         BillingCaseId = billingCaseId;
@@ -532,6 +540,9 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         RvgBaseTotal = rvgBaseTotal;
         RvgCurrentSignature = rvgCurrentSignature;
         RvgCurrentTotal = rvgCurrentTotal;
+        RvgBreakdownItems = rvgBreakdown?.Items ?? new List<RvgLineItem>();
+        RvgBreakdownTotal = rvgBreakdown?.Total ?? 0m;
+        _rvgBreakdownNote = rvgBreakdownNote ?? string.Empty;
         _onRvgDifferenceChanged = onRvgDifferenceChanged;
     }
 
@@ -584,6 +595,16 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     public string RvgCurrentSignature { get; private set; }
 
     public decimal RvgCurrentTotal { get; private set; }
+
+    public IReadOnlyList<RvgLineItem> RvgBreakdownItems { get; }
+
+    public decimal RvgBreakdownTotal { get; }
+
+    public bool HasRvgBreakdown => RvgBreakdownItems.Count > 0;
+
+    public string RvgBreakdownNote => _rvgBreakdownNote;
+
+    public bool HasRvgBreakdownNote => !string.IsNullOrWhiteSpace(_rvgBreakdownNote);
 
     public bool ShowRvgTotal => IsRvgBilling && !IsRvgApprovalBlocked;
 
@@ -683,6 +704,7 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     private decimal _rvgTotal;
     private bool _isRvgApprovalBlocked;
     private bool _isRvgDifferenceEnabled;
+    private string _rvgBreakdownNote = string.Empty;
 
     public int CalculateMinutesDelta()
     {
