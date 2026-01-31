@@ -158,13 +158,7 @@ public sealed class BillingBatchPdfDocument : IDocument
         container.Column(column =>
         {
             column.Spacing(6);
-            column.Item().Text("RVG").FontSize(13).SemiBold();
-            column.Item().Text(text =>
-            {
-                text.Span("Tatbestand: ").SemiBold();
-                text.Span(caseData.RvgSignature);
-            });
-
+            column.Item().Text("RVG-Abrechnung").FontSize(13).SemiBold();
             column.Item().Text(text =>
             {
                 text.Span("Streitwert: ").SemiBold();
@@ -179,8 +173,16 @@ public sealed class BillingBatchPdfDocument : IDocument
 
             if (caseData.RvgBreakdown == null || caseData.RvgBreakdown.Items.Count == 0)
             {
-                column.Item().Text("Aufschlüsselung (ohne Aufschlüsselung, Altbestand)")
+                var note = string.IsNullOrWhiteSpace(caseData.RvgBreakdownNote)
+                    ? "ohne Aufschlüsselung, Altbestand"
+                    : caseData.RvgBreakdownNote;
+                column.Item().Text($"Aufschlüsselung ({note})")
                     .FontColor(Colors.Grey.Darken1);
+                column.Item().Text(text =>
+                {
+                    text.Span("Summe: ").SemiBold();
+                    text.Span(FormatCurrency(caseData.RvgDisplayTotal));
+                });
             }
             else
             {
@@ -196,9 +198,9 @@ public sealed class BillingBatchPdfDocument : IDocument
 
                     table.Header(header =>
                     {
-                        header.Cell().Element(HeaderCellStyle).Text("Position");
+                        header.Cell().Element(HeaderCellStyle).Text("Gebühr");
                         header.Cell().Element(HeaderCellStyle).Text("Faktor");
-                        header.Cell().Element(HeaderCellStyle).Text("Basis 1,0");
+                        header.Cell().Element(HeaderCellStyle).Text("Basis (1,0)");
                         header.Cell().Element(HeaderCellStyle).Text("Betrag");
                     });
 
@@ -210,38 +212,47 @@ public sealed class BillingBatchPdfDocument : IDocument
                         table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(item.Amount));
                     }
 
-                    table.Cell().ColumnSpan(3).Element(CellStyle).AlignRight().Text("Summe (Aufschlüsselung)");
+                    table.Cell().ColumnSpan(3).Element(CellStyle).AlignRight().Text("Summe");
                     table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(caseData.RvgBreakdown.Total));
                 });
             }
 
-            column.Item().Text(text =>
+            if (!string.IsNullOrWhiteSpace(caseData.RvgBreakdownNote)
+                && caseData.RvgBreakdown != null
+                && caseData.RvgBreakdown.Items.Count > 0)
             {
-                text.Span("Betrag: ").SemiBold();
-                text.Span(FormatCurrency(caseData.BillingCase.RvgTotal));
-            });
+                column.Item().Text($"({caseData.RvgBreakdownNote})")
+                    .FontColor(Colors.Grey.Darken1)
+                    .FontSize(9);
+            }
+
+            if (!string.IsNullOrWhiteSpace(caseData.RvgSignatureDetail))
+            {
+                column.Item().Text(text =>
+                {
+                    text.Span("Details (Signatur): ").FontSize(9).FontColor(Colors.Grey.Darken2);
+                    text.Span(caseData.RvgSignatureDetail).FontSize(9).FontColor(Colors.Grey.Darken2);
+                });
+            }
 
             if (caseData.BillingCase.RvgIsDifference)
             {
                 column.Item().Text("Differenzabrechnung").FontColor(Colors.Red.Darken1).SemiBold();
                 column.Item().Text(text =>
                 {
-                    text.Span("Neuer Gesamtbetrag: ").SemiBold();
-                    text.Span(FormatCurrency(caseData.BillingCase.RvgBaseTotal + caseData.BillingCase.RvgTotal));
+                    text.Span("Basis (bereits abgerechnet): ").SemiBold();
+                    text.Span(FormatCurrency(caseData.BillingCase.RvgBaseTotal));
                 });
                 column.Item().Text(text =>
                 {
-                    text.Span("Basis-Snapshot: ").SemiBold();
-                    text.Span($"{FormatCurrency(caseData.BillingCase.RvgBaseTotal)}");
+                    text.Span("Neu berechnet: ").SemiBold();
+                    text.Span(FormatCurrency(caseData.RvgDisplayTotal));
                 });
-                if (!string.IsNullOrWhiteSpace(caseData.BillingCase.RvgBaseSignature))
+                column.Item().Text(text =>
                 {
-                    column.Item().Text(text =>
-                    {
-                        text.Span("Basis-Signatur: ").SemiBold();
-                        text.Span(caseData.BillingCase.RvgBaseSignature);
-                    });
-                }
+                    text.Span("Differenz: ").SemiBold();
+                    text.Span(FormatCurrency(caseData.BillingCase.RvgTotal));
+                });
             }
         });
     }
@@ -309,6 +320,8 @@ public sealed record BillingCasePdfData(
     BillingCase BillingCase,
     Matter Matter,
     IReadOnlyList<TimeEntry> TimeEntries,
-    string RvgSignature,
+    string RvgSignatureDetail,
     string RvgFeeSummary,
-    RvgBreakdown? RvgBreakdown);
+    RvgBreakdown? RvgBreakdown,
+    string? RvgBreakdownNote,
+    decimal RvgDisplayTotal);
