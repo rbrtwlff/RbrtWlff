@@ -101,6 +101,12 @@
             <Button Content="Abrechnung (offen)"
                     Command="{Binding CreateBillingDraftsFromAllOpenCommand}"
                     Margin="8,0,0,0" />
+            <Button Content="Abrechnungsverfügungen erstellen"
+                    Command="{Binding CreateBillingDraftsFromViewCommand}"
+                    Margin="16,0,0,0" />
+            <Button Content="Offene Zeiten abrechnen"
+                    Command="{Binding CreateBillingDraftsFromAllOpenCommand}"
+                    Margin="8,0,0,0" />
             <CheckBox Content="Beschreibung anzeigen"
                       Margin="16,0,0,0"
                       VerticalAlignment="Center"
