@@ -1,6 +1,7 @@
 using System;
 using AkteTimer.Models;
 using AkteTimer.Services;
+using Microsoft.Win32;
 using MessageBox = System.Windows.MessageBox;
 
 namespace AkteTimer.ViewModels;
@@ -8,21 +9,29 @@ namespace AkteTimer.ViewModels;
 public sealed class BillingWizardViewModel : ViewModelBase
 {
     private readonly DatabaseService _databaseService;
+    private readonly BillingService _billingService;
     private readonly List<BillingCaseDisplayViewModel> _cases;
     private readonly RvgFeeTableService _rvgFeeTableService = new();
     private readonly RelayCommand _approveCommand;
     private readonly RelayCommand _saveCommand;
     private readonly RelayCommand _prevCommand;
     private readonly RelayCommand _nextCommand;
+    private readonly RelayCommand _exportCommand;
     private int _currentIndex;
+    private readonly long _batchId;
+    private bool _isBatchFinalized;
 
     public BillingWizardViewModel(DatabaseService databaseService, long batchId)
     {
         _databaseService = databaseService;
-        if (databaseService.GetBillingBatchById(batchId) == null)
+        _billingService = new BillingService(databaseService);
+        _batchId = batchId;
+        var batch = databaseService.GetBillingBatchById(batchId);
+        if (batch == null)
         {
             throw new InvalidOperationException("Abrechnungsbatch nicht gefunden.");
         }
+        _isBatchFinalized = batch.FinalizedUtc.HasValue;
 
         var caseItems = databaseService.GetBillingCasesForBatch(batchId)
             .Select(billingCase =>
@@ -75,23 +84,41 @@ public sealed class BillingWizardViewModel : ViewModelBase
         _saveCommand = new RelayCommand(_ => SaveCurrentCase(), _ => CanSaveCurrentCase());
         _prevCommand = new RelayCommand(_ => MovePrevious(), _ => CanMovePrevious());
         _nextCommand = new RelayCommand(_ => MoveNext(), _ => CanMoveNext());
+        _exportCommand = new RelayCommand(_ => ExportAndFinalize(), _ => CanExportAndFinalize());
 
         NotifyPropertyChanged(nameof(CurrentIndex));
         NotifyPropertyChanged(nameof(TotalCount));
         NotifyPropertyChanged(nameof(CurrentCase));
         NotifyPropertyChanged(nameof(HeaderText));
+        NotifyPropertyChanged(nameof(IsSummaryPage));
+        NotifyPropertyChanged(nameof(IsCasePage));
+        NotifySummaryPropertiesChanged();
     }
 
-    public int CurrentIndex => TotalCount == 0 ? 0 : _currentIndex + 1;
+    public int CurrentIndex => TotalCount == 0 ? 0 : (IsSummaryPage ? TotalCount : _currentIndex + 1);
 
     public int TotalCount => _cases.Count;
 
-    public BillingCaseDisplayViewModel? CurrentCase => _cases.Count == 0 ? null : _cases[_currentIndex];
+    public BillingCaseDisplayViewModel? CurrentCase => IsSummaryPage || _cases.Count == 0 ? null : _cases[_currentIndex];
 
     public string HeaderText =>
         CurrentCase == null
-            ? "Keine Akten"
+            ? TotalCount == 0 ? "Keine Akten" : "Abschluss"
             : $"Akte {CurrentIndex}/{TotalCount} – {CurrentCase.FileRef}";
+
+    public bool IsSummaryPage => _cases.Count > 0 && _currentIndex >= _cases.Count;
+
+    public bool IsCasePage => !IsSummaryPage;
+
+    public int SummaryCaseCount => _cases.Count;
+
+    public decimal SummaryHourlyTotal => _cases.Where(item => item.IsHourlyBilling).Sum(item => item.TotalAmount);
+
+    public decimal SummaryRvgTotal => _cases.Where(item => item.IsRvgBilling).Sum(item => item.RvgTotal);
+
+    public decimal SummaryGrandTotal => SummaryHourlyTotal + SummaryRvgTotal;
+
+    public bool IsBatchFinalized => _isBatchFinalized;
 
     public RelayCommand PrevCommand => _prevCommand;
 
@@ -101,9 +128,11 @@ public sealed class BillingWizardViewModel : ViewModelBase
 
     public RelayCommand SaveCurrentCaseCommand => _saveCommand;
 
+    public RelayCommand ExportCommand => _exportCommand;
+
     private bool CanMovePrevious() => _currentIndex > 0;
 
-    private bool CanMoveNext() => _currentIndex < _cases.Count - 1;
+    private bool CanMoveNext() => _currentIndex < _cases.Count;
 
     private bool CanApproveCurrentCase() =>
         CurrentCase != null && !CurrentCase.IsApproved && !CurrentCase.IsRvgApprovalBlocked;
@@ -180,10 +209,14 @@ public sealed class BillingWizardViewModel : ViewModelBase
         NotifyPropertyChanged(nameof(CurrentIndex));
         NotifyPropertyChanged(nameof(CurrentCase));
         NotifyPropertyChanged(nameof(HeaderText));
+        NotifyPropertyChanged(nameof(IsSummaryPage));
+        NotifyPropertyChanged(nameof(IsCasePage));
+        NotifySummaryPropertiesChanged();
         _prevCommand.RaiseCanExecuteChanged();
         _nextCommand.RaiseCanExecuteChanged();
         _approveCommand.RaiseCanExecuteChanged();
         _saveCommand.RaiseCanExecuteChanged();
+        _exportCommand.RaiseCanExecuteChanged();
     }
 
     private void OnRvgDifferenceChanged(BillingCaseDisplayViewModel caseViewModel, bool isDifferenceEnabled)
@@ -279,6 +312,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 CurrentCase.DummyAmount,
                 CurrentCase.TotalMinutes,
                 CurrentCase.TotalAmount);
+            NotifySummaryPropertiesChanged();
             return true;
         }
         catch (Exception ex)
@@ -384,6 +418,54 @@ public sealed class BillingWizardViewModel : ViewModelBase
             signature,
             currentTotal,
             false);
+    }
+
+    private bool CanExportAndFinalize() => !_isBatchFinalized;
+
+    private void ExportAndFinalize()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Filter = "PDF-Datei (*.pdf)|*.pdf",
+            DefaultExt = ".pdf",
+            AddExtension = true,
+            FileName = $"Abrechnung_{DateTime.Now:yyyyMMdd}.pdf"
+        };
+
+        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.FileName))
+        {
+            return;
+        }
+
+        try
+        {
+            _billingService.ExportBillingBatchToPdf(_batchId, dialog.FileName);
+            _billingService.FinalizeBatch(_batchId);
+            _isBatchFinalized = true;
+            NotifyPropertyChanged(nameof(IsBatchFinalized));
+            _exportCommand.RaiseCanExecuteChanged();
+            MessageBox.Show(
+                "PDF-Export abgeschlossen und Batch finalisiert.",
+                "Abrechnung",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Export oder Finalisierung fehlgeschlagen: {ex.Message}",
+                "Abrechnung",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
+    private void NotifySummaryPropertiesChanged()
+    {
+        NotifyPropertyChanged(nameof(SummaryCaseCount));
+        NotifyPropertyChanged(nameof(SummaryHourlyTotal));
+        NotifyPropertyChanged(nameof(SummaryRvgTotal));
+        NotifyPropertyChanged(nameof(SummaryGrandTotal));
     }
 
     private readonly record struct RvgBillingEvaluation(
