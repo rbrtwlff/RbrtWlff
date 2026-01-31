@@ -6,6 +6,13 @@ namespace AkteTimer.Services;
 
 public sealed class DatabaseService
 {
+    private const string TimeEntrySelect = """
+        SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
+               te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
+        FROM TimeEntries te
+        JOIN Matters m ON te.matter_id = m.id
+        """;
+
     private readonly string? _databasePath;
     private readonly DataDirectoryService? _dataDirectoryService;
 
@@ -253,11 +260,8 @@ public sealed class DatabaseService
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        command.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.end_utc IS NULL
             ORDER BY te.start_utc DESC
             LIMIT 1;
@@ -305,11 +309,8 @@ public sealed class DatabaseService
 
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
-        select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        select.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.rowid = last_insert_rowid();
             """;
         using var reader = select.ExecuteReader();
@@ -328,11 +329,8 @@ public sealed class DatabaseService
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        command.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.start_utc >= $start AND te.start_utc < $end
             ORDER BY te.start_utc ASC;
             """;
@@ -407,10 +405,7 @@ public sealed class DatabaseService
             ? string.Empty
             : $" AND te.matter_id IN ({string.Join(", ", matterIds.Select((_, index) => $"$matter_{index}"))})";
         command.CommandText = $"""
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+            {TimeEntrySelect}
             WHERE te.start_utc >= $start AND te.start_utc < $end{matterFilters}
             ORDER BY te.start_utc ASC;
             """;
@@ -438,15 +433,34 @@ public sealed class DatabaseService
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        command.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.matter_id = $matter_id
             ORDER BY te.start_utc ASC;
             """;
         command.Parameters.AddWithValue("$matter_id", matterId);
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
+    }
+
+    public List<TimeEntry> GetUnbilledEntries(bool onlyCompleted = true)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var completionFilter = onlyCompleted ? " AND te.end_utc IS NOT NULL" : string.Empty;
+        command.CommandText = $"""
+            {TimeEntrySelect}
+            WHERE te.billed = 0{completionFilter}
+            ORDER BY te.start_utc ASC;
+            """;
 
         using var reader = command.ExecuteReader();
         var entries = new List<TimeEntry>();
@@ -471,10 +485,7 @@ public sealed class DatabaseService
         var entryFilters = string.Join(", ", entryIds.Select((_, index) => $"$entry_{index}"));
         var completionFilter = onlyCompleted ? " AND te.end_utc IS NOT NULL" : string.Empty;
         command.CommandText = $"""
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+            {TimeEntrySelect}
             WHERE te.id IN ({entryFilters}){completionFilter}
             ORDER BY te.start_utc ASC;
             """;
@@ -562,11 +573,8 @@ public sealed class DatabaseService
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        command.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.id = $id;
             """;
         command.Parameters.AddWithValue("$id", entryId);
@@ -609,11 +617,8 @@ public sealed class DatabaseService
 
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
-        select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        select.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.id = $id;
             """;
         select.Parameters.AddWithValue("$id", entryId);
@@ -645,11 +650,8 @@ public sealed class DatabaseService
 
         using var select = connection.CreateCommand();
         select.Transaction = transaction;
-        select.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        select.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.id = $id;
             """;
         select.Parameters.AddWithValue("$id", entryId);
@@ -696,11 +698,8 @@ public sealed class DatabaseService
 
         using var selectUpdated = connection.CreateCommand();
         selectUpdated.Transaction = transaction;
-        selectUpdated.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        selectUpdated.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.id = $id;
             """;
         selectUpdated.Parameters.AddWithValue("$id", entryId);
@@ -710,11 +709,8 @@ public sealed class DatabaseService
 
         using var selectNew = connection.CreateCommand();
         selectNew.Transaction = transaction;
-        selectNew.CommandText = """
-            SELECT te.id, te.matter_id, te.start_utc, te.end_utc, te.note, te.hashtag, te.created_utc, te.updated_utc,
-                   te.manual_adjustment, te.billed, te.billed_utc, te.billing_batch_id, m.file_ref
-            FROM TimeEntries te
-            JOIN Matters m ON te.matter_id = m.id
+        selectNew.CommandText = $"""
+            {TimeEntrySelect}
             WHERE te.rowid = last_insert_rowid();
             """;
         using var newReader = selectNew.ExecuteReader();
