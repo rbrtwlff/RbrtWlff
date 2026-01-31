@@ -7,7 +7,7 @@ namespace AkteTimer.Views;
 
 public partial class BillingWizardWindow : Window
 {
-    private readonly BillingWizardViewModel _viewModel;
+    private readonly BillingWizardViewModel? _viewModel;
 
     public BillingWizardWindow(long batchId, DatabaseService databaseService)
     {
@@ -19,7 +19,7 @@ public partial class BillingWizardWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Der Abrechnungsassistent konnte nicht geladen werden: {ex.Message}", "Abrechnung", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Der Abrechnungsassistent konnte nicht geladen werden: {ex.Message}", "Abrechnung", MessageBoxButton.OK, MessageBoxImage.Error);
             Close();
         }
     }
