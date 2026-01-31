@@ -1,6 +1,8 @@
 using System.Globalization;
 using AkteTimer.Models;
 using AkteTimer.ViewModels;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace AkteTimer.Services;
 
@@ -87,5 +89,63 @@ public sealed class BillingService
             .ToList();
 
         return (batch.Id, sortedCaseIds);
+    }
+
+    public void ExportBillingBatchToPdf(long batchId, string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("PDF-Dateipfad darf nicht leer sein.", nameof(filePath));
+        }
+
+        var batch = _database.GetBillingBatchById(batchId)
+                    ?? throw new InvalidOperationException("Abrechnungsbatch nicht gefunden.");
+
+        var caseData = _database.GetBillingCasesForBatch(batchId)
+            .Select(billingCase =>
+            {
+                var matter = _database.GetMatterById(billingCase.MatterId)
+                             ?? throw new InvalidOperationException("Akte nicht gefunden.");
+                var timeEntries = _database.GetEntriesForMatter(matter.Id);
+                var rvgSignature = ComputeRvgSignature(matter);
+                var rvgFeeSummary = BuildRvgFeeSummary(matter);
+                return new BillingCasePdfData(billingCase, matter, timeEntries, rvgSignature, rvgFeeSummary);
+            })
+            .OrderBy(item => item.Matter.FileRef, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        QuestPDF.Settings.License = LicenseType.Community;
+        var document = new BillingBatchPdfDocument(batch, caseData);
+        document.GeneratePdf(filePath);
+
+        _database.UpdateBillingBatchPdfPath(batchId, filePath);
+    }
+
+    private static string BuildRvgFeeSummary(Matter matter)
+    {
+        var parts = new List<string>
+        {
+            matter.BusinessFee13Enabled ? "Geschäft 1,3" : "Geschäft 1,3 aus",
+            matter.TermFee12Enabled ? "Termin 1,2" : "Termin 1,2 aus",
+            matter.SettlementFee10Enabled ? "Vergleich 1,0" : "Vergleich 1,0 aus",
+            matter.SettlementFee15Enabled ? "Vergleich 1,5" : "Vergleich 1,5 aus"
+        };
+
+        if (matter.CustomFeeFactor.HasValue)
+        {
+            parts.Add($"Custom-Faktor {matter.CustomFeeFactor.Value.ToString("N2", CultureInfo.GetCultureInfo("de-DE"))}");
+        }
+        else
+        {
+            parts.Add("Custom-Faktor aus");
+        }
+
+        return string.Join(" · ", parts);
     }
 }
