@@ -1,7 +1,7 @@
 using System;
 using AkteTimer.Models;
 using AkteTimer.Services;
-using Microsoft.Win32;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using MessageBox = System.Windows.MessageBox;
 
 namespace AkteTimer.ViewModels;
