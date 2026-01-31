@@ -113,7 +113,7 @@ public sealed class BillingBatchPdfDocument : IDocument
                 {
                     foreach (var entry in caseData.TimeEntries)
                     {
-                        var duration = TimeEntryCalculations.GetDuration(entry);
+                        var duration = AkteTimer.ViewModels.TimeEntryCalculations.GetDuration(entry);
                         table.Cell().Element(CellStyle).Text(entry.StartUtc.ToLocalTime().ToString("dd.MM.yyyy", _culture));
                         table.Cell().Element(CellStyle).Text(duration.ToString(@"hh\:mm"));
                         table.Cell().Element(CellStyle).Text(entry.Note ?? string.Empty);

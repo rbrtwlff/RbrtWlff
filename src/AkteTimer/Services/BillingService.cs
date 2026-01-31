@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using AkteTimer.Models;
-using AkteTimer.ViewModels;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 
@@ -51,9 +50,9 @@ public sealed class BillingService
 
             var trackedMinutes = group.Sum(entry =>
             {
-                var duration = TimeEntryCalculations.GetDuration(entry);
-                var actualMinutes = TimeEntryCalculations.GetActualMinutes(duration);
-                return TimeEntryCalculations.GetRoundedMinutes(actualMinutes);
+                var duration = AkteTimer.ViewModels.TimeEntryCalculations.GetDuration(entry);
+                var actualMinutes = AkteTimer.ViewModels.TimeEntryCalculations.GetActualMinutes(duration);
+                return AkteTimer.ViewModels.TimeEntryCalculations.GetRoundedMinutes(actualMinutes);
             });
 
             var trackedAmount = matter.BillingType == BillingType.Hourly
