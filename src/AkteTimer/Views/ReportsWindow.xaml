@@ -95,6 +95,12 @@
           <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
             <Button Content="Export CSV" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" />
             <Button Content="Export Excel" Command="{Binding ExportExcelCommand}" />
+            <Button Content="Abrechnung (Ansicht)"
+                    Command="{Binding CreateBillingDraftsFromViewCommand}"
+                    Margin="16,0,0,0" />
+            <Button Content="Abrechnung (offen)"
+                    Command="{Binding CreateBillingDraftsFromAllOpenCommand}"
+                    Margin="8,0,0,0" />
             <CheckBox Content="Beschreibung anzeigen"
                       Margin="16,0,0,0"
                       VerticalAlignment="Center"

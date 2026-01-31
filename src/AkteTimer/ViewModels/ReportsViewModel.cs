@@ -5,8 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Input;
 using AkteTimer.Models;
 using AkteTimer.Services;
+using AkteTimer.Views;
 using ClosedXML.Excel;
 using Microsoft.Win32;
 using MessageBox = System.Windows.MessageBox;
@@ -17,6 +19,8 @@ namespace AkteTimer.ViewModels;
 public sealed class ReportsViewModel : ViewModelBase
 {
     private readonly TimeEntryService _timeEntryService;
+    private readonly DatabaseService _databaseService;
+    private readonly BillingService _billingService;
     private readonly RvgFeeTableService _rvgFeeTableService = new();
     private DateTime _fromDate;
     private DateTime _toDate;
@@ -33,16 +37,21 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly RelayCommand _exportExcelCommand;
     private readonly RelayCommand _resetMatterFilterCommand;
     private readonly RelayCommand _deleteEntryCommand;
+    private readonly RelayCommand _createBillingDraftsFromViewCommand;
+    private readonly RelayCommand _createBillingDraftsFromAllOpenCommand;
     private string _matterFilterSearchText = string.Empty;
     private MatterFilterItem? _selectedMatterFilter;
     private ICollectionView? _matterFilterView;
     private string _autoBillingHint = string.Empty;
     private bool _showAutoBillingHint;
     private bool _showDescription;
+    private List<TimeEntry> _rangeEntries = new();
 
-    public ReportsViewModel(TimeEntryService timeEntryService)
+    public ReportsViewModel(TimeEntryService timeEntryService, DatabaseService databaseService, BillingService billingService)
     {
         _timeEntryService = timeEntryService;
+        _databaseService = databaseService;
+        _billingService = billingService;
         _fromDate = DateTime.Today.AddDays(-6);
         _toDate = DateTime.Today;
 
@@ -55,6 +64,8 @@ public sealed class ReportsViewModel : ViewModelBase
         _exportExcelCommand = new RelayCommand(_ => ExportExcel(), _ => CanExport());
         _resetMatterFilterCommand = new RelayCommand(_ => ResetMatterFilter(), _ => CanResetMatterFilter());
         _deleteEntryCommand = new RelayCommand(DeleteEntry);
+        _createBillingDraftsFromViewCommand = new RelayCommand(_ => CreateBillingDraftsFromView());
+        _createBillingDraftsFromAllOpenCommand = new RelayCommand(_ => CreateBillingDraftsFromAllOpen());
 
         _matterFilterView = CollectionViewSource.GetDefaultView(MatterFilters);
         _matterFilterView.Filter = FilterMatter;
@@ -85,6 +96,10 @@ public sealed class ReportsViewModel : ViewModelBase
     public RelayCommand ResetMatterFilterCommand => _resetMatterFilterCommand;
 
     public RelayCommand DeleteEntryCommand => _deleteEntryCommand;
+
+    public ICommand CreateBillingDraftsFromViewCommand => _createBillingDraftsFromViewCommand;
+
+    public ICommand CreateBillingDraftsFromAllOpenCommand => _createBillingDraftsFromAllOpenCommand;
 
     public string AutoBillingHint
     {
@@ -348,6 +363,7 @@ public sealed class ReportsViewModel : ViewModelBase
         RangeGroups.Clear();
         MatterGroups.Clear();
         DeleteEntries.Clear();
+        _rangeEntries = new List<TimeEntry>();
 
         if (selectedMatterIds.Count == 0)
         {
@@ -362,6 +378,7 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         var entries = _timeEntryService.GetEntriesInRange(FromDate, ToDate, selectedMatterIds);
+        _rangeEntries = entries.ToList();
         RefreshDeleteEntries(entries);
         var matters = _timeEntryService.GetAllMatters();
         var matterLookup = matters.ToDictionary(matter => matter.Id);
@@ -635,6 +652,60 @@ public sealed class ReportsViewModel : ViewModelBase
         {
             MessageBox.Show(ex.Message, "Löschen", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    private void CreateBillingDraftsFromView()
+    {
+        CreateBillingDrafts(_rangeEntries);
+    }
+
+    private void CreateBillingDraftsFromAllOpen()
+    {
+        var entries = _databaseService.GetUnbilledEntries(onlyCompleted: true);
+        CreateBillingDrafts(entries);
+    }
+
+    private void CreateBillingDrafts(IEnumerable<TimeEntry> entries)
+    {
+        var entryList = entries?.ToList() ?? new List<TimeEntry>();
+        var entryIds = entryList.Select(entry => entry.Id).Distinct().ToList();
+
+        if (entryIds.Count == 0)
+        {
+            MessageBox.Show("Keine Einträge", "Abrechnung", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var billedEntryIds = entryList
+            .Where(entry => entry.Billed)
+            .Select(entry => entry.Id)
+            .Distinct()
+            .ToList();
+
+        if (billedEntryIds.Count > 0)
+        {
+            var result = MessageBox.Show(
+                "Es sind bereits abgerechnete Einträge enthalten. Ausschließen?",
+                "Abrechnung",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.Yes);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                entryIds = entryIds.Except(billedEntryIds).ToList();
+                if (entryIds.Count == 0)
+                {
+                    MessageBox.Show("Keine Einträge", "Abrechnung", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+            }
+        }
+
+        var batch = _billingService.CreateBillingBatchDraft(entryIds);
+        var wizard = new BillingWizardWindow(batch.BatchId);
+        wizard.Show();
+        wizard.Activate();
     }
 
     private void ExportCsv()
