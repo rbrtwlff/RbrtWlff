@@ -703,7 +703,7 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         var batch = _billingService.CreateBillingBatchDraft(entryIds);
-        var wizard = new BillingWizardWindow(batch.BatchId);
+        var wizard = new BillingWizardWindow(batch.BatchId, _databaseService);
         wizard.Show();
         wizard.Activate();
     }
