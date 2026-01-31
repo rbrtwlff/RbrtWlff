@@ -38,6 +38,10 @@
                 Visibility="{Binding CurrentCase.IsRvgBilling, Converter={StaticResource BoolToVis}}">
       <TextBlock Text="RVG-Status:" FontWeight="SemiBold" />
       <TextBlock Text="{Binding CurrentCase.RvgStatusText}" TextWrapping="Wrap" />
+      <CheckBox Content="Differenz abrechnen"
+                Margin="0,6,0,0"
+                IsChecked="{Binding CurrentCase.IsRvgDifferenceEnabled}"
+                Visibility="{Binding CurrentCase.CanToggleRvgDifference, Converter={StaticResource BoolToVis}}" />
     </StackPanel>
 
     <DataGrid Grid.Row="3"
