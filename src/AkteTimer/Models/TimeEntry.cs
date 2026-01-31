@@ -12,4 +12,7 @@ public sealed class TimeEntry
     public bool ManualAdjustment { get; set; }
     public string? MatterFileRef { get; set; }
     public string? Hashtag { get; set; }
+    public bool Billed { get; set; }
+    public DateTime? BilledUtc { get; set; }
+    public long? BillingBatchId { get; set; }
 }
