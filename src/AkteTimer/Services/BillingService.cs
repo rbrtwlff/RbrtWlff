@@ -111,10 +111,56 @@ public sealed class BillingService
                 var timeEntries = _database.GetEntriesForMatter(matter.Id);
                 var rvgSignature = ComputeRvgSignature(matter);
                 var rvgFeeSummary = BuildRvgFeeSummary(matter);
-                var breakdown = billingCase.BillingType == BillingType.Rvg
-                    ? RvgCalculator.CalculateBreakdown(matter, rvgFeeTableService)
-                    : null;
-                return new BillingCasePdfData(billingCase, matter, timeEntries, rvgSignature, rvgFeeSummary, breakdown);
+                RvgBreakdown? breakdown = null;
+                string? breakdownNote = null;
+                decimal displayTotal = billingCase.RvgTotal;
+
+                if (billingCase.BillingType == BillingType.Rvg)
+                {
+                    var snapshotForBatch = _database.GetRvgBillingSnapshotForBatch(batchId, matter.Id);
+                    var snapshot = snapshotForBatch;
+                    var usedSnapshot = snapshotForBatch != null;
+                    if (snapshot == null)
+                    {
+                        var latestSnapshot = _database.GetLatestRvgBillingSnapshot(matter.Id);
+                        if (latestSnapshot != null && string.Equals(latestSnapshot.Signature, rvgSignature, StringComparison.Ordinal))
+                        {
+                            snapshot = latestSnapshot;
+                            usedSnapshot = true;
+                        }
+                    }
+
+                    if (snapshot != null)
+                    {
+                        breakdown = RvgBreakdownSerializer.Deserialize(snapshot.BreakdownJson);
+                        if (breakdown == null)
+                        {
+                            breakdownNote = "ohne Aufschlüsselung, Altbestand";
+                        }
+
+                        displayTotal = snapshot.Total;
+                    }
+
+                    if (!usedSnapshot)
+                    {
+                        breakdown ??= RvgCalculator.CalculateBreakdown(matter, rvgFeeTableService);
+                    }
+
+                    if (!usedSnapshot && breakdown != null)
+                    {
+                        displayTotal = breakdown.Total;
+                    }
+                }
+
+                return new BillingCasePdfData(
+                    billingCase,
+                    matter,
+                    timeEntries,
+                    rvgSignature,
+                    rvgFeeSummary,
+                    breakdown,
+                    breakdownNote,
+                    displayTotal);
             })
             .OrderBy(item => item.Matter.FileRef, StringComparer.OrdinalIgnoreCase)
             .ToList();

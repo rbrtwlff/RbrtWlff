@@ -126,9 +126,9 @@
                       Margin="0,0,0,6"
                       Visibility="{Binding CurrentCase.HasRvgBreakdown, Converter={StaticResource BoolToVis}}">
               <DataGrid.Columns>
-                <DataGridTextColumn Header="Position" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Gebühr" Binding="{Binding Name}" Width="*" />
                 <DataGridTextColumn Header="Faktor" Binding="{Binding Factor, StringFormat=N2}" Width="90" />
-                <DataGridTextColumn Header="Basis 1,0" Binding="{Binding BaseFee, Converter={StaticResource CurrencyConverter}}" Width="120" />
+                <DataGridTextColumn Header="Basis (1,0)" Binding="{Binding BaseFee, Converter={StaticResource CurrencyConverter}}" Width="120" />
                 <DataGridTextColumn Header="Betrag" Binding="{Binding Amount, Converter={StaticResource CurrencyConverter}}" Width="120" />
               </DataGrid.Columns>
             </DataGrid>
@@ -139,7 +139,7 @@
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Visibility="{Binding CurrentCase.HasRvgBreakdown, Converter={StaticResource BoolToVis}}">
-              <TextBlock Text="Summe (Aufschlüsselung)" FontWeight="SemiBold" Margin="0,0,8,0" />
+              <TextBlock Text="Summe" FontWeight="SemiBold" Margin="0,0,8,0" />
               <TextBlock Text="{Binding CurrentCase.RvgBreakdownTotal, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
             </StackPanel>
           </StackPanel>

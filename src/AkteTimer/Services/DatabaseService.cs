@@ -1124,6 +1124,39 @@ public sealed class DatabaseService
         };
     }
 
+    public RvgBillingSnapshot? GetRvgBillingSnapshotForBatch(long batchId, long matterId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, matter_id, billed_utc, signature, total, batch_id, breakdown_json
+            FROM RvgBillingSnapshots
+            WHERE matter_id = $matter_id
+              AND batch_id = $batch_id
+            ORDER BY billed_utc DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        command.Parameters.AddWithValue("$batch_id", batchId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new RvgBillingSnapshot
+        {
+            Id = reader.GetInt64(0),
+            MatterId = reader.GetInt64(1),
+            BilledUtc = DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
+            Signature = reader.GetString(3),
+            Total = (decimal)reader.GetDouble(4),
+            BatchId = reader.GetInt64(5),
+            BreakdownJson = reader.IsDBNull(6) ? null : reader.GetString(6)
+        };
+    }
+
     public List<BillingCase> GetBillingCasesForBatch(long batchId)
     {
         using var connection = CreateConnection();
