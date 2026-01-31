@@ -1,7 +1,44 @@
+using System.Linq;
+using AkteTimer.Models;
+
 namespace AkteTimer.Services;
 
 public static class RvgCalculator
 {
+    public static RvgBreakdown CalculateBreakdown(Matter matter, RvgFeeTableService tableService)
+    {
+        var baseFee = tableService.LookupFee1_0(matter.SubjectValueEur);
+        var items = new List<RvgLineItem>();
+
+        if (matter.BusinessFee13Enabled)
+        {
+            items.Add(CreateLineItem("Geschäftsgebühr", 1.3m, baseFee));
+        }
+
+        if (matter.TermFee12Enabled)
+        {
+            items.Add(CreateLineItem("Terminsgebühr", 1.2m, baseFee));
+        }
+
+        if (matter.SettlementFee10Enabled)
+        {
+            items.Add(CreateLineItem("Einigungsgebühr", 1.0m, baseFee));
+        }
+
+        if (matter.SettlementFee15Enabled)
+        {
+            items.Add(CreateLineItem("Einigungsgebühr", 1.5m, baseFee));
+        }
+
+        if (matter.CustomFeeFactor.HasValue)
+        {
+            items.Add(CreateLineItem("Gebühr (Custom)", matter.CustomFeeFactor.Value, baseFee));
+        }
+
+        var total = RoundCurrency(items.Sum(item => item.Amount));
+        return new RvgBreakdown(items, total);
+    }
+
     public static decimal CalculateEstimate(decimal fee1_0Eur, decimal feeFactor, decimal feeModifierSum)
     {
         return RoundCurrency(fee1_0Eur * (feeFactor + feeModifierSum));
@@ -67,6 +104,12 @@ public static class RvgCalculator
     {
         var totalHours = (int)timeSpan.TotalHours;
         return $"{totalHours:00}:{timeSpan.Minutes:00}";
+    }
+
+    private static RvgLineItem CreateLineItem(string name, decimal factor, decimal baseFee)
+    {
+        var amount = RoundCurrency(baseFee * factor);
+        return new RvgLineItem(name, factor, baseFee, amount);
     }
 }
 

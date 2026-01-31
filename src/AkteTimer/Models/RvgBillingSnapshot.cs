@@ -10,4 +10,5 @@ public sealed class RvgBillingSnapshot
     public string Signature { get; set; } = string.Empty;
     public decimal Total { get; set; }
     public long BatchId { get; set; }
+    public string? BreakdownJson { get; set; }
 }

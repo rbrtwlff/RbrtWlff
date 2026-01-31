@@ -102,6 +102,7 @@ public sealed class BillingService
         var batch = _database.GetBillingBatchById(batchId)
                     ?? throw new InvalidOperationException("Abrechnungsbatch nicht gefunden.");
 
+        var rvgFeeTableService = new RvgFeeTableService();
         var caseData = _database.GetBillingCasesForBatch(batchId)
             .Select(billingCase =>
             {
@@ -110,7 +111,10 @@ public sealed class BillingService
                 var timeEntries = _database.GetEntriesForMatter(matter.Id);
                 var rvgSignature = ComputeRvgSignature(matter);
                 var rvgFeeSummary = BuildRvgFeeSummary(matter);
-                return new BillingCasePdfData(billingCase, matter, timeEntries, rvgSignature, rvgFeeSummary);
+                var breakdown = billingCase.BillingType == BillingType.Rvg
+                    ? RvgCalculator.CalculateBreakdown(matter, rvgFeeTableService)
+                    : null;
+                return new BillingCasePdfData(billingCase, matter, timeEntries, rvgSignature, rvgFeeSummary, breakdown);
             })
             .OrderBy(item => item.Matter.FileRef, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -144,6 +148,7 @@ public sealed class BillingService
         }
 
         var cases = _database.GetBillingCasesForBatch(batchId);
+        var rvgFeeTableService = new RvgFeeTableService();
         var finalizedUtc = DateTime.UtcNow;
         var matterIds = cases
             .Select(billingCase => billingCase.MatterId)
@@ -163,6 +168,10 @@ public sealed class BillingService
                 throw new InvalidOperationException("RVG-Signatur fehlt für die Finalisierung.");
             }
 
+            var matter = _database.GetMatterById(billingCase.MatterId)
+                         ?? throw new InvalidOperationException("Akte nicht gefunden.");
+            var breakdown = RvgCalculator.CalculateBreakdown(matter, rvgFeeTableService);
+            var breakdownJson = RvgBreakdownSerializer.Serialize(breakdown);
             var total = billingCase.RvgIsDifference
                 ? billingCase.RvgBaseTotal + billingCase.RvgTotal
                 : billingCase.RvgTotal;
@@ -173,7 +182,8 @@ public sealed class BillingService
                 BilledUtc = finalizedUtc,
                 Signature = billingCase.RvgSignature,
                 Total = total,
-                BatchId = batchId
+                BatchId = batchId,
+                BreakdownJson = breakdownJson
             });
         }
 

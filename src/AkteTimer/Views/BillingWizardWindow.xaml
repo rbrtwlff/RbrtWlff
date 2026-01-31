@@ -97,20 +97,67 @@
       </Border>
     </StackPanel>
 
-    <DataGrid Grid.Row="3"
-              ItemsSource="{Binding CurrentCase.TimeEntries}"
-              AutoGenerateColumns="False"
-              IsReadOnly="True"
-              CanUserAddRows="False"
-              HeadersVisibility="Column"
-              Margin="0,0,0,8"
-              Visibility="{Binding IsCasePage, Converter={StaticResource BoolToVis}}">
-      <DataGrid.Columns>
-        <DataGridTextColumn Header="Datum" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy}" Width="140" />
-        <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" Width="100" />
-        <DataGridTextColumn Header="Notiz" Binding="{Binding Note}" Width="*" />
-      </DataGrid.Columns>
-    </DataGrid>
+    <StackPanel Grid.Row="3"
+                Margin="0,0,0,8"
+                Visibility="{Binding IsCasePage, Converter={StaticResource BoolToVis}}">
+      <StackPanel Margin="0,0,0,8">
+        <StackPanel.Style>
+          <Style TargetType="StackPanel">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                  <Condition Binding="{Binding IsCasePage}" Value="True" />
+                  <Condition Binding="{Binding CurrentCase.IsRvgBilling}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Visible" />
+              </MultiDataTrigger>
+            </Style.Triggers>
+          </Style>
+        </StackPanel.Style>
+        <TextBlock Text="RVG-Aufschlüsselung" FontWeight="SemiBold" />
+        <Border BorderBrush="LightGray" BorderThickness="1" Padding="8" Margin="0,6,0,0">
+          <StackPanel>
+            <DataGrid ItemsSource="{Binding CurrentCase.RvgBreakdownItems}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      HeadersVisibility="Column"
+                      Margin="0,0,0,6"
+                      Visibility="{Binding CurrentCase.HasRvgBreakdown, Converter={StaticResource BoolToVis}}">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Position" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Faktor" Binding="{Binding Factor, StringFormat=N2}" Width="90" />
+                <DataGridTextColumn Header="Basis 1,0" Binding="{Binding BaseFee, Converter={StaticResource CurrencyConverter}}" Width="120" />
+                <DataGridTextColumn Header="Betrag" Binding="{Binding Amount, Converter={StaticResource CurrencyConverter}}" Width="120" />
+              </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="{Binding CurrentCase.RvgBreakdownNote, StringFormat=({0})}"
+                       Foreground="DimGray"
+                       Margin="0,0,0,6"
+                       Visibility="{Binding CurrentCase.HasRvgBreakdownNote, Converter={StaticResource BoolToVis}}" />
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Visibility="{Binding CurrentCase.HasRvgBreakdown, Converter={StaticResource BoolToVis}}">
+              <TextBlock Text="Summe (Aufschlüsselung)" FontWeight="SemiBold" Margin="0,0,8,0" />
+              <TextBlock Text="{Binding CurrentCase.RvgBreakdownTotal, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <DataGrid ItemsSource="{Binding CurrentCase.TimeEntries}"
+                AutoGenerateColumns="False"
+                IsReadOnly="True"
+                CanUserAddRows="False"
+                HeadersVisibility="Column">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Datum" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy}" Width="140" />
+          <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" Width="100" />
+          <DataGridTextColumn Header="Notiz" Binding="{Binding Note}" Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </StackPanel>
 
     <StackPanel Grid.Row="4"
                 Margin="0,0,0,8">

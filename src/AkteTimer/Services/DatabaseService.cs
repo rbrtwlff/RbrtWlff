@@ -126,7 +126,8 @@ public sealed class DatabaseService
               billed_utc TEXT NOT NULL,
               signature TEXT NOT NULL,
               total REAL NOT NULL,
-              batch_id INTEGER NOT NULL
+              batch_id INTEGER NOT NULL,
+              breakdown_json TEXT NULL
             );
 
             CREATE UNIQUE INDEX IF NOT EXISTS ux_time_entries_single_running
@@ -136,6 +137,7 @@ public sealed class DatabaseService
         EnsureHashtagColumn(connection);
         EnsureMatterColumns(connection);
         EnsureTimeEntryBillingColumns(connection);
+        EnsureRvgBillingSnapshotColumns(connection);
     }
 
     public SqliteConnection CreateConnection()
@@ -1066,14 +1068,15 @@ public sealed class DatabaseService
                 using var insertSnapshot = connection.CreateCommand();
                 insertSnapshot.Transaction = transaction;
                 insertSnapshot.CommandText = """
-                    INSERT INTO RvgBillingSnapshots (matter_id, billed_utc, signature, total, batch_id)
-                    VALUES ($matter_id, $billed_utc, $signature, $total, $batch_id);
+                    INSERT INTO RvgBillingSnapshots (matter_id, billed_utc, signature, total, batch_id, breakdown_json)
+                    VALUES ($matter_id, $billed_utc, $signature, $total, $batch_id, $breakdown_json);
                     """;
                 insertSnapshot.Parameters.AddWithValue("$matter_id", snapshot.MatterId);
                 insertSnapshot.Parameters.AddWithValue("$billed_utc", snapshot.BilledUtc.ToString("o"));
                 insertSnapshot.Parameters.AddWithValue("$signature", snapshot.Signature);
                 insertSnapshot.Parameters.AddWithValue("$total", (double)snapshot.Total);
                 insertSnapshot.Parameters.AddWithValue("$batch_id", snapshot.BatchId);
+                insertSnapshot.Parameters.AddWithValue("$breakdown_json", snapshot.BreakdownJson ?? (object)DBNull.Value);
                 insertSnapshot.ExecuteNonQuery();
             }
 
@@ -1096,7 +1099,7 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, matter_id, billed_utc, signature, total, batch_id
+            SELECT id, matter_id, billed_utc, signature, total, batch_id, breakdown_json
             FROM RvgBillingSnapshots
             WHERE matter_id = $matter_id
             ORDER BY billed_utc DESC
@@ -1116,7 +1119,8 @@ public sealed class DatabaseService
             BilledUtc = DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
             Signature = reader.GetString(3),
             Total = (decimal)reader.GetDouble(4),
-            BatchId = reader.GetInt64(5)
+            BatchId = reader.GetInt64(5),
+            BreakdownJson = reader.IsDBNull(6) ? null : reader.GetString(6)
         };
     }
 
@@ -1191,7 +1195,7 @@ public sealed class DatabaseService
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, matter_id, billed_utc, signature, total, batch_id
+            SELECT id, matter_id, billed_utc, signature, total, batch_id, breakdown_json
             FROM RvgBillingSnapshots
             WHERE billed_utc >= $start
               AND billed_utc < $end
@@ -1210,7 +1214,8 @@ public sealed class DatabaseService
                 BilledUtc = DateTime.Parse(reader.GetString(2)).ToUniversalTime(),
                 Signature = reader.GetString(3),
                 Total = (decimal)reader.GetDouble(4),
-                BatchId = reader.GetInt64(5)
+                BatchId = reader.GetInt64(5),
+                BreakdownJson = reader.IsDBNull(6) ? null : reader.GetString(6)
             });
         }
 
@@ -1454,5 +1459,26 @@ public sealed class DatabaseService
             alter.CommandText = statement;
             alter.ExecuteNonQuery();
         }
+    }
+
+    private static void EnsureRvgBillingSnapshotColumns(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(RvgBillingSnapshots);";
+        using var reader = command.ExecuteReader();
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        if (columns.Contains("breakdown_json"))
+        {
+            return;
+        }
+
+        using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE RvgBillingSnapshots ADD COLUMN breakdown_json TEXT NULL;";
+        alter.ExecuteNonQuery();
     }
 }
