@@ -5,12 +5,16 @@
         Title="Abrechnung" Height="620" Width="900">
   <Window.Resources>
     <converters:FlexibleDecimalConverter x:Key="CurrencyConverter" Format="N2" Suffix="€" />
+    <converters:FlexibleDecimalConverter x:Key="HoursConverter" Format="N2" Suffix="h" />
+    <converters:FlexibleDecimalConverter x:Key="HoursNullableConverter" Format="N2" Suffix="h" AllowNull="True" />
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
   </Window.Resources>
   <Grid Margin="16">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
@@ -42,7 +46,72 @@
       </DataGrid.Columns>
     </DataGrid>
 
-    <Grid Grid.Row="3">
+    <StackPanel Grid.Row="3"
+                Margin="0,0,0,8"
+                Visibility="{Binding CurrentCase.IsHourlyBilling, Converter={StaticResource BoolToVis}}">
+      <TextBlock Text="Dummy/Nachtrag (nur Stundenabrechnung)" FontWeight="SemiBold" />
+      <Border BorderBrush="LightGray" BorderThickness="1" Padding="8" Margin="0,6,0,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140" />
+            <ColumnDefinition Width="100" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Text="{Binding CurrentCase.DummyRowLabel}" FontWeight="SemiBold" Foreground="DarkSlateBlue" />
+          <TextBlock Grid.Column="1"
+                     Text="{Binding CurrentCase.DummyDurationText}"
+                     FontWeight="SemiBold" />
+          <TextBlock Grid.Column="2"
+                     Text="{Binding CurrentCase.DummyRowNote}"
+                     TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="160" />
+          <ColumnDefinition Width="240" />
+          <ColumnDefinition Width="24" />
+          <ColumnDefinition Width="160" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dummy-Stunden" VerticalAlignment="Center" />
+        <TextBox Grid.Row="0"
+                 Grid.Column="1"
+                 Text="{Binding CurrentCase.DummyHours, Converter={StaticResource HoursConverter}, UpdateSourceTrigger=PropertyChanged}"
+                 IsEnabled="{Binding CurrentCase.IsDummyHoursEditable}" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Dummy-Grund" VerticalAlignment="Top" Margin="0,6,0,0" />
+        <TextBox Grid.Row="1"
+                 Grid.Column="1"
+                 Grid.ColumnSpan="4"
+                 Height="48"
+                 TextWrapping="Wrap"
+                 AcceptsReturn="True"
+                 Margin="0,6,0,0"
+                 Text="{Binding CurrentCase.DummyReason, UpdateSourceTrigger=PropertyChanged}" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Zielsumme (optional)" VerticalAlignment="Center" Margin="0,6,0,0" />
+        <TextBox Grid.Row="2"
+                 Grid.Column="1"
+                 Margin="0,6,0,0"
+                 Text="{Binding CurrentCase.TargetTotalHours, Converter={StaticResource HoursNullableConverter}, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock Grid.Row="2"
+                   Grid.Column="3"
+                   Grid.ColumnSpan="2"
+                   Margin="0,6,0,0"
+                   Text="Wenn gesetzt, überschreibt es die Gesamtsumme; Dummy wird automatisch als Differenz berechnet."
+                   TextWrapping="Wrap"
+                   Foreground="DimGray" />
+      </Grid>
+    </StackPanel>
+
+    <Grid Grid.Row="4">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
@@ -56,6 +125,14 @@
           <TextBlock Text="Tracked Betrag" FontSize="11" Foreground="DimGray" />
           <TextBlock Text="{Binding CurrentCase.TrackedAmount, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
         </StackPanel>
+        <StackPanel Margin="0,0,24,0" Visibility="{Binding CurrentCase.IsHourlyBilling, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="Dummy Minuten" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.DummyMinutes}" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Margin="0,0,24,0" Visibility="{Binding CurrentCase.IsHourlyBilling, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="Dummy Betrag" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.DummyAmount, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
+        </StackPanel>
         <StackPanel Margin="0,0,24,0">
           <TextBlock Text="Gesamt Minuten" FontSize="11" Foreground="DimGray" />
           <TextBlock Text="{Binding CurrentCase.TotalMinutes}" FontWeight="SemiBold" />
@@ -67,6 +144,7 @@
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
         <Button Content="Zurück" Width="90" Command="{Binding PrevCommand}" Margin="0,0,8,0" />
+        <Button Content="Speichern" Width="90" Command="{Binding SaveCurrentCaseCommand}" Margin="0,0,8,0" />
         <Button Content="Freigeben" Width="90" Command="{Binding ApproveCurrentCaseCommand}" Margin="0,0,8,0" />
         <Button Content="Weiter" Width="90" Command="{Binding NextCommand}" Margin="0,0,8,0" />
         <Button Content="Schließen" Width="90" Click="OnClose" />
