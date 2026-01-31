@@ -1,23 +1,73 @@
 <Window x:Class="AkteTimer.Views.BillingWizardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Abrechnung" Height="240" Width="420">
+        xmlns:converters="clr-namespace:AkteTimer.Converters"
+        Title="Abrechnung" Height="620" Width="900">
+  <Window.Resources>
+    <converters:FlexibleDecimalConverter x:Key="CurrencyConverter" Format="N2" Suffix="€" />
+  </Window.Resources>
   <Grid Margin="16">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <TextBlock x:Name="BatchText"
-               FontSize="14"
+
+    <TextBlock FontSize="16"
                FontWeight="SemiBold"
-               TextWrapping="Wrap" />
-    <TextBlock Grid.Row="1"
-               Margin="0,12,0,0"
                TextWrapping="Wrap"
-               Text="Der Abrechnungsentwurf wurde erstellt. Bitte schließen Sie dieses Fenster, um fortzufahren." />
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-      <Button Content="Schließen" Width="90" Click="OnClose" />
+               Text="{Binding HeaderText}" />
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,8">
+      <TextBlock Text="Akte:" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding CurrentCase.FileRef}" Margin="6,0,16,0" />
+      <TextBlock Text="Abrechnung:" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding CurrentCase.BillingType}" Margin="6,0,0,0" />
     </StackPanel>
+
+    <DataGrid Grid.Row="2"
+              ItemsSource="{Binding CurrentCase.TimeEntries}"
+              AutoGenerateColumns="False"
+              IsReadOnly="True"
+              CanUserAddRows="False"
+              HeadersVisibility="Column"
+              Margin="0,0,0,8">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Datum" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy}" Width="140" />
+        <DataGridTextColumn Header="Dauer" Binding="{Binding DurationText}" Width="100" />
+        <DataGridTextColumn Header="Notiz" Binding="{Binding Note}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <Grid Grid.Row="3">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <StackPanel Margin="0,0,24,0">
+          <TextBlock Text="Tracked Minuten" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.TrackedMinutes}" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Margin="0,0,24,0">
+          <TextBlock Text="Tracked Betrag" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.TrackedAmount, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Margin="0,0,24,0">
+          <TextBlock Text="Gesamt Minuten" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.TotalMinutes}" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Gesamt Betrag" FontSize="11" Foreground="DimGray" />
+          <TextBlock Text="{Binding CurrentCase.TotalAmount, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
+        </StackPanel>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Content="Zurück" Width="90" Command="{Binding PrevCommand}" Margin="0,0,8,0" />
+        <Button Content="Weiter" Width="90" Command="{Binding NextCommand}" Margin="0,0,8,0" />
+        <Button Content="Schließen" Width="90" Click="OnClose" />
+      </StackPanel>
+    </Grid>
   </Grid>
 </Window>
