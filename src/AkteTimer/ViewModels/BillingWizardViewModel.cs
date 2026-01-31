@@ -60,7 +60,14 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 timeEntryViewModels,
                 rvgEvaluation.StatusText,
                 rvgEvaluation.Total,
-                rvgEvaluation.IsApprovalBlocked));
+                rvgEvaluation.IsApprovalBlocked,
+                rvgEvaluation.CanToggleDifference,
+                rvgEvaluation.IsDifference,
+                rvgEvaluation.BaseSignature,
+                rvgEvaluation.BaseTotal,
+                rvgEvaluation.CurrentSignature,
+                rvgEvaluation.CurrentTotal,
+                OnRvgDifferenceChanged));
         }
 
         _currentIndex = 0;
@@ -179,6 +186,74 @@ public sealed class BillingWizardViewModel : ViewModelBase
         _saveCommand.RaiseCanExecuteChanged();
     }
 
+    private void OnRvgDifferenceChanged(BillingCaseDisplayViewModel caseViewModel, bool isDifferenceEnabled)
+    {
+        if (!caseViewModel.IsRvgBilling || !caseViewModel.CanToggleRvgDifference)
+        {
+            return;
+        }
+
+        if (isDifferenceEnabled)
+        {
+            var delta = caseViewModel.RvgCurrentTotal - caseViewModel.RvgBaseTotal;
+            var hasNegativeDelta = delta < 0m;
+            var safeDelta = hasNegativeDelta ? 0m : delta;
+            var statusText = hasNegativeDelta
+                ? "RVG Differenz negativ – Freigabe gesperrt."
+                : "RVG Differenz wird abgerechnet.";
+            if (hasNegativeDelta)
+            {
+                MessageBox.Show(
+                    "Die RVG-Differenz ist negativ. Die Freigabe wurde gesperrt.",
+                    "Abrechnung",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+
+            caseViewModel.UpdateRvgDifferenceState(
+                statusText,
+                safeDelta,
+                hasNegativeDelta,
+                true,
+                caseViewModel.RvgBaseSignature,
+                caseViewModel.RvgBaseTotal,
+                caseViewModel.RvgCurrentSignature,
+                caseViewModel.RvgCurrentTotal);
+            _databaseService.UpdateBillingCaseRvgData(
+                caseViewModel.BillingCaseId,
+                caseViewModel.RvgCurrentSignature,
+                safeDelta,
+                true,
+                caseViewModel.RvgBaseSignature,
+                caseViewModel.RvgBaseTotal);
+        }
+        else
+        {
+            var statusText = caseViewModel.RvgBaseSignature == null
+                ? "RVG bereit zur Abrechnung."
+                : "RVG neuer Tatbestand – Freigabe möglich.";
+            caseViewModel.UpdateRvgDifferenceState(
+                statusText,
+                caseViewModel.RvgCurrentTotal,
+                false,
+                false,
+                caseViewModel.RvgBaseSignature,
+                caseViewModel.RvgBaseTotal,
+                caseViewModel.RvgCurrentSignature,
+                caseViewModel.RvgCurrentTotal);
+            _databaseService.UpdateBillingCaseRvgData(
+                caseViewModel.BillingCaseId,
+                caseViewModel.RvgCurrentSignature,
+                caseViewModel.RvgCurrentTotal,
+                false,
+                null,
+                0m);
+        }
+
+        NotifyPropertyChanged(nameof(CurrentCase));
+        _approveCommand.RaiseCanExecuteChanged();
+    }
+
     private bool SaveCurrentCase()
     {
         if (CurrentCase == null || !CurrentCase.IsHourlyBilling)
@@ -221,7 +296,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
     {
         if (billingCase.BillingType != BillingType.Rvg)
         {
-            return new RvgBillingEvaluation(string.Empty, 0m, false);
+            return new RvgBillingEvaluation(string.Empty, 0m, false, false, null, 0m, string.Empty, 0m, false);
         }
 
         var signature = BillingService.ComputeRvgSignature(matter);
@@ -231,17 +306,28 @@ public sealed class BillingWizardViewModel : ViewModelBase
             return new RvgBillingEvaluation(
                 "RVG bereits abgerechnet – kein neuer Tatbestand (Freigabe gesperrt).",
                 0m,
-                true);
+                true,
+                false,
+                snapshot.Signature,
+                snapshot.Total,
+                signature,
+                0m,
+                false);
         }
 
         var total = CalculateRvgTotal(matter);
-        _databaseService.UpdateBillingCaseRvgData(billingCase.Id, signature, total);
+        var canToggleDifference = snapshot != null;
+        var useDifference = billingCase.RvgIsDifference && canToggleDifference;
+        var evaluation = BuildRvgDifferenceEvaluation(signature, total, snapshot, useDifference);
+        _databaseService.UpdateBillingCaseRvgData(
+            billingCase.Id,
+            signature,
+            evaluation.Total,
+            evaluation.IsDifference,
+            evaluation.BaseSignature,
+            evaluation.BaseTotal);
 
-        var statusText = snapshot == null
-            ? "RVG bereit zur Abrechnung."
-            : "RVG neuer Tatbestand – Freigabe möglich.";
-
-        return new RvgBillingEvaluation(statusText, total, false);
+        return evaluation;
     }
 
     private decimal CalculateRvgTotal(Matter matter)
@@ -257,11 +343,65 @@ public sealed class BillingWizardViewModel : ViewModelBase
         return RvgCalculator.RoundCurrency(businessFee + termFee + settlement10Fee + settlement15Fee + customFee);
     }
 
-    private readonly record struct RvgBillingEvaluation(string StatusText, decimal Total, bool IsApprovalBlocked);
+    private RvgBillingEvaluation BuildRvgDifferenceEvaluation(
+        string signature,
+        decimal currentTotal,
+        RvgBillingSnapshot? snapshot,
+        bool useDifference)
+    {
+        var canToggleDifference = snapshot != null;
+        if (useDifference && snapshot != null)
+        {
+            var delta = currentTotal - snapshot.Total;
+            var hasNegativeDelta = delta < 0m;
+            var safeDelta = hasNegativeDelta ? 0m : delta;
+            var statusText = hasNegativeDelta
+                ? "RVG Differenz negativ – Freigabe gesperrt."
+                : "RVG Differenz wird abgerechnet.";
+            return new RvgBillingEvaluation(
+                statusText,
+                safeDelta,
+                hasNegativeDelta,
+                canToggleDifference,
+                snapshot.Signature,
+                snapshot.Total,
+                signature,
+                currentTotal,
+                true);
+        }
+
+        var defaultStatusText = snapshot == null
+            ? "RVG bereit zur Abrechnung."
+            : "RVG neuer Tatbestand – Freigabe möglich.";
+
+        return new RvgBillingEvaluation(
+            defaultStatusText,
+            currentTotal,
+            false,
+            canToggleDifference,
+            snapshot?.Signature,
+            snapshot?.Total ?? 0m,
+            signature,
+            currentTotal,
+            false);
+    }
+
+    private readonly record struct RvgBillingEvaluation(
+        string StatusText,
+        decimal Total,
+        bool IsApprovalBlocked,
+        bool CanToggleDifference,
+        string? BaseSignature,
+        decimal BaseTotal,
+        string CurrentSignature,
+        decimal CurrentTotal,
+        bool IsDifference);
 }
 
 public sealed class BillingCaseDisplayViewModel : ViewModelBase
 {
+    private readonly Action<BillingCaseDisplayViewModel, bool>? _onRvgDifferenceChanged;
+
     public BillingCaseDisplayViewModel(
         long billingCaseId,
         string fileRef,
@@ -278,7 +418,14 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         IReadOnlyList<TimeEntryRowViewModel> timeEntries,
         string rvgStatusText,
         decimal rvgTotal,
-        bool isRvgApprovalBlocked)
+        bool isRvgApprovalBlocked,
+        bool canToggleRvgDifference,
+        bool isRvgDifferenceEnabled,
+        string? rvgBaseSignature,
+        decimal rvgBaseTotal,
+        string rvgCurrentSignature,
+        decimal rvgCurrentTotal,
+        Action<BillingCaseDisplayViewModel, bool>? onRvgDifferenceChanged)
     {
         BillingCaseId = billingCaseId;
         FileRef = fileRef;
@@ -294,9 +441,16 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         _dummyHours = dummyMinutes / 60m;
         _dummyReason = dummyReason ?? string.Empty;
         TimeEntries = timeEntries;
-        RvgStatusText = rvgStatusText;
-        RvgTotal = rvgTotal;
-        IsRvgApprovalBlocked = isRvgApprovalBlocked;
+        _rvgStatusText = rvgStatusText;
+        _rvgTotal = rvgTotal;
+        _isRvgApprovalBlocked = isRvgApprovalBlocked;
+        CanToggleRvgDifference = canToggleRvgDifference;
+        _isRvgDifferenceEnabled = isRvgDifferenceEnabled;
+        RvgBaseSignature = rvgBaseSignature;
+        RvgBaseTotal = rvgBaseTotal;
+        RvgCurrentSignature = rvgCurrentSignature;
+        RvgCurrentTotal = rvgCurrentTotal;
+        _onRvgDifferenceChanged = onRvgDifferenceChanged;
     }
 
     public long BillingCaseId { get; }
@@ -317,11 +471,37 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
 
     public string ApprovalStatusText => ApprovedUtc.HasValue ? "freigegeben" : "nicht freigegeben";
 
-    public string RvgStatusText { get; }
+    public string RvgStatusText => _rvgStatusText;
 
-    public bool IsRvgApprovalBlocked { get; }
+    public bool IsRvgApprovalBlocked => _isRvgApprovalBlocked;
 
-    public decimal RvgTotal { get; }
+    public decimal RvgTotal => _rvgTotal;
+
+    public bool CanToggleRvgDifference { get; }
+
+    public bool IsRvgDifferenceEnabled
+    {
+        get => _isRvgDifferenceEnabled;
+        set
+        {
+            if (_isRvgDifferenceEnabled == value)
+            {
+                return;
+            }
+
+            _isRvgDifferenceEnabled = value;
+            NotifyPropertyChanged();
+            _onRvgDifferenceChanged?.Invoke(this, value);
+        }
+    }
+
+    public string? RvgBaseSignature { get; private set; }
+
+    public decimal RvgBaseTotal { get; private set; }
+
+    public string RvgCurrentSignature { get; private set; }
+
+    public decimal RvgCurrentTotal { get; private set; }
 
     public bool ShowRvgTotal => IsRvgBilling && !IsRvgApprovalBlocked;
 
@@ -417,6 +597,10 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     private decimal _dummyHours;
     private decimal? _targetTotalHours;
     private string _dummyReason = string.Empty;
+    private string _rvgStatusText = string.Empty;
+    private decimal _rvgTotal;
+    private bool _isRvgApprovalBlocked;
+    private bool _isRvgDifferenceEnabled;
 
     public int CalculateMinutesDelta()
     {
@@ -448,6 +632,31 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     public void SetApprovedUtc(DateTime approvedUtc)
     {
         ApprovedUtc = approvedUtc;
+    }
+
+    public void UpdateRvgDifferenceState(
+        string statusText,
+        decimal rvgTotal,
+        bool isApprovalBlocked,
+        bool isDifferenceEnabled,
+        string? baseSignature,
+        decimal baseTotal,
+        string currentSignature,
+        decimal currentTotal)
+    {
+        _rvgStatusText = statusText;
+        _rvgTotal = rvgTotal;
+        _isRvgApprovalBlocked = isApprovalBlocked;
+        _isRvgDifferenceEnabled = isDifferenceEnabled;
+        RvgBaseSignature = baseSignature;
+        RvgBaseTotal = baseTotal;
+        RvgCurrentSignature = currentSignature;
+        RvgCurrentTotal = currentTotal;
+        NotifyPropertyChanged(nameof(RvgStatusText));
+        NotifyPropertyChanged(nameof(RvgTotal));
+        NotifyPropertyChanged(nameof(IsRvgApprovalBlocked));
+        NotifyPropertyChanged(nameof(IsRvgDifferenceEnabled));
+        NotifyPropertyChanged(nameof(ShowRvgTotal));
     }
 
     private void ApplyDummyHours(decimal value, bool keepTarget)

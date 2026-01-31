@@ -976,7 +976,13 @@ public sealed class DatabaseService
         });
     }
 
-    public void UpdateBillingCaseRvgData(long caseId, string signature, decimal total)
+    public void UpdateBillingCaseRvgData(
+        long caseId,
+        string signature,
+        decimal total,
+        bool isDifference,
+        string? baseSignature,
+        decimal baseTotal)
     {
         ExecuteInTransaction((connection, transaction) =>
         {
@@ -985,11 +991,19 @@ public sealed class DatabaseService
             command.CommandText = """
                 UPDATE BillingCases
                 SET rvg_signature = $rvg_signature,
-                    rvg_total = $rvg_total
+                    rvg_total = $rvg_total,
+                    rvg_is_difference = $rvg_is_difference,
+                    rvg_base_signature = $rvg_base_signature,
+                    rvg_base_total = $rvg_base_total
                 WHERE id = $id;
                 """;
             command.Parameters.AddWithValue("$rvg_signature", signature);
             command.Parameters.AddWithValue("$rvg_total", (double)total);
+            command.Parameters.AddWithValue("$rvg_is_difference", isDifference ? 1 : 0);
+            command.Parameters.AddWithValue(
+                "$rvg_base_signature",
+                string.IsNullOrWhiteSpace(baseSignature) ? DBNull.Value : baseSignature);
+            command.Parameters.AddWithValue("$rvg_base_total", (double)baseTotal);
             command.Parameters.AddWithValue("$id", caseId);
             command.ExecuteNonQuery();
         });
