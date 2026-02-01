@@ -70,6 +70,38 @@ public sealed class TimeEntryServiceTests
         Assert.NotNull(entries[0].EndUtc);
     }
 
+    [Fact]
+    public void Start_RequiresConfirmedMatter()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"aktetimer-tests-{Guid.NewGuid():N}.db");
+        var database = new DatabaseService(dbPath);
+        database.Initialize();
+        var settings = new SettingsService(database);
+        settings.EnsureDefaults();
+        settings.SetLastMatter("456/24");
+        var service = new TimeEntryService(database, settings);
+
+        try
+        {
+            Assert.False(service.IsActiveMatterConfirmed);
+            Assert.False(service.Start());
+
+            var matter = service.CreateMatter("456/24");
+            service.SwitchMatter(matter);
+            service.Pause();
+
+            Assert.True(service.IsActiveMatterConfirmed);
+            Assert.True(service.Start());
+        }
+        finally
+        {
+            if (File.Exists(database.DatabasePath))
+            {
+                File.Delete(database.DatabasePath);
+            }
+        }
+    }
+
     private sealed class TimeEntryFixture : IDisposable
     {
         public TimeEntryFixture()

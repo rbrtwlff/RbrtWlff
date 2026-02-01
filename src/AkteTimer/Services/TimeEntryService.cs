@@ -26,11 +26,14 @@ public sealed class TimeEntryService
         _database = database;
         _settings = settings;
         ActiveMatterFileRef = _settings.LastMatter;
+        IsActiveMatterConfirmed = false;
     }
 
     public event EventHandler? StateChanged;
 
     public string? ActiveMatterFileRef { get; private set; }
+
+    public bool IsActiveMatterConfirmed { get; private set; }
 
     public bool IsRunning => GetRunningEntry() != null;
 
@@ -45,6 +48,7 @@ public sealed class TimeEntryService
     public void ResumeRunningEntry(TimeEntry entry)
     {
         ActiveMatterFileRef = entry.MatterFileRef;
+        IsActiveMatterConfirmed = true;
         if (!string.IsNullOrWhiteSpace(entry.MatterFileRef))
         {
             _settings.SetLastMatter(entry.MatterFileRef);
@@ -75,7 +79,7 @@ public sealed class TimeEntryService
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(ActiveMatterFileRef))
+        if (string.IsNullOrWhiteSpace(ActiveMatterFileRef) || !IsActiveMatterConfirmed)
         {
             return false;
         }
@@ -94,6 +98,7 @@ public sealed class TimeEntryService
         }
 
         ActiveMatterFileRef = null;
+        IsActiveMatterConfirmed = false;
         OnStateChanged();
     }
 
@@ -143,6 +148,7 @@ public sealed class TimeEntryService
 
         ActiveMatterFileRef = matter.FileRef;
         _settings.SetLastMatter(matter.FileRef);
+        IsActiveMatterConfirmed = true;
         OnStateChanged();
     }
 

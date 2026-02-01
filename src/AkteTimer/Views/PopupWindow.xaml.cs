@@ -112,6 +112,14 @@ public partial class PopupWindow : Window
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(_timeEntryService.ActiveMatterFileRef)
+                && !_timeEntryService.IsActiveMatterConfirmed)
+            {
+                MessageBox.Show("Bitte Aktenzeichen bestätigen/setzen", "Aktenzeichen bestätigen", MessageBoxButton.OK, MessageBoxImage.Information);
+                FocusInput();
+                return;
+            }
+
             if (!_timeEntryService.Start())
             {
                 vm.UpdateStatus("Bitte Akte wählen");
