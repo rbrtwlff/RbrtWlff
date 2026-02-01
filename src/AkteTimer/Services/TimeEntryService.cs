@@ -72,6 +72,18 @@ public sealed class TimeEntryService
         StopRunningEntries(DateTime.UtcNow);
     }
 
+    public TimeEntry? PauseAndReturnStoppedEntry()
+    {
+        var running = GetRunningEntry();
+        if (running == null)
+        {
+            return null;
+        }
+
+        StopRunningEntries(DateTime.UtcNow);
+        return running;
+    }
+
     public bool Start()
     {
         if (GetRunningEntry() != null)
