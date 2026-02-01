@@ -256,7 +256,7 @@ public sealed class PopupViewModel : ViewModelBase
         }
     }
 
-    public bool CanStart => IsPaused && HasActiveMatter;
+    public bool CanStart => IsPaused && HasActiveMatter && _timeEntryService.IsActiveMatterConfirmed;
 
     public bool CanPause => IsRunning;
 
