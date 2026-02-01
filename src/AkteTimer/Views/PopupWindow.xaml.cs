@@ -107,7 +107,7 @@ public partial class PopupWindow : Window
             if (_timeEntryService.IsRunning)
             {
                 PromptForHashtagIfMissing();
-                _timeEntryService.Pause();
+                vm.PauseAndTrackLastStoppedEntry();
                 vm.Refresh();
                 return;
             }
@@ -177,7 +177,12 @@ public partial class PopupWindow : Window
         var runningEntry = _timeEntryService.GetRunningEntry();
         PromptForHashtagIfMissing();
         _timeEntryService.Stop();
-        PromptForNoteIfNeeded(runningEntry);
+        var entryForPrompt = runningEntry ?? vm.ConsumeLastStoppedEntryForNotePrompt();
+        if (runningEntry != null)
+        {
+            vm.ClearLastStoppedEntryForNotePrompt();
+        }
+        PromptForNoteIfNeeded(entryForPrompt);
         vm.Refresh();
         FocusInput();
     }
@@ -220,19 +225,23 @@ public partial class PopupWindow : Window
     public void StopWithNotePrompt()
     {
         var runningEntry = _timeEntryService.GetRunningEntry();
-        if (runningEntry == null)
-        {
-            _timeEntryService.Stop();
-            return;
-        }
 
         PromptForHashtagIfMissing();
         _timeEntryService.Stop();
-        PromptForNoteIfNeeded(runningEntry);
-
+        TimeEntry? entryForPrompt = runningEntry;
         if (DataContext is PopupViewModel vm)
         {
-            vm.Refresh();
+            entryForPrompt ??= vm.ConsumeLastStoppedEntryForNotePrompt();
+            if (runningEntry != null)
+            {
+                vm.ClearLastStoppedEntryForNotePrompt();
+            }
+        }
+        PromptForNoteIfNeeded(entryForPrompt);
+
+        if (DataContext is PopupViewModel vmRefresh)
+        {
+            vmRefresh.Refresh();
         }
         FocusInput();
     }

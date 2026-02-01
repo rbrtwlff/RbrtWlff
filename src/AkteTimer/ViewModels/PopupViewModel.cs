@@ -26,6 +26,7 @@ public sealed class PopupViewModel : ViewModelBase
     private bool _hasActiveMatter;
     private string _fileRefValidationMessage = string.Empty;
     private string _selectedHashtag = string.Empty;
+    private TimeEntry? _lastStoppedEntryForNotePrompt;
 
     public PopupViewModel(TimeEntryService timeEntryService, SettingsService settingsService)
     {
@@ -262,6 +263,23 @@ public sealed class PopupViewModel : ViewModelBase
 
     public bool CanStop => !IsIdle;
 
+    public void PauseAndTrackLastStoppedEntry()
+    {
+        _lastStoppedEntryForNotePrompt = _timeEntryService.PauseAndReturnStoppedEntry();
+    }
+
+    public TimeEntry? ConsumeLastStoppedEntryForNotePrompt()
+    {
+        var entry = _lastStoppedEntryForNotePrompt;
+        _lastStoppedEntryForNotePrompt = null;
+        return entry;
+    }
+
+    public void ClearLastStoppedEntryForNotePrompt()
+    {
+        _lastStoppedEntryForNotePrompt = null;
+    }
+
     public string FileRefValidationMessage
     {
         get => _fileRefValidationMessage;
@@ -382,7 +400,14 @@ public sealed class PopupViewModel : ViewModelBase
 
     private void Toggle()
     {
-        _timeEntryService.ToggleStartPause();
+        if (_timeEntryService.IsRunning)
+        {
+            PauseAndTrackLastStoppedEntry();
+            return;
+        }
+
+        ClearLastStoppedEntryForNotePrompt();
+        _timeEntryService.Start();
     }
 
     private void LoadRecentMatters()

@@ -28,6 +28,22 @@ public sealed class TimeEntryServiceTests
     }
 
     [Fact]
+    public void PauseAndReturnStoppedEntry_ReturnsEntry()
+    {
+        using var fixture = new TimeEntryFixture();
+        var service = fixture.Service;
+        var matter = service.CreateMatter("223/24");
+
+        service.SwitchMatter(matter);
+
+        var stopped = service.PauseAndReturnStoppedEntry();
+
+        Assert.NotNull(stopped);
+        Assert.Null(service.GetRunningEntry());
+        Assert.Contains(service.GetEntriesForMatter(matter.Id), entry => entry.Id == stopped!.Id);
+    }
+
+    [Fact]
     public void StartAfterPause_CreatesNewEntry()
     {
         using var fixture = new TimeEntryFixture();
