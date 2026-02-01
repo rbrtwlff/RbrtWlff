@@ -5,7 +5,7 @@
         Title="Zeiterfassung"
         Width="420"
         SizeToContent="Height"
-        MaxHeight="{x:Static sys:SystemParameters.WorkAreaHeight}"
+        MaxHeight="{Binding Source={x:Static sys:SystemParameters.WorkArea}, Path=Height}"
         WindowStyle="ToolWindow"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
