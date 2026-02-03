@@ -149,6 +149,17 @@ public sealed class BillingBatchPdfDocument : IDocument
                 AddSummaryRow(table, "Dummy/Nachtrag", caseData.BillingCase.DummyMinutes, caseData.BillingCase.DummyAmount, true);
                 AddSummaryRow(table, "Summe", caseData.BillingCase.TotalMinutes, caseData.BillingCase.TotalAmount, false, isTotal: true);
             });
+
+            var hourlyRate = caseData.Matter.HourlyRateEurPerHour;
+            if (hourlyRate > 0)
+            {
+                // Stundensatz im Stundenhonorar-Abschnitt sichtbar machen.
+                column.Item().AlignRight().Text(text =>
+                {
+                    text.Span("Stundensatz: ").SemiBold();
+                    text.Span($"{FormatCurrency(hourlyRate)} / Std.");
+                });
+            }
         });
     }
 
