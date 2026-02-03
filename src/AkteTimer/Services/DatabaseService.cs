@@ -2117,8 +2117,8 @@ public sealed class DatabaseService
     {
         var columns = new SortedList<int, string>();
         using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA index_info($indexName);";
-        command.Parameters.AddWithValue("$indexName", indexName);
+        var escapedIndexName = indexName.Replace("'", "''");
+        command.CommandText = $"PRAGMA index_info('{escapedIndexName}');";
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
