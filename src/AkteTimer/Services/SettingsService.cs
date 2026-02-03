@@ -19,6 +19,7 @@ public sealed class SettingsService
     public const string ReportsWindowWidthSetting = "reports_window_width";
     public const string ReportsWindowHeightSetting = "reports_window_height";
     public const string ReportsWindowStateSetting = "reports_window_state";
+    public const string ReportsPerformanceLoggingSetting = "reports_performance_logging";
 
     private const string DefaultHotkey = "Ctrl+Alt+T";
     private const string DefaultHashtag = "#Sonstiges";
@@ -66,6 +67,11 @@ public sealed class SettingsService
         if (_database.GetSetting(PopupHotkeyHelpSetting) == null)
         {
             _database.SetSetting(PopupHotkeyHelpSetting, "0");
+        }
+
+        if (_database.GetSetting(ReportsPerformanceLoggingSetting) == null)
+        {
+            _database.SetSetting(ReportsPerformanceLoggingSetting, "0");
         }
     }
 
@@ -160,6 +166,13 @@ public sealed class SettingsService
         _database.SetSetting(ReportsWindowWidthSetting, placement.Width.ToString(CultureInfo.InvariantCulture));
         _database.SetSetting(ReportsWindowHeightSetting, placement.Height.ToString(CultureInfo.InvariantCulture));
         _database.SetSetting(ReportsWindowStateSetting, placement.State.ToString());
+    }
+
+    public bool IsReportsPerformanceLoggingEnabled => GetBool(ReportsPerformanceLoggingSetting, false);
+
+    public void SetReportsPerformanceLoggingEnabled(bool value)
+    {
+        _database.SetSetting(ReportsPerformanceLoggingSetting, value ? "1" : "0");
     }
 
     public string GetStartHashtag()

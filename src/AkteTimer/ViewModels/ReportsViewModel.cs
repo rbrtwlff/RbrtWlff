@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -21,6 +23,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly TimeEntryService _timeEntryService;
     private readonly DatabaseService _databaseService;
     private readonly BillingService _billingService;
+    private readonly SettingsService _settingsService;
     private readonly RvgFeeTableService _rvgFeeTableService = new();
     private DateTime _fromDate;
     private DateTime _toDate;
@@ -47,9 +50,10 @@ public sealed class ReportsViewModel : ViewModelBase
     private bool _showDescription;
     private List<TimeEntry> _rangeEntries = new();
 
-    public ReportsViewModel(TimeEntryService timeEntryService, DatabaseService databaseService, BillingService billingService)
+    public ReportsViewModel(TimeEntryService timeEntryService, SettingsService settingsService, DatabaseService databaseService, BillingService billingService)
     {
         _timeEntryService = timeEntryService;
+        _settingsService = settingsService;
         _databaseService = databaseService;
         _billingService = billingService;
         _fromDate = DateTime.Today.AddDays(-6);
@@ -360,82 +364,216 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         var selectedMatterIds = GetSelectedMatterIds();
 
-        RangeGroups.Clear();
-        MatterGroups.Clear();
-        DeleteEntries.Clear();
+        using var tracker = ReportsRefreshPerformanceTracker.CreateIfEnabled(_settingsService, _databaseService);
+        if (tracker == null)
+        {
+            RangeGroups.Clear();
+            MatterGroups.Clear();
+            DeleteEntries.Clear();
+        }
+        else
+        {
+            tracker.TrackUi(() =>
+            {
+                RangeGroups.Clear();
+                MatterGroups.Clear();
+                DeleteEntries.Clear();
+            });
+        }
         _rangeEntries = new List<TimeEntry>();
 
         if (selectedMatterIds.Count == 0)
         {
-            RangeTotalDuration = "00:00:00";
-            RangeTotalMinutes = 0;
-            RangeTotalRoundedMinutes = 0;
-            MatterTotalDuration = "00:00:00";
-            MatterTotalMinutes = 0;
-            MatterTotalRoundedMinutes = 0;
-            RaiseExportCanExecute();
+            if (tracker == null)
+            {
+                RangeTotalDuration = "00:00:00";
+                RangeTotalMinutes = 0;
+                RangeTotalRoundedMinutes = 0;
+                MatterTotalDuration = "00:00:00";
+                MatterTotalMinutes = 0;
+                MatterTotalRoundedMinutes = 0;
+                RaiseExportCanExecute();
+            }
+            else
+            {
+                tracker.TrackUi(() =>
+                {
+                    RangeTotalDuration = "00:00:00";
+                    RangeTotalMinutes = 0;
+                    RangeTotalRoundedMinutes = 0;
+                    MatterTotalDuration = "00:00:00";
+                    MatterTotalMinutes = 0;
+                    MatterTotalRoundedMinutes = 0;
+                    RaiseExportCanExecute();
+                });
+            }
+            tracker?.Log("Zeitraum");
             return;
         }
 
-        var entries = _timeEntryService.GetEntriesInRange(FromDate, ToDate, selectedMatterIds);
+        var entries = tracker?.TrackDb(() => _timeEntryService.GetEntriesInRange(FromDate, ToDate, selectedMatterIds))
+            ?? _timeEntryService.GetEntriesInRange(FromDate, ToDate, selectedMatterIds);
+        tracker?.AddTimeEntries(entries.Count);
         _rangeEntries = entries.ToList();
-        RefreshDeleteEntries(entries);
-        var matters = _timeEntryService.GetAllMatters();
-        var matterLookup = matters.ToDictionary(matter => matter.Id);
-        var entryViewModels = entries
-            .Select(entry =>
-            {
-                matterLookup.TryGetValue(entry.MatterId, out var matter);
-                return new ReportEntryViewModel(entry, matter, _timeEntryService, HandleMatterUpdated);
-            })
-            .ToList();
-
-        var rvgMetricsByMatter = BuildRvgMetricsByMatter(entryViewModels, matterLookup);
-
-        foreach (var entryViewModel in entryViewModels)
+        if (tracker == null)
         {
-            if (rvgMetricsByMatter.TryGetValue(entryViewModel.MatterId, out var metrics))
+            RefreshDeleteEntries(entries);
+        }
+        else
+        {
+            tracker.TrackUi(() => RefreshDeleteEntries(entries));
+        }
+        var matters = tracker?.TrackDb(() => _timeEntryService.GetAllMatters()) ?? _timeEntryService.GetAllMatters();
+        var matterLookup = tracker?.TrackCalc(() => matters.ToDictionary(matter => matter.Id))
+            ?? matters.ToDictionary(matter => matter.Id);
+        var entryViewModels = tracker?.TrackCalc(() => entries
+                .Select(entry =>
+                {
+                    matterLookup.TryGetValue(entry.MatterId, out var matter);
+                    return new ReportEntryViewModel(entry, matter, _timeEntryService, HandleMatterUpdated);
+                })
+                .ToList())
+            ?? entries
+                .Select(entry =>
+                {
+                    matterLookup.TryGetValue(entry.MatterId, out var matter);
+                    return new ReportEntryViewModel(entry, matter, _timeEntryService, HandleMatterUpdated);
+                })
+                .ToList();
+
+        var rvgMetricsByMatter = tracker?.TrackCalc(() => BuildRvgMetricsByMatter(entryViewModels, matterLookup))
+            ?? BuildRvgMetricsByMatter(entryViewModels, matterLookup);
+
+        if (tracker == null)
+        {
+            foreach (var entryViewModel in entryViewModels)
             {
-                entryViewModel.SetRvgMetrics(metrics);
+                if (rvgMetricsByMatter.TryGetValue(entryViewModel.MatterId, out var metrics))
+                {
+                    entryViewModel.SetRvgMetrics(metrics);
+                }
             }
         }
-
-        ApplyMatterHonorarium(entryViewModels, matterLookup);
-
-        var rangeGroups = entryViewModels
-            .GroupBy(vm => vm.StartLocal.Date)
-            .OrderBy(group => group.Key)
-            .Select(group => new DayGroupViewModel(group.Key, group.OrderBy(vm => vm.StartLocal)));
-
-        foreach (var group in rangeGroups)
+        else
         {
-            RangeGroups.Add(group);
-        }
-
-        var matterGroups = entryViewModels
-            .GroupBy(vm => vm.MatterId)
-            .OrderBy(group => group.Key)
-            .Select(group =>
+            tracker.TrackCalc(() =>
             {
-                matterLookup.TryGetValue(group.Key, out var matter);
-                var totalMinutes = group.Sum(vm => vm.ActualMinutes);
-                var metrics = matter == null ? null : CalculateRvgMetrics(matter, totalMinutes);
-                return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics);
+                foreach (var entryViewModel in entryViewModels)
+                {
+                    if (rvgMetricsByMatter.TryGetValue(entryViewModel.MatterId, out var metrics))
+                    {
+                        entryViewModel.SetRvgMetrics(metrics);
+                    }
+                }
             });
-
-        foreach (var group in matterGroups)
-        {
-            MatterGroups.Add(group);
         }
 
-        var totalDuration = entryViewModels.Aggregate(TimeSpan.Zero, (current, vm) => current + vm.Duration);
-        RangeTotalDuration = totalDuration.ToString(@"hh\:mm\:ss");
-        RangeTotalMinutes = entryViewModels.Sum(vm => vm.ActualMinutes);
-        RangeTotalRoundedMinutes = entryViewModels.Sum(vm => vm.RoundedMinutes);
-        MatterTotalDuration = RangeTotalDuration;
-        MatterTotalMinutes = RangeTotalMinutes;
-        MatterTotalRoundedMinutes = RangeTotalRoundedMinutes;
-        RaiseExportCanExecute();
+        ApplyMatterHonorarium(entryViewModels, matterLookup, tracker);
+
+        var rangeGroups = tracker?.TrackCalc(() => entryViewModels
+                .GroupBy(vm => vm.StartLocal.Date)
+                .OrderBy(group => group.Key)
+                .Select(group => new DayGroupViewModel(group.Key, group.OrderBy(vm => vm.StartLocal)))
+                .ToList())
+            ?? entryViewModels
+                .GroupBy(vm => vm.StartLocal.Date)
+                .OrderBy(group => group.Key)
+                .Select(group => new DayGroupViewModel(group.Key, group.OrderBy(vm => vm.StartLocal)))
+                .ToList();
+
+        if (tracker == null)
+        {
+            foreach (var group in rangeGroups)
+            {
+                RangeGroups.Add(group);
+            }
+        }
+        else
+        {
+            tracker.TrackUi(() =>
+            {
+                foreach (var group in rangeGroups)
+                {
+                    RangeGroups.Add(group);
+                }
+            });
+        }
+
+        var matterGroups = tracker?.TrackCalc(() => entryViewModels
+                .GroupBy(vm => vm.MatterId)
+                .OrderBy(group => group.Key)
+                .Select(group =>
+                {
+                    matterLookup.TryGetValue(group.Key, out var matter);
+                    var totalMinutes = group.Sum(vm => vm.ActualMinutes);
+                    var metrics = matter == null ? null : CalculateRvgMetrics(matter, totalMinutes);
+                    return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics);
+                })
+                .ToList())
+            ?? entryViewModels
+                .GroupBy(vm => vm.MatterId)
+                .OrderBy(group => group.Key)
+                .Select(group =>
+                {
+                    matterLookup.TryGetValue(group.Key, out var matter);
+                    var totalMinutes = group.Sum(vm => vm.ActualMinutes);
+                    var metrics = matter == null ? null : CalculateRvgMetrics(matter, totalMinutes);
+                    return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics);
+                })
+                .ToList();
+
+        if (tracker == null)
+        {
+            foreach (var group in matterGroups)
+            {
+                MatterGroups.Add(group);
+            }
+        }
+        else
+        {
+            tracker.TrackUi(() =>
+            {
+                foreach (var group in matterGroups)
+                {
+                    MatterGroups.Add(group);
+                }
+            });
+        }
+
+        var totals = tracker?.TrackCalc(() =>
+        {
+            var totalDuration = entryViewModels.Aggregate(TimeSpan.Zero, (current, vm) => current + vm.Duration);
+            return (totalDuration: totalDuration,
+                totalMinutes: entryViewModels.Sum(vm => vm.ActualMinutes),
+                totalRoundedMinutes: entryViewModels.Sum(vm => vm.RoundedMinutes));
+        }) ?? (totalDuration: entryViewModels.Aggregate(TimeSpan.Zero, (current, vm) => current + vm.Duration),
+            totalMinutes: entryViewModels.Sum(vm => vm.ActualMinutes),
+            totalRoundedMinutes: entryViewModels.Sum(vm => vm.RoundedMinutes));
+
+        if (tracker == null)
+        {
+            RangeTotalDuration = totals.totalDuration.ToString(@"hh\:mm\:ss");
+            RangeTotalMinutes = totals.totalMinutes;
+            RangeTotalRoundedMinutes = totals.totalRoundedMinutes;
+            MatterTotalDuration = RangeTotalDuration;
+            MatterTotalMinutes = RangeTotalMinutes;
+            MatterTotalRoundedMinutes = RangeTotalRoundedMinutes;
+            RaiseExportCanExecute();
+        }
+        else
+        {
+            tracker.TrackUi(() =>
+            {
+                RangeTotalDuration = totals.totalDuration.ToString(@"hh\:mm\:ss");
+                RangeTotalMinutes = totals.totalMinutes;
+                RangeTotalRoundedMinutes = totals.totalRoundedMinutes;
+                MatterTotalDuration = RangeTotalDuration;
+                MatterTotalMinutes = RangeTotalMinutes;
+                MatterTotalRoundedMinutes = RangeTotalRoundedMinutes;
+                RaiseExportCanExecute();
+            });
+        }
+        tracker?.Log("Zeitraum");
     }
 
     private void RefreshDeleteEntries(IEnumerable<TimeEntry> entries)
@@ -449,23 +587,11 @@ public sealed class ReportsViewModel : ViewModelBase
 
     private void ApplyMatterHonorarium(
         IEnumerable<ReportEntryViewModel> entries,
-        IReadOnlyDictionary<long, Matter> matterLookup)
+        IReadOnlyDictionary<long, Matter> matterLookup,
+        ReportsRefreshPerformanceTracker? tracker = null)
     {
-        var honorariumByMatter = entries
-            .Select(vm => vm.MatterId)
-            .Distinct()
-            .ToDictionary(
-                matterId => matterId,
-                matterId =>
-                {
-                    matterLookup.TryGetValue(matterId, out var matter);
-                    var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
-                    var totalRoundedMinutes = GetTotalRoundedMinutesForMatter(matterId);
-                    var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
-                    var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, _rvgFeeTableService);
-
-                    return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown);
-                });
+        var honorariumByMatter = tracker?.TrackCalc(() => BuildHonorariumByMatter(entries, matterLookup, tracker))
+            ?? BuildHonorariumByMatter(entries, matterLookup, tracker);
 
         foreach (var entry in entries)
         {
@@ -483,6 +609,18 @@ public sealed class ReportsViewModel : ViewModelBase
     private int GetTotalRoundedMinutesForMatter(long matterId)
     {
         var entries = _timeEntryService.GetEntriesForMatter(matterId);
+        return CalculateTotalRoundedMinutes(entries);
+    }
+
+    private int GetTotalRoundedMinutesForMatter(long matterId, ReportsRefreshPerformanceTracker? tracker)
+    {
+        var entries = tracker?.TrackDb(() => _timeEntryService.GetEntriesForMatter(matterId))
+            ?? _timeEntryService.GetEntriesForMatter(matterId);
+        return CalculateTotalRoundedMinutes(entries);
+    }
+
+    private static int CalculateTotalRoundedMinutes(IEnumerable<TimeEntry> entries)
+    {
         var totalRoundedMinutes = 0;
 
         foreach (var entry in entries)
@@ -493,6 +631,105 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         return totalRoundedMinutes;
+    }
+
+    private Dictionary<long, (decimal hourlyRate, int totalRoundedMinutes, decimal honorarStunden, RvgBreakdown? breakdown)> BuildHonorariumByMatter(
+        IEnumerable<ReportEntryViewModel> entries,
+        IReadOnlyDictionary<long, Matter> matterLookup,
+        ReportsRefreshPerformanceTracker? tracker)
+    {
+        return entries
+            .Select(vm => vm.MatterId)
+            .Distinct()
+            .ToDictionary(
+                matterId => matterId,
+                matterId =>
+                {
+                    matterLookup.TryGetValue(matterId, out var matter);
+                    var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
+                    var totalRoundedMinutes = GetTotalRoundedMinutesForMatter(matterId, tracker);
+                    var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
+                    var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, _rvgFeeTableService);
+
+                    return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown);
+                });
+    }
+
+    private sealed class ReportsRefreshPerformanceTracker : IDisposable
+    {
+        private readonly DatabaseService.QueryCountingScope _queryScope;
+        private readonly Stopwatch _dbStopwatch = new();
+        private readonly Stopwatch _calcStopwatch = new();
+        private readonly Stopwatch _uiStopwatch = new();
+        private int _timeEntryCount;
+
+        private ReportsRefreshPerformanceTracker(DatabaseService databaseService)
+        {
+            _queryScope = databaseService.BeginQueryCounting();
+        }
+
+        public static ReportsRefreshPerformanceTracker? CreateIfEnabled(SettingsService settingsService, DatabaseService databaseService)
+        {
+            return settingsService.IsReportsPerformanceLoggingEnabled
+                ? new ReportsRefreshPerformanceTracker(databaseService)
+                : null;
+        }
+
+        public void AddTimeEntries(int count)
+        {
+            _timeEntryCount += count;
+        }
+
+        public void TrackUi(Action action)
+        {
+            _uiStopwatch.Start();
+            action();
+            _uiStopwatch.Stop();
+        }
+
+        public void TrackDb(Action action)
+        {
+            _dbStopwatch.Start();
+            action();
+            _dbStopwatch.Stop();
+        }
+
+        public T TrackDb<T>(Func<T> action)
+        {
+            _dbStopwatch.Start();
+            var result = action();
+            _dbStopwatch.Stop();
+            return result;
+        }
+
+        public T TrackCalc<T>(Func<T> action)
+        {
+            _calcStopwatch.Start();
+            var result = action();
+            _calcStopwatch.Stop();
+            return result;
+        }
+
+        public void TrackCalc(Action action)
+        {
+            _calcStopwatch.Start();
+            action();
+            _calcStopwatch.Stop();
+        }
+
+        public void Log(string scope)
+        {
+            LogService.LogInfo(
+                $"Reports-Refresh {scope}: DB {_dbStopwatch.Elapsed.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture)} ms, " +
+                $"Calc {_calcStopwatch.Elapsed.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture)} ms, " +
+                $"UI {_uiStopwatch.Elapsed.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture)} ms, " +
+                $"Queries {_queryScope.QueryCount}, TimeEntries {_timeEntryCount}");
+        }
+
+        public void Dispose()
+        {
+            _queryScope.Dispose();
+        }
     }
 
     private Dictionary<long, RvgMetrics?> BuildRvgMetricsByMatter(
