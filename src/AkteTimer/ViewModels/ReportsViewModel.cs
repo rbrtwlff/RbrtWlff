@@ -6,12 +6,14 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using AkteTimer.Models;
 using AkteTimer.Services;
+using AkteTimer.Services.Jobs;
 using AkteTimer.Views;
 using ClosedXML.Excel;
 using Microsoft.Win32;
@@ -48,12 +50,19 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly RelayCommand _deleteEntryCommand;
     private readonly RelayCommand _createBillingDraftsFromViewCommand;
     private readonly RelayCommand _createBillingDraftsFromAllOpenCommand;
+    private readonly RelayCommand _rebuildMatterCommand;
+    private readonly RelayCommand _rebuildAllCommand;
+    private readonly RelayCommand _cancelRebuildCommand;
     private string _matterFilterSearchText = string.Empty;
     private MatterFilterItem? _selectedMatterFilter;
     private ICollectionView? _matterFilterView;
     private string _autoBillingHint = string.Empty;
     private bool _showAutoBillingHint;
     private bool _showDescription;
+    private bool _isRebuildRunning;
+    private double _rebuildProgress;
+    private string _rebuildStatusText = string.Empty;
+    private CancellationTokenSource? _rebuildCancellation;
     private List<TimeEntry> _rangeEntries = new();
 
     public ReportsViewModel(TimeEntryService timeEntryService, SettingsService settingsService, DatabaseService databaseService, BillingService billingService)
@@ -76,6 +85,11 @@ public sealed class ReportsViewModel : ViewModelBase
         _deleteEntryCommand = new RelayCommand(DeleteEntry);
         _createBillingDraftsFromViewCommand = new RelayCommand(_ => CreateBillingDraftsFromView());
         _createBillingDraftsFromAllOpenCommand = new RelayCommand(_ => CreateBillingDraftsFromAllOpen());
+        _rebuildMatterCommand = new RelayCommand(
+            parameter => StartMatterRebuild(parameter as MatterGroupViewModel),
+            parameter => CanStartMatterRebuild(parameter as MatterGroupViewModel));
+        _rebuildAllCommand = new RelayCommand(_ => StartAllRebuild(), _ => !IsRebuildRunning);
+        _cancelRebuildCommand = new RelayCommand(_ => CancelRebuild(), _ => IsRebuildRunning);
 
         _matterFilterView = CollectionViewSource.GetDefaultView(MatterFilters);
         _matterFilterView.Filter = FilterMatter;
@@ -110,6 +124,60 @@ public sealed class ReportsViewModel : ViewModelBase
     public ICommand CreateBillingDraftsFromViewCommand => _createBillingDraftsFromViewCommand;
 
     public ICommand CreateBillingDraftsFromAllOpenCommand => _createBillingDraftsFromAllOpenCommand;
+
+    public ICommand RebuildMatterCommand => _rebuildMatterCommand;
+
+    public ICommand RebuildAllCommand => _rebuildAllCommand;
+
+    public ICommand CancelRebuildCommand => _cancelRebuildCommand;
+
+    public bool IsRebuildRunning
+    {
+        get => _isRebuildRunning;
+        private set
+        {
+            if (_isRebuildRunning == value)
+            {
+                return;
+            }
+
+            _isRebuildRunning = value;
+            NotifyPropertyChanged();
+            _rebuildAllCommand.RaiseCanExecuteChanged();
+            _rebuildMatterCommand.RaiseCanExecuteChanged();
+            _cancelRebuildCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public double RebuildProgress
+    {
+        get => _rebuildProgress;
+        private set
+        {
+            if (Math.Abs(_rebuildProgress - value) < 0.1)
+            {
+                return;
+            }
+
+            _rebuildProgress = value;
+            NotifyPropertyChanged();
+        }
+    }
+
+    public string RebuildStatusText
+    {
+        get => _rebuildStatusText;
+        private set
+        {
+            if (_rebuildStatusText == value)
+            {
+                return;
+            }
+
+            _rebuildStatusText = value;
+            NotifyPropertyChanged();
+        }
+    }
 
     public string AutoBillingHint
     {
@@ -356,7 +424,8 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup);
+        var totalsByMatter = BuildMatterTotalsByMatter(entryViewModels, null);
+        ApplyMatterHonorarium(entryViewModels, matterLookup, totalsByMatter);
         if (entryViewModels.Count > 0)
         {
             TodayGroups.Add(new DayGroupViewModel(DateTime.Today, entryViewModels.OrderBy(vm => vm.StartLocal)));
@@ -474,7 +543,9 @@ public sealed class ReportsViewModel : ViewModelBase
             });
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup, tracker);
+        var totalsByMatter = tracker?.TrackDb(() => BuildMatterTotalsByMatter(entryViewModels, tracker))
+            ?? BuildMatterTotalsByMatter(entryViewModels, tracker);
+        ApplyMatterHonorarium(entryViewModels, matterLookup, totalsByMatter, tracker);
 
         var rangeGroups = tracker?.TrackCalc(() => entryViewModels
                 .GroupBy(vm => vm.StartLocal.Date)
@@ -513,7 +584,8 @@ public sealed class ReportsViewModel : ViewModelBase
                     matterLookup.TryGetValue(group.Key, out var matter);
                     var totalMinutes = group.Sum(vm => vm.ActualMinutes);
                     var metrics = matter == null ? null : CalculateRvgMetrics(matter, totalMinutes);
-                    return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics);
+                    totalsByMatter.TryGetValue(group.Key, out var totals);
+                    return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics, totals);
                 })
                 .ToList())
             ?? entryViewModels
@@ -524,7 +596,8 @@ public sealed class ReportsViewModel : ViewModelBase
                     matterLookup.TryGetValue(group.Key, out var matter);
                     var totalMinutes = group.Sum(vm => vm.ActualMinutes);
                     var metrics = matter == null ? null : CalculateRvgMetrics(matter, totalMinutes);
-                    return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics);
+                    totalsByMatter.TryGetValue(group.Key, out var totals);
+                    return new MatterGroupViewModel(matter, group.OrderBy(vm => vm.StartLocal), metrics, totals);
                 })
                 .ToList();
 
@@ -594,10 +667,11 @@ public sealed class ReportsViewModel : ViewModelBase
     private void ApplyMatterHonorarium(
         IEnumerable<ReportEntryViewModel> entries,
         IReadOnlyDictionary<long, Matter> matterLookup,
+        IReadOnlyDictionary<long, MatterTotals?> totalsByMatter,
         ReportsRefreshPerformanceTracker? tracker = null)
     {
-        var honorariumByMatter = tracker?.TrackCalc(() => BuildHonorariumByMatter(entries, matterLookup, tracker))
-            ?? BuildHonorariumByMatter(entries, matterLookup, tracker);
+        var honorariumByMatter = tracker?.TrackCalc(() => BuildHonorariumByMatter(entries, matterLookup, totalsByMatter, tracker))
+            ?? BuildHonorariumByMatter(entries, matterLookup, totalsByMatter, tracker);
 
         foreach (var entry in entries)
         {
@@ -616,6 +690,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private Dictionary<long, (decimal hourlyRate, int totalRoundedMinutes, decimal honorarStunden, RvgBreakdown? breakdown, bool isUpdating)> BuildHonorariumByMatter(
         IEnumerable<ReportEntryViewModel> entries,
         IReadOnlyDictionary<long, Matter> matterLookup,
+        IReadOnlyDictionary<long, MatterTotals?> totalsByMatter,
         ReportsRefreshPerformanceTracker? tracker)
     {
         var entriesByMatter = entries
@@ -629,8 +704,7 @@ public sealed class ReportsViewModel : ViewModelBase
                 {
                     matterLookup.TryGetValue(matterId, out var matter);
                     var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
-                    var totals = tracker?.TrackDb(() => _databaseService.GetMatterTotals(matterId))
-                        ?? _databaseService.GetMatterTotals(matterId);
+                    totalsByMatter.TryGetValue(matterId, out var totals);
                     var isUpdating = totals == null || IsMatterTotalsStale(totals);
                     if (isUpdating)
                     {
@@ -643,6 +717,21 @@ public sealed class ReportsViewModel : ViewModelBase
 
                     return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown, isUpdating);
                 });
+    }
+
+    private Dictionary<long, MatterTotals?> BuildMatterTotalsByMatter(
+        IEnumerable<ReportEntryViewModel> entries,
+        ReportsRefreshPerformanceTracker? tracker)
+    {
+        var matterIds = entries
+            .Select(entry => entry.MatterId)
+            .Distinct()
+            .ToList();
+
+        return matterIds.ToDictionary(
+            matterId => matterId,
+            matterId => tracker?.TrackDb(() => _databaseService.GetMatterTotals(matterId))
+                ?? _databaseService.GetMatterTotals(matterId));
     }
 
     private void RequestMatterTotalsRefresh(
@@ -749,6 +838,132 @@ public sealed class ReportsViewModel : ViewModelBase
         }
 
         return maxUpdatedAtUtc.ToUniversalTime() > totals.CalculatedAtUtc;
+    }
+
+    private bool CanStartMatterRebuild(MatterGroupViewModel? matterGroup)
+    {
+        return !IsRebuildRunning && matterGroup != null && matterGroup.MatterId > 0;
+    }
+
+    private void StartMatterRebuild(MatterGroupViewModel? matterGroup)
+    {
+        if (!CanStartMatterRebuild(matterGroup))
+        {
+            return;
+        }
+
+        StartRebuild(
+            token =>
+            {
+                var job = new MatterTotalsJob(_databaseService);
+                UpdateRebuildProgress(0, 1, $"Rebuild {matterGroup!.Matter}");
+                job.RebuildMatter(matterGroup.MatterId, token);
+                UpdateRebuildProgress(1, 1, $"Rebuild {matterGroup.Matter}");
+            },
+            $"Rebuild {matterGroup!.Matter}");
+    }
+
+    private void StartAllRebuild()
+    {
+        if (IsRebuildRunning)
+        {
+            return;
+        }
+
+        StartRebuild(
+            token =>
+            {
+                var job = new MatterTotalsJob(_databaseService);
+                var matters = _timeEntryService.GetAllMatters().OrderBy(matter => matter.FileRef).ToList();
+                var total = matters.Count;
+                for (var i = 0; i < total; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var matter = matters[i];
+                    UpdateRebuildProgress(i, total, $"Rebuild {matter.FileRef} ({i + 1}/{total})");
+                    job.RebuildMatter(matter.Id, token);
+                    UpdateRebuildProgress(i + 1, total, $"Rebuild {matter.FileRef} ({i + 1}/{total})");
+                }
+            },
+            "Rebuild aller Akten");
+    }
+
+    private async void StartRebuild(Action<CancellationToken> action, string startStatus)
+    {
+        if (IsRebuildRunning)
+        {
+            return;
+        }
+
+        _rebuildCancellation?.Dispose();
+        _rebuildCancellation = new CancellationTokenSource();
+        IsRebuildRunning = true;
+        RebuildProgress = 0;
+        RebuildStatusText = startStatus;
+
+        var wasCanceled = false;
+        try
+        {
+            await Task.Run(() => action(_rebuildCancellation.Token)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            wasCanceled = true;
+        }
+        finally
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null)
+            {
+                dispatcher.Invoke(() =>
+                {
+                    RebuildStatusText = wasCanceled ? "Rebuild abgebrochen" : "Rebuild abgeschlossen";
+                    IsRebuildRunning = false;
+                    RebuildProgress = wasCanceled ? RebuildProgress : 100;
+                });
+            }
+            else
+            {
+                RebuildStatusText = wasCanceled ? "Rebuild abgebrochen" : "Rebuild abgeschlossen";
+                IsRebuildRunning = false;
+            }
+
+            if (!wasCanceled)
+            {
+                var dispatcherRefresh = Application.Current?.Dispatcher;
+                if (dispatcherRefresh != null)
+                {
+                    dispatcherRefresh.Invoke(RefreshRangeAndMatters);
+                }
+                else
+                {
+                    RefreshRangeAndMatters();
+                }
+            }
+        }
+    }
+
+    private void UpdateRebuildProgress(int completed, int total, string statusText)
+    {
+        var progress = total > 0 ? (double)completed / total * 100 : 0;
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
+        {
+            RebuildProgress = progress;
+            RebuildStatusText = statusText;
+            return;
+        }
+
+        dispatcher.Invoke(() =>
+        {
+            RebuildProgress = progress;
+            RebuildStatusText = statusText;
+        });
+    }
+
+    private void CancelRebuild()
+    {
+        _rebuildCancellation?.Cancel();
     }
 
     private sealed class ReportsRefreshPerformanceTracker : IDisposable
@@ -1244,7 +1459,8 @@ public sealed class ReportsViewModel : ViewModelBase
             }
         }
 
-        ApplyMatterHonorarium(entryViewModels, matterLookup);
+        var totalsByMatter = BuildMatterTotalsByMatter(entryViewModels, null);
+        ApplyMatterHonorarium(entryViewModels, matterLookup, totalsByMatter);
 
         return entryViewModels
             .Select(CreateExportRow)
@@ -1951,15 +2167,45 @@ public sealed class MatterGroupViewModel : ViewModelBase
     private string _effectiveHourlyRateText = "-";
     private string _breakEvenTimeText = "-";
 
-    public MatterGroupViewModel(Matter? matter, IEnumerable<ReportEntryViewModel> entries, RvgMetrics? metrics)
+    public MatterGroupViewModel(Matter? matter, IEnumerable<ReportEntryViewModel> entries, RvgMetrics? metrics, MatterTotals? totals)
     {
         MatterId = matter?.Id ?? 0;
         Matter = matter?.FileRef ?? "-";
         Entries = new ObservableCollection<ReportEntryViewModel>(entries);
         var totalDuration = Entries.Aggregate(TimeSpan.Zero, (current, vm) => current + vm.Duration);
-        TotalDurationText = totalDuration.ToString(@"hh\:mm\:ss");
-        TotalActualMinutes = Entries.Sum(vm => vm.ActualMinutes);
-        TotalRoundedMinutes = Entries.Sum(vm => vm.RoundedMinutes);
+        RangeTotalDurationText = totalDuration.ToString(@"hh\:mm\:ss");
+        RangeTotalActualMinutes = Entries.Sum(vm => vm.ActualMinutes);
+        RangeTotalRoundedMinutes = Entries.Sum(vm => vm.RoundedMinutes);
+        TotalDurationText = RangeTotalDurationText;
+        TotalActualMinutes = RangeTotalActualMinutes;
+        TotalRoundedMinutes = RangeTotalRoundedMinutes;
+        var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
+        var rangeHonorar = ReportEntryViewModel.RoundCurrency((RangeTotalRoundedMinutes / 60m) * hourlyRate);
+        RangeHonorarText = rangeHonorar.ToString("N2", CultureInfo.InvariantCulture);
+        AllTimeRoundedMinutesText = totals == null
+            ? "-"
+            : totals.TotalRoundedMinutesAllTime.ToString("N0", CultureInfo.InvariantCulture);
+        AllTimeHoursText = totals == null
+            ? "-"
+            : (totals.TotalRoundedMinutesAllTime / 60m).ToString("N2", CultureInfo.InvariantCulture);
+        AllTimeHonorarText = totals == null
+            ? "-"
+            : ReportEntryViewModel.RoundCurrency((totals.TotalRoundedMinutesAllTime / 60m) * hourlyRate)
+                .ToString("N2", CultureInfo.InvariantCulture);
+        CacheStatusText = BuildCacheStatusText(matter, totals);
+        CacheCalculatedAtText = totals == null ? "-" : totals.CalculatedAtUtc.ToLocalTime().ToString("g", CultureInfo.InvariantCulture);
+        CacheDailyMaxUpdatedAtText = FormatUtcText(totals?.DailyTotalsMaxUpdatedAt);
+        CacheCalcVersionText = totals?.CalcVersion ?? "-";
+        BillingTypeText = matter == null ? "-" : (matter.BillingType == BillingType.Rvg ? "RVG" : "Stunden");
+        SubjectValueText = matter == null ? "-" : matter.SubjectValueEur.ToString("N2", CultureInfo.InvariantCulture);
+        FeeFactorText = matter?.FeeFactor?.ToString("N2", CultureInfo.InvariantCulture) ?? "-";
+        CustomFeeFactorText = matter?.CustomFeeFactor?.ToString("N2", CultureInfo.InvariantCulture) ?? "-";
+        TargetRateText = matter == null ? "-" : matter.TargetRateEurPerHour.ToString("N2", CultureInfo.InvariantCulture);
+        HourlyRateText = matter == null ? "-" : matter.HourlyRateEurPerHour.ToString("N2", CultureInfo.InvariantCulture);
+        BusinessFee13Text = FormatFlag(matter?.BusinessFee13Enabled);
+        TermFee12Text = FormatFlag(matter?.TermFee12Enabled);
+        SettlementFee10Text = FormatFlag(matter?.SettlementFee10Enabled);
+        SettlementFee15Text = FormatFlag(matter?.SettlementFee15Enabled);
         UpdateMetrics(metrics);
     }
 
@@ -1969,6 +2215,27 @@ public sealed class MatterGroupViewModel : ViewModelBase
     public string TotalDurationText { get; }
     public int TotalActualMinutes { get; }
     public int TotalRoundedMinutes { get; }
+    public string RangeTotalDurationText { get; }
+    public int RangeTotalActualMinutes { get; }
+    public int RangeTotalRoundedMinutes { get; }
+    public string RangeHonorarText { get; }
+    public string AllTimeRoundedMinutesText { get; }
+    public string AllTimeHoursText { get; }
+    public string AllTimeHonorarText { get; }
+    public string CacheStatusText { get; }
+    public string CacheCalculatedAtText { get; }
+    public string CacheDailyMaxUpdatedAtText { get; }
+    public string CacheCalcVersionText { get; }
+    public string BillingTypeText { get; }
+    public string SubjectValueText { get; }
+    public string FeeFactorText { get; }
+    public string CustomFeeFactorText { get; }
+    public string TargetRateText { get; }
+    public string HourlyRateText { get; }
+    public string BusinessFee13Text { get; }
+    public string TermFee12Text { get; }
+    public string SettlementFee10Text { get; }
+    public string SettlementFee15Text { get; }
     public bool ShowRvgMetrics
     {
         get => _showRvgMetrics;
@@ -2032,6 +2299,71 @@ public sealed class MatterGroupViewModel : ViewModelBase
         RvgEstimateText = metrics?.EstimateEur.ToString("N2") ?? "-";
         EffectiveHourlyRateText = metrics?.EffectiveHourlyRateEur?.ToString("N2") ?? "-";
         BreakEvenTimeText = metrics?.BreakEvenTime == null ? "-" : RvgCalculator.FormatBreakEvenTime(metrics.BreakEvenTime.Value);
+    }
+
+    private static string BuildCacheStatusText(Matter? matter, MatterTotals? totals)
+    {
+        if (matter?.IsTotalsInconsistent == true)
+        {
+            return "inconsistent";
+        }
+
+        if (totals == null)
+        {
+            return "computed";
+        }
+
+        if (IsMatterTotalsStale(totals))
+        {
+            return "stale";
+        }
+
+        if (!string.Equals(totals.CalcVersion, MatterTotalsJob.CurrentCalcVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return "computed";
+        }
+
+        return "verified";
+    }
+
+    private static bool IsMatterTotalsStale(MatterTotals totals)
+    {
+        if (string.IsNullOrWhiteSpace(totals.DailyTotalsMaxUpdatedAt))
+        {
+            return false;
+        }
+
+        if (!DateTime.TryParse(totals.DailyTotalsMaxUpdatedAt, null, DateTimeStyles.RoundtripKind, out var maxUpdatedAtUtc))
+        {
+            return false;
+        }
+
+        return maxUpdatedAtUtc.ToUniversalTime() > totals.CalculatedAtUtc;
+    }
+
+    private static string FormatUtcText(string? utcText)
+    {
+        if (string.IsNullOrWhiteSpace(utcText))
+        {
+            return "-";
+        }
+
+        if (!DateTime.TryParse(utcText, null, DateTimeStyles.RoundtripKind, out var parsed))
+        {
+            return utcText;
+        }
+
+        return parsed.ToLocalTime().ToString("g", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatFlag(bool? value)
+    {
+        if (value == null)
+        {
+            return "-";
+        }
+
+        return value.Value ? "an" : "aus";
     }
 }
 

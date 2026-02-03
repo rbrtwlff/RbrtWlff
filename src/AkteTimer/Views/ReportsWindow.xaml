@@ -640,6 +640,24 @@
 
       <TabItem Header="Akte">
         <DockPanel Margin="0,8,0,0">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="RebuildAll" Command="{Binding RebuildAllCommand}" />
+            <Button Content="Cancel"
+                    Margin="8,0,0,0"
+                    Command="{Binding CancelRebuildCommand}"
+                    IsEnabled="{Binding IsRebuildRunning}" />
+            <ProgressBar Margin="12,0,0,0"
+                         Width="180"
+                         Height="8"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="{Binding RebuildProgress}"
+                         Visibility="{Binding IsRebuildRunning, Converter={StaticResource BoolToVis}}" />
+            <TextBlock Margin="8,0,0,0"
+                       Foreground="DimGray"
+                       VerticalAlignment="Center"
+                       Text="{Binding RebuildStatusText}" />
+          </StackPanel>
           <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
             <TextBlock FontWeight="Bold"
                        Text="{Binding MatterTotalDuration, StringFormat=Summe Ist: {0}}" />
@@ -653,15 +671,73 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <StackPanel Margin="0,0,0,12">
-                    <TextBlock FontWeight="Bold" Text="{Binding Matter, StringFormat=Akte: {0}}" />
-                    <TextBlock Text="{Binding TotalDurationText, StringFormat=Summe Ist: {0}}" />
-                    <TextBlock Text="{Binding TotalActualMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
-                    <TextBlock Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock FontWeight="Bold" Text="{Binding Matter, StringFormat=Akte: {0}}" />
+                        <TextBlock Text="{Binding TotalDurationText, StringFormat=Summe Ist: {0}}" />
+                        <TextBlock Text="{Binding TotalActualMinutes, StringFormat=Summe Ist-Minuten: {0}}" />
+                        <TextBlock Text="{Binding TotalRoundedMinutes, StringFormat=Summe 6-Min: {0}}" />
+                      </StackPanel>
+                      <Button Grid.Column="1"
+                              VerticalAlignment="Top"
+                              Content="RebuildMatter"
+                              Command="{Binding DataContext.RebuildMatterCommand, RelativeSource={RelativeSource AncestorType=TabItem}}"
+                              CommandParameter="{Binding}" />
+                    </Grid>
                     <StackPanel Margin="0,4,0,0" Visibility="{Binding ShowRvgMetrics, Converter={StaticResource BoolToVis}}">
                       <TextBlock Text="{Binding RvgEstimateText, StringFormat=RVG-Schätzung: {0} €}" />
                       <TextBlock Text="{Binding EffectiveHourlyRateText, StringFormat=Effektiver Stundensatz: {0} €/h}" />
                       <TextBlock Text="{Binding BreakEvenTimeText, StringFormat=Break-even-Zeit: {0}}" />
                     </StackPanel>
+                    <Expander Header="Explain" Margin="0,6,0,0">
+                      <Border BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="8">
+                        <WrapPanel>
+                          <StackPanel Width="220" Margin="0,0,16,12">
+                            <TextBlock FontWeight="SemiBold" Text="All-time totals" />
+                            <TextBlock Text="{Binding AllTimeRoundedMinutesText, StringFormat=6-Min: {0}}" />
+                            <TextBlock Text="{Binding AllTimeHoursText, StringFormat=Stunden: {0}}" />
+                            <TextBlock Text="{Binding AllTimeHonorarText, StringFormat=Honorar: {0} €}" />
+                          </StackPanel>
+                          <StackPanel Width="220" Margin="0,0,16,12">
+                            <TextBlock FontWeight="SemiBold" Text="Zeitraum totals" />
+                            <TextBlock Text="{Binding RangeTotalDurationText, StringFormat=Ist: {0}}" />
+                            <TextBlock Text="{Binding RangeTotalActualMinutes, StringFormat=Ist-Min: {0}}" />
+                            <TextBlock Text="{Binding RangeTotalRoundedMinutes, StringFormat=6-Min: {0}}" />
+                            <TextBlock Text="{Binding RangeHonorarText, StringFormat=Honorar: {0} €}" />
+                          </StackPanel>
+                          <StackPanel Width="220" Margin="0,0,16,12">
+                            <TextBlock FontWeight="SemiBold" Text="RVG-Parameter" />
+                            <TextBlock Text="{Binding BillingTypeText, StringFormat=Typ: {0}}" />
+                            <TextBlock Text="{Binding SubjectValueText, StringFormat=Streitwert: {0} €}" />
+                            <TextBlock Text="{Binding FeeFactorText, StringFormat=Gebührensatz: {0}}" />
+                            <TextBlock Text="{Binding CustomFeeFactorText, StringFormat=Gebühr (wahl): {0}}" />
+                            <TextBlock Text="{Binding TargetRateText, StringFormat=Zielrate: {0} €/h}" />
+                            <TextBlock Text="{Binding HourlyRateText, StringFormat=Stundensatz: {0} €/h}" />
+                            <TextBlock Text="{Binding BusinessFee13Text, StringFormat=Geschäft 1,3: {0}}" />
+                            <TextBlock Text="{Binding TermFee12Text, StringFormat=Termin 1,2: {0}}" />
+                            <TextBlock Text="{Binding SettlementFee10Text, StringFormat=Vergleich 1,0: {0}}" />
+                            <TextBlock Text="{Binding SettlementFee15Text, StringFormat=Vergleich 1,5: {0}}" />
+                          </StackPanel>
+                          <StackPanel Width="220" Margin="0,0,16,12">
+                            <TextBlock FontWeight="SemiBold" Text="Abgeleitete Kennzahlen" />
+                            <TextBlock Text="{Binding RvgEstimateText, StringFormat=RVG-Schätzung: {0} €}" />
+                            <TextBlock Text="{Binding EffectiveHourlyRateText, StringFormat=Effektiv: {0} €/h}" />
+                            <TextBlock Text="{Binding BreakEvenTimeText, StringFormat=Break-even: {0}}" />
+                          </StackPanel>
+                          <StackPanel Width="220" Margin="0,0,16,12">
+                            <TextBlock FontWeight="SemiBold" Text="Cache-Status" />
+                            <TextBlock Text="{Binding CacheStatusText, StringFormat=Status: {0}}" />
+                            <TextBlock Text="{Binding CacheCalculatedAtText, StringFormat=Calculated: {0}}" />
+                            <TextBlock Text="{Binding CacheDailyMaxUpdatedAtText, StringFormat=Daily max: {0}}" />
+                            <TextBlock Text="{Binding CacheCalcVersionText, StringFormat=calc_version: {0}}" />
+                          </StackPanel>
+                        </WrapPanel>
+                      </Border>
+                    </Expander>
                     <DataGrid AutoGenerateColumns="False" ItemsSource="{Binding Entries}" IsReadOnly="False" Margin="0,6,0,0" MouseDoubleClick="OnEntryDoubleClick" RowStyle="{StaticResource BilledRowStyle}">
                       <DataGrid.Columns>
                         <DataGridTextColumn Header="Start" Binding="{Binding StartLocal, StringFormat=dd.MM.yyyy HH:mm:ss}" />
