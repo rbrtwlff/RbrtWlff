@@ -717,10 +717,10 @@
                             <TextBlock Text="{Binding CustomFeeFactorText, StringFormat=Gebühr (wahl): {0}}" />
                             <TextBlock Text="{Binding TargetRateText, StringFormat=Zielrate: {0} €/h}" />
                             <TextBlock Text="{Binding HourlyRateText, StringFormat=Stundensatz: {0} €/h}" />
-                            <TextBlock Text="{Binding BusinessFee13Text, StringFormat=Geschäft 1,3: {0}}" />
-                            <TextBlock Text="{Binding TermFee12Text, StringFormat=Termin 1,2: {0}}" />
-                            <TextBlock Text="{Binding SettlementFee10Text, StringFormat=Vergleich 1,0: {0}}" />
-                            <TextBlock Text="{Binding SettlementFee15Text, StringFormat=Vergleich 1,5: {0}}" />
+                            <TextBlock Text="{Binding BusinessFee13Text, StringFormat='Geschäft 1,3: {0}'}" />
+                            <TextBlock Text="{Binding TermFee12Text, StringFormat='Termin 1,2: {0}'}" />
+                            <TextBlock Text="{Binding SettlementFee10Text, StringFormat='Vergleich 1,0: {0}'}" />
+                            <TextBlock Text="{Binding SettlementFee15Text, StringFormat='Vergleich 1,5: {0}'}" />
                           </StackPanel>
                           <StackPanel Width="220" Margin="0,0,16,12">
                             <TextBlock FontWeight="SemiBold" Text="Abgeleitete Kennzahlen" />
