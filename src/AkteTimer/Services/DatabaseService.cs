@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using Microsoft.Data.Sqlite;
 using AkteTimer.Models;
 
@@ -140,6 +141,7 @@ public sealed class DatabaseService
         EnsureMatterColumns(connection);
         EnsureTimeEntryBillingColumns(connection);
         EnsureRvgBillingSnapshotColumns(connection);
+        EnsureTimeEntryIndexes(connection);
     }
 
     public SqliteConnection CreateConnection()
@@ -1656,6 +1658,91 @@ public sealed class DatabaseService
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE RvgBillingSnapshots ADD COLUMN breakdown_json TEXT NULL;";
         alter.ExecuteNonQuery();
+    }
+
+    private void EnsureTimeEntryIndexes(SqliteConnection connection)
+    {
+        var requiredIndexes = new Dictionary<string, (string Sql, string Signature)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ix_time_entries_matter_id"] = ("CREATE INDEX IF NOT EXISTS ix_time_entries_matter_id ON TimeEntries (matter_id);", "matter_id"),
+            ["ix_time_entries_start_utc"] = ("CREATE INDEX IF NOT EXISTS ix_time_entries_start_utc ON TimeEntries (start_utc);", "start_utc"),
+            ["ix_time_entries_matter_id_start_utc"] = ("CREATE INDEX IF NOT EXISTS ix_time_entries_matter_id_start_utc ON TimeEntries (matter_id, start_utc);", "matter_id,start_utc")
+        };
+
+        var existingIndexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var existingSignatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA index_list('TimeEntries');";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var indexName = reader.GetString(1);
+                existingIndexes.Add(indexName);
+                var signature = GetIndexSignature(connection, indexName);
+                if (!string.IsNullOrWhiteSpace(signature))
+                {
+                    existingSignatures.Add(signature);
+                }
+            }
+        }
+
+        var missingIndexes = requiredIndexes
+            .Where(entry => !existingIndexes.Contains(entry.Key) && !existingSignatures.Contains(entry.Value.Signature))
+            .ToList();
+        if (missingIndexes.Count == 0)
+        {
+            return;
+        }
+
+        CreateDatabaseBackup(connection);
+
+        foreach (var entry in missingIndexes)
+        {
+            using var create = connection.CreateCommand();
+            create.CommandText = entry.Value.Sql;
+            create.ExecuteNonQuery();
+        }
+    }
+
+    private static string GetIndexSignature(SqliteConnection connection, string indexName)
+    {
+        var columns = new SortedList<int, string>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA index_info($indexName);";
+        command.Parameters.AddWithValue("$indexName", indexName);
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var sequence = reader.GetInt32(0);
+            var columnName = reader.IsDBNull(2) ? null : reader.GetString(2);
+            if (!string.IsNullOrWhiteSpace(columnName))
+            {
+                columns[sequence] = columnName;
+            }
+        }
+
+        if (columns.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(",", columns.Values);
+    }
+
+    private void CreateDatabaseBackup(SqliteConnection connection)
+    {
+        var databasePath = ResolveDatabasePath();
+        if (!File.Exists(databasePath))
+        {
+            return;
+        }
+
+        var backupPath = $"{databasePath}.{DateTime.UtcNow:yyyyMMddHHmmss}.bak";
+        using var command = connection.CreateCommand();
+        command.CommandText = "VACUUM INTO $backupPath;";
+        command.Parameters.AddWithValue("$backupPath", backupPath);
+        command.ExecuteNonQuery();
     }
 
     private void CountQuery()
