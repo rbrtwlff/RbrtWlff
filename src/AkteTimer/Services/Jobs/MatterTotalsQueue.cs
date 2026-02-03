@@ -50,6 +50,13 @@ public sealed class MatterTotalsQueue : IDisposable
             _ => _job.RecalcMatterTotal(matterId));
     }
 
+    public void EnqueueMatterTotal(long matterId)
+    {
+        _queue.Enqueue(
+            $"RecalcMatterTotal:{matterId}",
+            _ => _job.RecalcMatterTotal(matterId));
+    }
+
     public void CancelAll() => _queue.CancelAll();
 
     public void Dispose() => _queue.Dispose();

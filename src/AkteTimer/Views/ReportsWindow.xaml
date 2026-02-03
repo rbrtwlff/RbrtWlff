@@ -66,6 +66,10 @@
       <Setter Property="Foreground" Value="DimGray" />
       <Setter Property="FontStyle" Value="Italic" />
     </Style>
+    <Style x:Key="UpdatingBadgeTextStyle" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="#B45309" />
+      <Setter Property="FontStyle" Value="Italic" />
+    </Style>
     <Style x:Key="HashtagBadgeStyle" TargetType="Border">
       <Setter Property="Background" Value="#E5E7EB" />
       <Setter Property="BorderBrush" Value="#D1D5DB" />
@@ -202,9 +206,14 @@
                         <DataGridTemplateColumn Header="Status" MinWidth="110">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                              <TextBlock Text="✓ abgerechnet"
-                                         Style="{StaticResource BilledBadgeTextStyle}"
-                                         Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                              <StackPanel>
+                                <TextBlock Text="✓ abgerechnet"
+                                           Style="{StaticResource BilledBadgeTextStyle}"
+                                           Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="wird aktualisiert"
+                                           Style="{StaticResource UpdatingBadgeTextStyle}"
+                                           Visibility="{Binding IsMatterTotalsUpdating, Converter={StaticResource BoolToVis}}" />
+                              </StackPanel>
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -437,9 +446,14 @@
                         <DataGridTemplateColumn Header="Status" MinWidth="110">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                              <TextBlock Text="✓ abgerechnet"
-                                         Style="{StaticResource BilledBadgeTextStyle}"
-                                         Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                              <StackPanel>
+                                <TextBlock Text="✓ abgerechnet"
+                                           Style="{StaticResource BilledBadgeTextStyle}"
+                                           Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="wird aktualisiert"
+                                           Style="{StaticResource UpdatingBadgeTextStyle}"
+                                           Visibility="{Binding IsMatterTotalsUpdating, Converter={StaticResource BoolToVis}}" />
+                              </StackPanel>
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -655,9 +669,14 @@
                         <DataGridTemplateColumn Header="Status" MinWidth="110">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                              <TextBlock Text="✓ abgerechnet"
-                                         Style="{StaticResource BilledBadgeTextStyle}"
-                                         Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                              <StackPanel>
+                                <TextBlock Text="✓ abgerechnet"
+                                           Style="{StaticResource BilledBadgeTextStyle}"
+                                           Visibility="{Binding IsBilled, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="wird aktualisiert"
+                                           Style="{StaticResource UpdatingBadgeTextStyle}"
+                                           Visibility="{Binding IsMatterTotalsUpdating, Converter={StaticResource BoolToVis}}" />
+                              </StackPanel>
                             </DataTemplate>
                           </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
