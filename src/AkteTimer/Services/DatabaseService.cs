@@ -67,7 +67,8 @@ public sealed class DatabaseService
               business_fee_1_3_enabled INTEGER NOT NULL DEFAULT 0,
               term_fee_1_2_enabled INTEGER NOT NULL DEFAULT 0,
               settlement_fee_1_0_enabled INTEGER NOT NULL DEFAULT 0,
-              settlement_fee_1_5_enabled INTEGER NOT NULL DEFAULT 0
+              settlement_fee_1_5_enabled INTEGER NOT NULL DEFAULT 0,
+              totals_inconsistent INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS TimeEntries (
@@ -193,7 +194,7 @@ public sealed class DatabaseService
         command.CommandText = """
             SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
                    target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
-                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled, totals_inconsistent
             FROM Matters
             WHERE file_ref = $file_ref;
             """;
@@ -215,7 +216,7 @@ public sealed class DatabaseService
         command.CommandText = """
             SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
                    target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
-                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled, totals_inconsistent
             FROM Matters
             WHERE id = $id;
             """;
@@ -239,10 +240,10 @@ public sealed class DatabaseService
         insert.CommandText = """
             INSERT INTO Matters (file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
                                  target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled,
-                                 term_fee_1_2_enabled, settlement_fee_1_0_enabled, settlement_fee_1_5_enabled)
+                                 term_fee_1_2_enabled, settlement_fee_1_0_enabled, settlement_fee_1_5_enabled, totals_inconsistent)
             VALUES ($file_ref, NULL, 0, $billing_type, $subject_value_eur, $fee_factor, $custom_fee_factor,
                     $target_rate_eur_per_hour, $hourly_rate_eur_per_hour, $business_fee_1_3_enabled,
-                    $term_fee_1_2_enabled, $settlement_fee_1_0_enabled, $settlement_fee_1_5_enabled);
+                    $term_fee_1_2_enabled, $settlement_fee_1_0_enabled, $settlement_fee_1_5_enabled, 0);
             """;
         insert.Parameters.AddWithValue("$file_ref", fileRef);
         insert.Parameters.AddWithValue("$billing_type", "hourly");
@@ -262,7 +263,7 @@ public sealed class DatabaseService
         select.CommandText = """
             SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
                    target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
-                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled, totals_inconsistent
             FROM Matters
             WHERE file_ref = $file_ref;
             """;
@@ -376,7 +377,7 @@ public sealed class DatabaseService
             SELECT m.id, m.file_ref, m.title, m.is_archived, m.billing_type, m.subject_value_eur, m.fee_factor,
                    m.custom_fee_factor, m.target_rate_eur_per_hour, m.hourly_rate_eur_per_hour,
                    m.business_fee_1_3_enabled, m.term_fee_1_2_enabled, m.settlement_fee_1_0_enabled,
-                   m.settlement_fee_1_5_enabled
+                   m.settlement_fee_1_5_enabled, m.totals_inconsistent
             FROM Matters m
             JOIN TimeEntries te ON m.id = te.matter_id
             GROUP BY m.id
@@ -403,7 +404,7 @@ public sealed class DatabaseService
         command.CommandText = """
             SELECT id, file_ref, title, is_archived, billing_type, subject_value_eur, fee_factor, custom_fee_factor,
                    target_rate_eur_per_hour, hourly_rate_eur_per_hour, business_fee_1_3_enabled, term_fee_1_2_enabled,
-                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled
+                   settlement_fee_1_0_enabled, settlement_fee_1_5_enabled, totals_inconsistent
             FROM Matters
             ORDER BY file_ref ASC;
             """;
@@ -550,6 +551,34 @@ public sealed class DatabaseService
         return totals;
     }
 
+    public List<MatterDailyTotal> GetMatterDailyTotalsSample(int limit)
+    {
+        if (limit <= 0)
+        {
+            return new List<MatterDailyTotal>();
+        }
+
+        CountQuery();
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT matter_id, day, rounded_minutes_sum, fingerprint, updated_at_utc, calc_version
+            FROM matter_daily_totals
+            ORDER BY RANDOM()
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$limit", limit);
+        using var reader = command.ExecuteReader();
+        var totals = new List<MatterDailyTotal>();
+        while (reader.Read())
+        {
+            totals.Add(MapMatterDailyTotal(reader));
+        }
+
+        return totals;
+    }
+
     public void UpsertMatterDailyTotal(MatterDailyTotal total)
     {
         ExecuteInTransaction((connection, transaction) =>
@@ -579,6 +608,63 @@ public sealed class DatabaseService
         });
     }
 
+    public void DeleteMatterDailyTotals(long matterId)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM matter_daily_totals WHERE matter_id = $matter_id;";
+            command.Parameters.AddWithValue("$matter_id", matterId);
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public void ReplaceMatterDailyTotals(long matterId, IReadOnlyList<MatterDailyTotal> totals)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM matter_daily_totals WHERE matter_id = $matter_id;";
+            delete.Parameters.AddWithValue("$matter_id", matterId);
+            delete.ExecuteNonQuery();
+
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO matter_daily_totals (
+                  matter_id, day, rounded_minutes_sum, fingerprint, updated_at_utc, calc_version
+                )
+                VALUES (
+                  $matter_id, $day, $rounded_minutes_sum, $fingerprint, $updated_at_utc, $calc_version
+                )
+                ON CONFLICT(matter_id, day) DO UPDATE SET
+                  rounded_minutes_sum = excluded.rounded_minutes_sum,
+                  fingerprint = excluded.fingerprint,
+                  updated_at_utc = excluded.updated_at_utc,
+                  calc_version = excluded.calc_version;
+                """;
+            var matterIdParam = command.Parameters.Add("$matter_id", SqliteType.Integer);
+            var dayParam = command.Parameters.Add("$day", SqliteType.Text);
+            var roundedParam = command.Parameters.Add("$rounded_minutes_sum", SqliteType.Integer);
+            var fingerprintParam = command.Parameters.Add("$fingerprint", SqliteType.Text);
+            var updatedParam = command.Parameters.Add("$updated_at_utc", SqliteType.Text);
+            var calcParam = command.Parameters.Add("$calc_version", SqliteType.Text);
+
+            foreach (var total in totals)
+            {
+                matterIdParam.Value = total.MatterId;
+                dayParam.Value = FormatDayKey(total.DayUtc);
+                roundedParam.Value = total.RoundedMinutesSum;
+                fingerprintParam.Value = string.IsNullOrWhiteSpace(total.Fingerprint) ? DBNull.Value : total.Fingerprint;
+                updatedParam.Value = total.UpdatedAtUtc.ToString("o");
+                calcParam.Value = string.IsNullOrWhiteSpace(total.CalcVersion) ? DBNull.Value : total.CalcVersion;
+                command.ExecuteNonQuery();
+            }
+        });
+    }
+
     public MatterTotals? GetMatterTotals(long matterId)
     {
         CountQuery();
@@ -598,6 +684,33 @@ public sealed class DatabaseService
         }
 
         return MapMatterTotals(reader);
+    }
+
+    public List<long> GetMatterIdSamples(int limit)
+    {
+        if (limit <= 0)
+        {
+            return new List<long>();
+        }
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id
+            FROM Matters
+            ORDER BY RANDOM()
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$limit", limit);
+        using var reader = command.ExecuteReader();
+        var ids = new List<long>();
+        while (reader.Read())
+        {
+            ids.Add(reader.GetInt64(0));
+        }
+
+        return ids;
     }
 
     public (int TotalRoundedMinutes, DateTime? MaxUpdatedAtUtc) GetMatterDailyTotalsAggregate(long matterId)
@@ -946,7 +1059,8 @@ public sealed class DatabaseService
                     business_fee_1_3_enabled = $business_fee_1_3_enabled,
                     term_fee_1_2_enabled = $term_fee_1_2_enabled,
                     settlement_fee_1_0_enabled = $settlement_fee_1_0_enabled,
-                    settlement_fee_1_5_enabled = $settlement_fee_1_5_enabled
+                    settlement_fee_1_5_enabled = $settlement_fee_1_5_enabled,
+                    totals_inconsistent = $totals_inconsistent
                 WHERE id = $id;
                 """;
             command.Parameters.AddWithValue("$billing_type", matter.BillingType == BillingType.Rvg ? "rvg" : "hourly");
@@ -959,7 +1073,25 @@ public sealed class DatabaseService
             command.Parameters.AddWithValue("$term_fee_1_2_enabled", matter.TermFee12Enabled ? 1 : 0);
             command.Parameters.AddWithValue("$settlement_fee_1_0_enabled", matter.SettlementFee10Enabled ? 1 : 0);
             command.Parameters.AddWithValue("$settlement_fee_1_5_enabled", matter.SettlementFee15Enabled ? 1 : 0);
+            command.Parameters.AddWithValue("$totals_inconsistent", matter.IsTotalsInconsistent ? 1 : 0);
             command.Parameters.AddWithValue("$id", matter.Id);
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public void SetMatterTotalsInconsistent(long matterId, bool isInconsistent)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE Matters
+                SET totals_inconsistent = $totals_inconsistent
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$totals_inconsistent", isInconsistent ? 1 : 0);
+            command.Parameters.AddWithValue("$id", matterId);
             command.ExecuteNonQuery();
         });
     }
@@ -1652,6 +1784,7 @@ public sealed class DatabaseService
         var termFee12Enabled = !reader.IsDBNull(11) && reader.GetInt64(11) == 1;
         var settlementFee10Enabled = !reader.IsDBNull(12) && reader.GetInt64(12) == 1;
         var settlementFee15Enabled = !reader.IsDBNull(13) && reader.GetInt64(13) == 1;
+        var totalsInconsistent = !reader.IsDBNull(14) && reader.GetInt64(14) == 1;
 
         return new Matter
         {
@@ -1668,7 +1801,8 @@ public sealed class DatabaseService
             BusinessFee13Enabled = businessFee13Enabled,
             TermFee12Enabled = termFee12Enabled,
             SettlementFee10Enabled = settlementFee10Enabled,
-            SettlementFee15Enabled = settlementFee15Enabled
+            SettlementFee15Enabled = settlementFee15Enabled,
+            IsTotalsInconsistent = totalsInconsistent
         };
     }
 
@@ -1809,6 +1943,10 @@ public sealed class DatabaseService
         if (!columns.Contains("settlement_fee_1_5_enabled"))
         {
             additions.Add("ALTER TABLE Matters ADD COLUMN settlement_fee_1_5_enabled INTEGER NOT NULL DEFAULT 0;");
+        }
+        if (!columns.Contains("totals_inconsistent"))
+        {
+            additions.Add("ALTER TABLE Matters ADD COLUMN totals_inconsistent INTEGER NOT NULL DEFAULT 0;");
         }
 
         foreach (var statement in additions)

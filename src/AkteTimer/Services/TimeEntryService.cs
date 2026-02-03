@@ -22,12 +22,18 @@ public sealed class TimeEntryService
     private readonly DatabaseService _database;
     private readonly SettingsService _settings;
     private readonly MatterTotalsQueue? _matterTotalsQueue;
+    private readonly MatterTotalsVerifyQueue? _verifyQueue;
 
-    public TimeEntryService(DatabaseService database, SettingsService settings, MatterTotalsQueue? matterTotalsQueue = null)
+    public TimeEntryService(
+        DatabaseService database,
+        SettingsService settings,
+        MatterTotalsQueue? matterTotalsQueue = null,
+        MatterTotalsVerifyQueue? verifyQueue = null)
     {
         _database = database;
         _settings = settings;
         _matterTotalsQueue = matterTotalsQueue;
+        _verifyQueue = verifyQueue;
         ActiveMatterFileRef = _settings.LastMatter;
         IsActiveMatterConfirmed = false;
     }
@@ -319,7 +325,11 @@ public sealed class TimeEntryService
         _matterTotalsQueue?.EnqueueMatterTotal(matterId);
     }
 
-    private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
+    private void OnStateChanged()
+    {
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        _verifyQueue?.NotifyIdle(IsRunning);
+    }
 
     private void EnqueueTotalsForEntry(TimeEntry entry, DateTime? endOverrideUtc = null)
     {

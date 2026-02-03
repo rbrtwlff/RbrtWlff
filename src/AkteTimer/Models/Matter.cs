@@ -16,4 +16,5 @@ public sealed class Matter
     public bool TermFee12Enabled { get; set; }
     public bool SettlementFee10Enabled { get; set; }
     public bool SettlementFee15Enabled { get; set; }
+    public bool IsTotalsInconsistent { get; set; }
 }
