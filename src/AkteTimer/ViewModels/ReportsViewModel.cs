@@ -912,7 +912,7 @@ public sealed class ReportsViewModel : ViewModelBase
         }
         finally
         {
-            var dispatcher = Application.Current?.Dispatcher;
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
             if (dispatcher != null)
             {
                 dispatcher.Invoke(() =>
@@ -930,7 +930,7 @@ public sealed class ReportsViewModel : ViewModelBase
 
             if (!wasCanceled)
             {
-                var dispatcherRefresh = Application.Current?.Dispatcher;
+                var dispatcherRefresh = System.Windows.Application.Current?.Dispatcher;
                 if (dispatcherRefresh != null)
                 {
                     dispatcherRefresh.Invoke(RefreshRangeAndMatters);
@@ -946,7 +946,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private void UpdateRebuildProgress(int completed, int total, string statusText)
     {
         var progress = total > 0 ? (double)completed / total * 100 : 0;
-        var dispatcher = Application.Current?.Dispatcher;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher == null)
         {
             RebuildProgress = progress;
