@@ -314,6 +314,11 @@ public sealed class TimeEntryService
         OnStateChanged();
     }
 
+    public void EnqueueMatterTotalsRefresh(long matterId)
+    {
+        _matterTotalsQueue?.EnqueueMatterTotal(matterId);
+    }
+
     private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
 
     private void EnqueueTotalsForEntry(TimeEntry entry, DateTime? endOverrideUtc = null)

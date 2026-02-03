@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -26,6 +27,10 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly BillingService _billingService;
     private readonly SettingsService _settingsService;
     private readonly RvgFeeTableService _rvgFeeTableService = new();
+    private readonly HashSet<long> _pendingMatterTotalsRefresh = new();
+    private readonly object _pendingMatterTotalsLock = new();
+    private readonly Dictionary<long, List<ReportEntryViewModel>> _matterEntriesForRefresh = new();
+    private readonly Dictionary<long, Matter> _matterLookupForRefresh = new();
     private DateTime _fromDate;
     private DateTime _toDate;
     private string _todayTotalDuration = "00:00:00";
@@ -603,57 +608,147 @@ public sealed class ReportsViewModel : ViewModelBase
                     values.totalRoundedMinutes,
                     values.honorarStunden,
                     values.breakdown);
+                entry.SetMatterTotalsUpdating(values.isUpdating);
             }
         }
     }
 
-    private int GetTotalRoundedMinutesForMatter(long matterId)
-    {
-        var entries = _timeEntryService.GetEntriesForMatter(matterId);
-        return CalculateTotalRoundedMinutes(entries);
-    }
-
-    private int GetTotalRoundedMinutesForMatter(long matterId, ReportsRefreshPerformanceTracker? tracker)
-    {
-        var entries = tracker?.TrackDb(() => _timeEntryService.GetEntriesForMatter(matterId))
-            ?? _timeEntryService.GetEntriesForMatter(matterId);
-        return CalculateTotalRoundedMinutes(entries);
-    }
-
-    private static int CalculateTotalRoundedMinutes(IEnumerable<TimeEntry> entries)
-    {
-        var totalRoundedMinutes = 0;
-
-        foreach (var entry in entries)
-        {
-            var duration = TimeEntryCalculations.GetDuration(entry);
-            var actualMinutes = TimeEntryCalculations.GetActualMinutes(duration);
-            totalRoundedMinutes += TimeEntryCalculations.GetRoundedMinutes(actualMinutes);
-        }
-
-        return totalRoundedMinutes;
-    }
-
-    private Dictionary<long, (decimal hourlyRate, int totalRoundedMinutes, decimal honorarStunden, RvgBreakdown? breakdown)> BuildHonorariumByMatter(
+    private Dictionary<long, (decimal hourlyRate, int totalRoundedMinutes, decimal honorarStunden, RvgBreakdown? breakdown, bool isUpdating)> BuildHonorariumByMatter(
         IEnumerable<ReportEntryViewModel> entries,
         IReadOnlyDictionary<long, Matter> matterLookup,
         ReportsRefreshPerformanceTracker? tracker)
     {
-        return entries
-            .Select(vm => vm.MatterId)
-            .Distinct()
+        var entriesByMatter = entries
+            .GroupBy(vm => vm.MatterId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        return entriesByMatter.Keys
             .ToDictionary(
                 matterId => matterId,
                 matterId =>
                 {
                     matterLookup.TryGetValue(matterId, out var matter);
                     var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
-                    var totalRoundedMinutes = GetTotalRoundedMinutesForMatter(matterId, tracker);
+                    var totals = tracker?.TrackDb(() => _databaseService.GetMatterTotals(matterId))
+                        ?? _databaseService.GetMatterTotals(matterId);
+                    var isUpdating = totals == null || IsMatterTotalsStale(totals);
+                    if (isUpdating)
+                    {
+                        RequestMatterTotalsRefresh(matterId, matterLookup, entriesByMatter);
+                    }
+
+                    var totalRoundedMinutes = totals?.TotalRoundedMinutesAllTime ?? 0;
                     var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
                     var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, _rvgFeeTableService);
 
-                    return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown);
+                    return (hourlyRate, totalRoundedMinutes, honorarStunden, breakdown, isUpdating);
                 });
+    }
+
+    private void RequestMatterTotalsRefresh(
+        long matterId,
+        IReadOnlyDictionary<long, Matter> matterLookup,
+        IReadOnlyDictionary<long, List<ReportEntryViewModel>> entriesByMatter)
+    {
+        var shouldStart = false;
+        lock (_pendingMatterTotalsLock)
+        {
+            _matterEntriesForRefresh[matterId] = entriesByMatter.TryGetValue(matterId, out var entries)
+                ? entries
+                : new List<ReportEntryViewModel>();
+            if (matterLookup.TryGetValue(matterId, out var matter))
+            {
+                _matterLookupForRefresh[matterId] = matter;
+            }
+            else
+            {
+                _matterLookupForRefresh.Remove(matterId);
+            }
+
+            if (_pendingMatterTotalsRefresh.Add(matterId))
+            {
+                shouldStart = true;
+            }
+        }
+
+        if (!shouldStart)
+        {
+            return;
+        }
+
+        _timeEntryService.EnqueueMatterTotalsRefresh(matterId);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var timeoutAt = DateTime.UtcNow.AddSeconds(15);
+                while (DateTime.UtcNow < timeoutAt)
+                {
+                    await Task.Delay(250).ConfigureAwait(false);
+                    var totals = _databaseService.GetMatterTotals(matterId);
+                    if (totals == null || IsMatterTotalsStale(totals))
+                    {
+                        continue;
+                    }
+
+                    List<ReportEntryViewModel> entries;
+                    Matter? matter;
+                    lock (_pendingMatterTotalsLock)
+                    {
+                        if (!_matterEntriesForRefresh.TryGetValue(matterId, out entries!))
+                        {
+                            break;
+                        }
+
+                        _matterLookupForRefresh.TryGetValue(matterId, out matter);
+                    }
+
+                    var hourlyRate = matter?.HourlyRateEurPerHour ?? 0m;
+                    var totalRoundedMinutes = totals.TotalRoundedMinutesAllTime;
+                    var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
+                    var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, _rvgFeeTableService);
+                    var dispatcher = Application.Current?.Dispatcher;
+                    if (dispatcher == null)
+                    {
+                        break;
+                    }
+
+                    dispatcher.Invoke(() =>
+                    {
+                        foreach (var entry in entries)
+                        {
+                            entry.SetMatterHonorarium(hourlyRate, totalRoundedMinutes, honorarStunden, breakdown);
+                            entry.SetMatterTotalsUpdating(false);
+                        }
+                    });
+                    break;
+                }
+            }
+            finally
+            {
+                lock (_pendingMatterTotalsLock)
+                {
+                    _pendingMatterTotalsRefresh.Remove(matterId);
+                    _matterEntriesForRefresh.Remove(matterId);
+                    _matterLookupForRefresh.Remove(matterId);
+                }
+            }
+        });
+    }
+
+    private static bool IsMatterTotalsStale(MatterTotals totals)
+    {
+        if (string.IsNullOrWhiteSpace(totals.DailyTotalsMaxUpdatedAt))
+        {
+            return false;
+        }
+
+        if (!DateTime.TryParse(totals.DailyTotalsMaxUpdatedAt, null, DateTimeStyles.RoundtripKind, out var maxUpdatedAtUtc))
+        {
+            return false;
+        }
+
+        return maxUpdatedAtUtc.ToUniversalTime() > totals.CalculatedAtUtc;
     }
 
     private sealed class ReportsRefreshPerformanceTracker : IDisposable
@@ -1361,6 +1456,7 @@ public sealed class ReportEntryViewModel : ViewModelBase
     private decimal _settlementFee15Eur;
     private decimal _customFeeEur;
     private string _note = string.Empty;
+    private bool _isMatterTotalsUpdating;
 
     public ReportEntryViewModel(TimeEntry entry, Matter? matter, TimeEntryService timeEntryService, Action<long, bool> matterUpdated)
     {
@@ -1458,6 +1554,20 @@ public sealed class ReportEntryViewModel : ViewModelBase
     public decimal SettlementFee10Eur => _settlementFee10Eur;
     public decimal SettlementFee15Eur => _settlementFee15Eur;
     public decimal CustomFeeEur => _customFeeEur;
+    public bool IsMatterTotalsUpdating
+    {
+        get => _isMatterTotalsUpdating;
+        private set
+        {
+            if (_isMatterTotalsUpdating == value)
+            {
+                return;
+            }
+
+            _isMatterTotalsUpdating = value;
+            NotifyPropertyChanged();
+        }
+    }
     public string BusinessFee13EurText => FormatRvgComponent(_businessFee13Enabled, _businessFee13Eur);
     public string TermFee12EurText => FormatRvgComponent(_termFee12Enabled, _termFee12Eur);
     public string SettlementFee10EurText => FormatRvgComponent(_settlementFee10Enabled, _settlementFee10Eur);
@@ -1617,6 +1727,11 @@ public sealed class ReportEntryViewModel : ViewModelBase
         NotifyPropertyChanged(nameof(SettlementFee10EurText));
         NotifyPropertyChanged(nameof(SettlementFee15EurText));
         NotifyPropertyChanged(nameof(CustomFeeEurText));
+    }
+
+    public void SetMatterTotalsUpdating(bool isUpdating)
+    {
+        IsMatterTotalsUpdating = isUpdating;
     }
 
     public void SetRvgMetrics(RvgMetrics? metrics)
