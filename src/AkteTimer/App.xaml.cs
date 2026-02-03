@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Markup;
 using AkteTimer.Services;
+using AkteTimer.Services.Jobs;
 using AkteTimer.Views;
 using MessageBox = System.Windows.MessageBox;
 
@@ -21,6 +22,7 @@ public partial class App : System.Windows.Application
     private PopupWindow? _popupWindow;
     private SettingsService? _settingsService;
     private DataDirectoryService? _dataDirectoryService;
+    private MatterTotalsQueue? _matterTotalsQueue;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -53,7 +55,8 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        _timeEntryService = new TimeEntryService(_databaseService, _settingsService);
+        _matterTotalsQueue = new MatterTotalsQueue(_databaseService);
+        _timeEntryService = new TimeEntryService(_databaseService, _settingsService, _matterTotalsQueue);
         _billingService = new BillingService(_databaseService);
 
         _popupWindow = new PopupWindow(_timeEntryService, _settingsService);
@@ -141,6 +144,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _matterTotalsQueue?.Dispose();
         _hotkeyService?.Dispose();
         _trayService?.Dispose();
         LogService.LogInfo("App-Ende.");

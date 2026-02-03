@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using AkteTimer.Models;
+using AkteTimer.Services.Jobs;
 
 namespace AkteTimer.Services;
 
@@ -20,11 +21,13 @@ public sealed class TimeEntryService
 
     private readonly DatabaseService _database;
     private readonly SettingsService _settings;
+    private readonly MatterTotalsQueue? _matterTotalsQueue;
 
-    public TimeEntryService(DatabaseService database, SettingsService settings)
+    public TimeEntryService(DatabaseService database, SettingsService settings, MatterTotalsQueue? matterTotalsQueue = null)
     {
         _database = database;
         _settings = settings;
+        _matterTotalsQueue = matterTotalsQueue;
         ActiveMatterFileRef = _settings.LastMatter;
         IsActiveMatterConfirmed = false;
     }
@@ -97,7 +100,8 @@ public sealed class TimeEntryService
         }
 
         var matter = _database.GetMatterByFileRef(ActiveMatterFileRef) ?? _database.CreateMatter(ActiveMatterFileRef);
-        _database.CreateTimeEntry(matter.Id, DateTime.UtcNow, _settings.GetStartHashtag());
+        var entry = _database.CreateTimeEntry(matter.Id, DateTime.UtcNow, _settings.GetStartHashtag());
+        EnqueueTotalsForEntry(entry);
         OnStateChanged();
         return true;
     }
@@ -116,7 +120,12 @@ public sealed class TimeEntryService
 
     public void StopRunningEntries(DateTime endUtc)
     {
+        var runningEntry = GetRunningEntry();
         _database.StopRunningEntries(endUtc);
+        if (runningEntry != null)
+        {
+            EnqueueTotalsForEntry(runningEntry, endUtc);
+        }
         OnStateChanged();
     }
 
@@ -135,6 +144,7 @@ public sealed class TimeEntryService
     public void SwitchMatter(Matter matter)
     {
         var now = DateTime.UtcNow;
+        var runningEntry = GetRunningEntry();
         _database.ExecuteInTransaction((connection, transaction) =>
         {
             using var stopCommand = connection.CreateCommand();
@@ -161,6 +171,16 @@ public sealed class TimeEntryService
         ActiveMatterFileRef = matter.FileRef;
         _settings.SetLastMatter(matter.FileRef);
         IsActiveMatterConfirmed = true;
+        if (runningEntry != null)
+        {
+            EnqueueTotalsForEntry(runningEntry, now);
+        }
+
+        var newEntry = GetRunningEntry();
+        if (newEntry != null)
+        {
+            EnqueueTotalsForEntry(newEntry);
+        }
         OnStateChanged();
     }
 
@@ -227,7 +247,14 @@ public sealed class TimeEntryService
         }
 
         var matter = _database.GetMatterByFileRef(matterFileRef) ?? _database.CreateMatter(matterFileRef);
-        _database.UpdateTimeEntry(entryId, matter.Id, startUtc, endUtc, hashtag, note);
+        var existingEntry = _database.GetTimeEntryById(entryId);
+        var updatedEntry = _database.UpdateTimeEntry(entryId, matter.Id, startUtc, endUtc, hashtag, note);
+        if (existingEntry != null)
+        {
+            EnqueueTotalsForEntry(existingEntry);
+        }
+
+        EnqueueTotalsForEntry(updatedEntry);
         OnStateChanged();
     }
 
@@ -257,7 +284,9 @@ public sealed class TimeEntryService
             throw new InvalidOperationException("Split-Zeit muss zwischen Start und Ende liegen.");
         }
 
-        _database.SplitTimeEntry(entryId, splitUtc);
+        var (updatedEntry, newEntry) = _database.SplitTimeEntry(entryId, splitUtc);
+        EnqueueTotalsForEntry(updatedEntry);
+        EnqueueTotalsForEntry(newEntry);
         OnStateChanged();
     }
 
@@ -275,13 +304,20 @@ public sealed class TimeEntryService
         }
 
         _database.DeleteTimeEntry(entryId);
+        EnqueueTotalsForEntry(entry);
         OnStateChanged();
     }
 
     public void UpdateMatter(Matter matter)
     {
         _database.UpdateMatter(matter);
+        OnStateChanged();
     }
 
     private void OnStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
+
+    private void EnqueueTotalsForEntry(TimeEntry entry, DateTime? endOverrideUtc = null)
+    {
+        _matterTotalsQueue?.EnqueueForEntry(entry, endOverrideUtc);
+    }
 }
