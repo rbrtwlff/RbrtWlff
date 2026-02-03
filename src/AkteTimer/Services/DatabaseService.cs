@@ -473,6 +473,33 @@ public sealed class DatabaseService
         return entries;
     }
 
+    public List<TimeEntry> GetEntriesForMatterOverlappingRange(long matterId, DateTime startUtc, DateTime endUtc)
+    {
+        CountQuery();
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            {TimeEntrySelect}
+            WHERE te.matter_id = $matter_id
+              AND te.start_utc < $end
+              AND (te.end_utc IS NULL OR te.end_utc > $start)
+            ORDER BY te.start_utc ASC;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        command.Parameters.AddWithValue("$start", startUtc.ToString("o"));
+        command.Parameters.AddWithValue("$end", endUtc.ToString("o"));
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
+    }
+
     public MatterDailyTotal? GetMatterDailyTotal(long matterId, DateTime dayUtc)
     {
         CountQuery();
@@ -571,6 +598,34 @@ public sealed class DatabaseService
         }
 
         return MapMatterTotals(reader);
+    }
+
+    public (int TotalRoundedMinutes, DateTime? MaxUpdatedAtUtc) GetMatterDailyTotalsAggregate(long matterId)
+    {
+        CountQuery();
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COALESCE(SUM(rounded_minutes_sum), 0), MAX(updated_at_utc)
+            FROM matter_daily_totals
+            WHERE matter_id = $matter_id;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return (0, null);
+        }
+
+        var totalRoundedMinutes = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+        DateTime? maxUpdatedAtUtc = null;
+        if (!reader.IsDBNull(1))
+        {
+            maxUpdatedAtUtc = DateTime.Parse(reader.GetString(1)).ToUniversalTime();
+        }
+
+        return (totalRoundedMinutes, maxUpdatedAtUtc);
     }
 
     public void UpsertMatterTotals(MatterTotals totals)
