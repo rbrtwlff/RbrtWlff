@@ -2155,7 +2155,13 @@ public sealed class DatabaseService
             return;
         }
 
-        var backupPath = $"{databasePath}.{DateTime.UtcNow:yyyyMMddHHmmss}.bak";
+        var backupPath = $"{databasePath}.{DateTime.UtcNow:yyyyMMddHHmmssfff}.bak";
+        var suffix = 0;
+        while (File.Exists(backupPath))
+        {
+            suffix++;
+            backupPath = $"{databasePath}.{DateTime.UtcNow:yyyyMMddHHmmssfff}.{suffix}.bak";
+        }
         using var command = connection.CreateCommand();
         command.CommandText = "VACUUM INTO $backupPath;";
         command.Parameters.AddWithValue("$backupPath", backupPath);
