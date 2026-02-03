@@ -707,7 +707,7 @@ public sealed class ReportsViewModel : ViewModelBase
                     var totalRoundedMinutes = totals.TotalRoundedMinutesAllTime;
                     var honorarStunden = ReportEntryViewModel.RoundCurrency((totalRoundedMinutes / 60m) * hourlyRate);
                     var breakdown = matter == null ? null : CalculateRvgBreakdown(matter, _rvgFeeTableService);
-                    var dispatcher = Application.Current?.Dispatcher;
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
                     if (dispatcher == null)
                     {
                         break;
@@ -913,6 +913,22 @@ public sealed class ReportsViewModel : ViewModelBase
                 group.UpdateMetrics(metrics);
             }
         }
+    }
+
+    private int GetTotalRoundedMinutesForMatter(long matterId)
+    {
+        var totals = _databaseService.GetMatterTotals(matterId);
+        if (totals == null)
+        {
+            return 0;
+        }
+
+        if (IsMatterTotalsStale(totals))
+        {
+            _timeEntryService.EnqueueMatterTotalsRefresh(matterId);
+        }
+
+        return totals.TotalRoundedMinutesAllTime;
     }
 
     private RvgMetrics? CalculateRvgMetrics(Matter matter, int actualMinutes)
