@@ -27,6 +27,22 @@
     <Style x:Key="NumericTextBoxStyle" TargetType="TextBox">
       <Setter Property="TextAlignment" Value="Right" />
     </Style>
+    <Style x:Key="SaveAwareNumericTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource NumericTextBoxStyle}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsSaving}" Value="True">
+          <Setter Property="IsEnabled" Value="False" />
+          <Setter Property="Opacity" Value="0.6" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="SaveAwareToggleCheckBoxStyle" TargetType="CheckBox" BasedOn="{StaticResource ToggleCheckBoxStyle}">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsSaving}" Value="True">
+          <Setter Property="IsEnabled" Value="False" />
+          <Setter Property="Opacity" Value="0.5" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
     <Style x:Key="EffectivityTextStyle" TargetType="TextBlock" BasedOn="{StaticResource NumericTextBlockStyle}">
       <Setter Property="Foreground" Value="{Binding EffektivitätMatter, Converter={StaticResource PositiveNegativeBrushConverter}}" />
     </Style>
@@ -207,7 +223,7 @@
                         <DataGridTextColumn Header="Stundensatz"
                                             Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                                            EditingElementStyle="{StaticResource SaveAwareNumericTextBoxStyle}" />
                         <DataGridTextColumn Header="Zeit-Honorar"
                                             Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
@@ -219,7 +235,7 @@
                         <DataGridTextColumn Header="Streitwert"
                                             Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                                            EditingElementStyle="{StaticResource SaveAwareNumericTextBoxStyle}" />
                         <DataGridTemplateColumn Header="Gebühr (wahl)">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -231,7 +247,7 @@
                                 <TextBox Grid.Column="0"
                                          Margin="0,0,6,0"
                                          MinWidth="50"
-                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Style="{StaticResource SaveAwareNumericTextBoxStyle}"
                                          Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
                                 <TextBlock Grid.Column="1"
                                            Style="{StaticResource NumericTextBlockStyle}"
@@ -248,7 +264,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding BusinessFee13EurText}">
@@ -274,7 +290,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding TermFee12EurText}">
@@ -300,7 +316,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding SettlementFee10EurText}">
@@ -326,7 +342,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding SettlementFee15EurText}">
@@ -442,7 +458,7 @@
                         <DataGridTextColumn Header="Stundensatz"
                                             Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                                            EditingElementStyle="{StaticResource SaveAwareNumericTextBoxStyle}" />
                         <DataGridTextColumn Header="Zeit-Honorar"
                                             Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
@@ -454,7 +470,7 @@
                         <DataGridTextColumn Header="Streitwert"
                                             Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                                            EditingElementStyle="{StaticResource SaveAwareNumericTextBoxStyle}" />
                         <DataGridTemplateColumn Header="Gebühr (wahl)">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -466,7 +482,7 @@
                                 <TextBox Grid.Column="0"
                                          Margin="0,0,6,0"
                                          MinWidth="50"
-                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Style="{StaticResource SaveAwareNumericTextBoxStyle}"
                                          Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
                                 <TextBlock Grid.Column="1"
                                            Style="{StaticResource NumericTextBlockStyle}"
@@ -483,7 +499,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding BusinessFee13EurText}">
@@ -509,7 +525,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding TermFee12EurText}">
@@ -535,7 +551,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding SettlementFee10EurText}">
@@ -561,7 +577,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding SettlementFee15EurText}">
@@ -660,7 +676,7 @@
                         <DataGridTextColumn Header="Stundensatz"
                                             Binding="{Binding HourlyRate, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                                            EditingElementStyle="{StaticResource SaveAwareNumericTextBoxStyle}" />
                         <DataGridTextColumn Header="Zeit-Honorar"
                                             Binding="{Binding HonorarStundenMatter, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
@@ -672,7 +688,7 @@
                         <DataGridTextColumn Header="Streitwert"
                                             Binding="{Binding SubjectValueEur, UpdateSourceTrigger=LostFocus, Converter={StaticResource CurrencyConverter}}"
                                             ElementStyle="{StaticResource NumericTextBlockStyle}"
-                                            EditingElementStyle="{StaticResource NumericTextBoxStyle}" />
+                                            EditingElementStyle="{StaticResource SaveAwareNumericTextBoxStyle}" />
                         <DataGridTemplateColumn Header="Gebühr (wahl)">
                           <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -684,7 +700,7 @@
                                 <TextBox Grid.Column="0"
                                          Margin="0,0,6,0"
                                          MinWidth="50"
-                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Style="{StaticResource SaveAwareNumericTextBoxStyle}"
                                          Text="{Binding CustomFeeFactor, UpdateSourceTrigger=LostFocus, Converter={StaticResource FeeFactorConverter}}" />
                                 <TextBlock Grid.Column="1"
                                            Style="{StaticResource NumericTextBlockStyle}"
@@ -701,7 +717,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding BusinessFee13Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding BusinessFee13EurText}">
@@ -727,7 +743,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding TermFee12Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding TermFee12EurText}">
@@ -753,7 +769,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding SettlementFee10Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding SettlementFee10EurText}">
@@ -779,7 +795,7 @@
                                   <ColumnDefinition Width="Auto" />
                                   <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <CheckBox Style="{StaticResource ToggleCheckBoxStyle}"
+                                <CheckBox Style="{StaticResource SaveAwareToggleCheckBoxStyle}"
                                           IsChecked="{Binding SettlementFee15Enabled, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding SettlementFee15EurText}">
