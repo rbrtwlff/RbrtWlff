@@ -23,6 +23,7 @@ public partial class App : System.Windows.Application
     private SettingsService? _settingsService;
     private DataDirectoryService? _dataDirectoryService;
     private MatterTotalsQueue? _matterTotalsQueue;
+    private MatterTotalsVerifyQueue? _matterTotalsVerifyQueue;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -56,7 +57,8 @@ public partial class App : System.Windows.Application
         }
 
         _matterTotalsQueue = new MatterTotalsQueue(_databaseService);
-        _timeEntryService = new TimeEntryService(_databaseService, _settingsService, _matterTotalsQueue);
+        _matterTotalsVerifyQueue = new MatterTotalsVerifyQueue(_databaseService, _matterTotalsQueue);
+        _timeEntryService = new TimeEntryService(_databaseService, _settingsService, _matterTotalsQueue, _matterTotalsVerifyQueue);
         _billingService = new BillingService(_databaseService);
 
         _popupWindow = new PopupWindow(_timeEntryService, _settingsService);
@@ -144,6 +146,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _matterTotalsVerifyQueue?.Dispose();
         _matterTotalsQueue?.Dispose();
         _hotkeyService?.Dispose();
         _trayService?.Dispose();
