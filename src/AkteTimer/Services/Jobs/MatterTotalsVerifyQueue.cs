@@ -1,4 +1,5 @@
 using System.Threading;
+using Timer = System.Threading.Timer;
 
 namespace AkteTimer.Services.Jobs;
 
