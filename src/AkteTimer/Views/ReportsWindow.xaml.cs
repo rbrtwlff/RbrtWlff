@@ -21,7 +21,7 @@ public partial class ReportsWindow : Window
         _billingService = billingService;
         _databaseService = databaseService;
         InitializeComponent();
-        _viewModel = new ReportsViewModel(_timeEntryService, _databaseService, _billingService);
+        _viewModel = new ReportsViewModel(_timeEntryService, _settingsService, _databaseService, _billingService);
         DataContext = _viewModel;
         Loaded += OnLoaded;
         Closing += OnClosing;

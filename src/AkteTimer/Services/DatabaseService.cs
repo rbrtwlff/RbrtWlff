@@ -16,6 +16,8 @@ public sealed class DatabaseService
 
     private readonly string? _databasePath;
     private readonly DataDirectoryService? _dataDirectoryService;
+    private int _queryCount;
+    private int _queryCountingDepth;
 
     public DatabaseService(DataDirectoryService dataDirectoryService)
     {
@@ -143,6 +145,17 @@ public sealed class DatabaseService
     public SqliteConnection CreateConnection()
     {
         return new SqliteConnection($"Data Source={ResolveDatabasePath()}");
+    }
+
+    public QueryCountingScope BeginQueryCounting()
+    {
+        if (_queryCountingDepth == 0)
+        {
+            _queryCount = 0;
+        }
+
+        _queryCountingDepth++;
+        return new QueryCountingScope(this);
     }
 
     private string ResolveDatabasePath()
@@ -325,6 +338,7 @@ public sealed class DatabaseService
 
     public List<TimeEntry> GetTodayEntries()
     {
+        CountQuery();
         var todayLocal = DateTime.Now.Date;
         var startUtc = TimeZoneInfo.ConvertTimeToUtc(todayLocal);
         var endUtc = TimeZoneInfo.ConvertTimeToUtc(todayLocal.AddDays(1));
@@ -379,6 +393,7 @@ public sealed class DatabaseService
 
     public List<Matter> GetAllMatters()
     {
+        CountQuery();
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -401,6 +416,7 @@ public sealed class DatabaseService
 
     public List<TimeEntry> GetEntriesInRange(DateTime startUtc, DateTime endUtc, IReadOnlyCollection<long> matterIds)
     {
+        CountQuery();
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -433,6 +449,7 @@ public sealed class DatabaseService
 
     public List<TimeEntry> GetEntriesForMatter(long matterId)
     {
+        CountQuery();
         using var connection = CreateConnection();
         connection.Open();
         using var command = connection.CreateCommand();
@@ -1639,5 +1656,38 @@ public sealed class DatabaseService
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE RvgBillingSnapshots ADD COLUMN breakdown_json TEXT NULL;";
         alter.ExecuteNonQuery();
+    }
+
+    private void CountQuery()
+    {
+        if (_queryCountingDepth > 0)
+        {
+            _queryCount++;
+        }
+    }
+
+    private void EndQueryCounting()
+    {
+        if (_queryCountingDepth > 0)
+        {
+            _queryCountingDepth--;
+        }
+    }
+
+    public sealed class QueryCountingScope : IDisposable
+    {
+        private readonly DatabaseService _database;
+
+        internal QueryCountingScope(DatabaseService database)
+        {
+            _database = database;
+        }
+
+        public int QueryCount => _database._queryCount;
+
+        public void Dispose()
+        {
+            _database.EndQueryCounting();
+        }
     }
 }
