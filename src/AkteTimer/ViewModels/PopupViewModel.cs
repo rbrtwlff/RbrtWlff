@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using System.Windows.Threading;
 using AkteTimer.Models;
 using AkteTimer.Services;
@@ -27,6 +28,7 @@ public sealed class PopupViewModel : ViewModelBase
     private string _fileRefValidationMessage = string.Empty;
     private string _selectedHashtag = string.Empty;
     private TimeEntry? _lastStoppedEntryForNotePrompt;
+    private bool _suppressInputSync;
 
     public PopupViewModel(TimeEntryService timeEntryService, SettingsService settingsService)
     {
@@ -88,6 +90,14 @@ public sealed class PopupViewModel : ViewModelBase
             {
                 _selectedRecentEntry = null;
                 NotifyPropertyChanged(nameof(SelectedRecentEntry));
+            }
+
+            if (!_suppressInputSync)
+            {
+                _timeEntryService.UpdateActiveMatterFromInput(value);
+                HasActiveMatter = !string.IsNullOrWhiteSpace(_timeEntryService.ActiveMatterFileRef);
+                NotifyPropertyChanged(nameof(CanStart));
+                CommandManager.InvalidateRequerySuggested();
             }
 
             UpdateFileRefValidation();
@@ -257,7 +267,7 @@ public sealed class PopupViewModel : ViewModelBase
         }
     }
 
-    public bool CanStart => IsPaused && HasActiveMatter && _timeEntryService.IsActiveMatterConfirmed;
+    public bool CanStart => !IsRunning && HasActiveMatter && _timeEntryService.IsActiveMatterConfirmed;
 
     public bool CanPause => IsRunning;
 
@@ -333,7 +343,15 @@ public sealed class PopupViewModel : ViewModelBase
 
     public void ClearInput()
     {
-        FileRefInput = string.Empty;
+        _suppressInputSync = true;
+        try
+        {
+            FileRefInput = string.Empty;
+        }
+        finally
+        {
+            _suppressInputSync = false;
+        }
     }
 
     public void RefreshRecent()

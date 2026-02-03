@@ -70,6 +70,20 @@ public sealed class TimeEntryService
         OnStateChanged();
     }
 
+    public void UpdateActiveMatterFromInput(string? fileRefInput)
+    {
+        var normalized = fileRefInput?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            ActiveMatterFileRef = null;
+            IsActiveMatterConfirmed = false;
+            return;
+        }
+
+        ActiveMatterFileRef = normalized;
+        IsActiveMatterConfirmed = true;
+    }
+
     public void Pause()
     {
         var running = GetRunningEntry();
