@@ -142,6 +142,7 @@ public sealed class DatabaseService
         EnsureTimeEntryBillingColumns(connection);
         EnsureRvgBillingSnapshotColumns(connection);
         EnsureTimeEntryIndexes(connection);
+        EnsureMatterTotalsTables(connection);
     }
 
     public SqliteConnection CreateConnection()
@@ -470,6 +471,136 @@ public sealed class DatabaseService
         }
 
         return entries;
+    }
+
+    public MatterDailyTotal? GetMatterDailyTotal(long matterId, DateTime dayUtc)
+    {
+        CountQuery();
+        var dayKey = FormatDayKey(dayUtc);
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT matter_id, day, rounded_minutes_sum, fingerprint, updated_at_utc, calc_version
+            FROM matter_daily_totals
+            WHERE matter_id = $matter_id AND day = $day;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        command.Parameters.AddWithValue("$day", dayKey);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return MapMatterDailyTotal(reader);
+    }
+
+    public List<MatterDailyTotal> GetMatterDailyTotalsInRange(long matterId, DateTime startDayUtc, DateTime endDayUtc)
+    {
+        CountQuery();
+        var startKey = FormatDayKey(startDayUtc);
+        var endKey = FormatDayKey(endDayUtc);
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT matter_id, day, rounded_minutes_sum, fingerprint, updated_at_utc, calc_version
+            FROM matter_daily_totals
+            WHERE matter_id = $matter_id AND day >= $start_day AND day <= $end_day
+            ORDER BY day ASC;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        command.Parameters.AddWithValue("$start_day", startKey);
+        command.Parameters.AddWithValue("$end_day", endKey);
+        using var reader = command.ExecuteReader();
+        var totals = new List<MatterDailyTotal>();
+        while (reader.Read())
+        {
+            totals.Add(MapMatterDailyTotal(reader));
+        }
+
+        return totals;
+    }
+
+    public void UpsertMatterDailyTotal(MatterDailyTotal total)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO matter_daily_totals (
+                  matter_id, day, rounded_minutes_sum, fingerprint, updated_at_utc, calc_version
+                )
+                VALUES (
+                  $matter_id, $day, $rounded_minutes_sum, $fingerprint, $updated_at_utc, $calc_version
+                )
+                ON CONFLICT(matter_id, day) DO UPDATE SET
+                  rounded_minutes_sum = excluded.rounded_minutes_sum,
+                  fingerprint = excluded.fingerprint,
+                  updated_at_utc = excluded.updated_at_utc,
+                  calc_version = excluded.calc_version;
+                """;
+            command.Parameters.AddWithValue("$matter_id", total.MatterId);
+            command.Parameters.AddWithValue("$day", FormatDayKey(total.DayUtc));
+            command.Parameters.AddWithValue("$rounded_minutes_sum", total.RoundedMinutesSum);
+            command.Parameters.AddWithValue("$fingerprint", string.IsNullOrWhiteSpace(total.Fingerprint) ? DBNull.Value : total.Fingerprint);
+            command.Parameters.AddWithValue("$updated_at_utc", total.UpdatedAtUtc.ToString("o"));
+            command.Parameters.AddWithValue("$calc_version", string.IsNullOrWhiteSpace(total.CalcVersion) ? DBNull.Value : total.CalcVersion);
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public MatterTotals? GetMatterTotals(long matterId)
+    {
+        CountQuery();
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT matter_id, total_rounded_minutes_all_time, daily_totals_max_updated_at, calculated_at_utc, calc_version
+            FROM matter_totals
+            WHERE matter_id = $matter_id;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return MapMatterTotals(reader);
+    }
+
+    public void UpsertMatterTotals(MatterTotals totals)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO matter_totals (
+                  matter_id, total_rounded_minutes_all_time, daily_totals_max_updated_at, calculated_at_utc, calc_version
+                )
+                VALUES (
+                  $matter_id, $total_rounded_minutes_all_time, $daily_totals_max_updated_at, $calculated_at_utc, $calc_version
+                )
+                ON CONFLICT(matter_id) DO UPDATE SET
+                  total_rounded_minutes_all_time = excluded.total_rounded_minutes_all_time,
+                  daily_totals_max_updated_at = excluded.daily_totals_max_updated_at,
+                  calculated_at_utc = excluded.calculated_at_utc,
+                  calc_version = excluded.calc_version;
+                """;
+            command.Parameters.AddWithValue("$matter_id", totals.MatterId);
+            command.Parameters.AddWithValue("$total_rounded_minutes_all_time", totals.TotalRoundedMinutesAllTime);
+            command.Parameters.AddWithValue(
+                "$daily_totals_max_updated_at",
+                string.IsNullOrWhiteSpace(totals.DailyTotalsMaxUpdatedAt) ? DBNull.Value : totals.DailyTotalsMaxUpdatedAt);
+            command.Parameters.AddWithValue("$calculated_at_utc", totals.CalculatedAtUtc.ToString("o"));
+            command.Parameters.AddWithValue("$calc_version", string.IsNullOrWhiteSpace(totals.CalcVersion) ? DBNull.Value : totals.CalcVersion);
+            command.ExecuteNonQuery();
+        });
     }
 
     public List<TimeEntry> GetUnbilledEntries(bool onlyCompleted = true)
@@ -1420,6 +1551,37 @@ public sealed class DatabaseService
         };
     }
 
+    private static MatterDailyTotal MapMatterDailyTotal(SqliteDataReader reader)
+    {
+        var day = DateTime.ParseExact(
+            reader.GetString(1),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+        return new MatterDailyTotal
+        {
+            MatterId = reader.GetInt64(0),
+            DayUtc = DateTime.SpecifyKind(day, DateTimeKind.Utc),
+            RoundedMinutesSum = reader.GetInt32(2),
+            Fingerprint = reader.IsDBNull(3) ? null : reader.GetString(3),
+            UpdatedAtUtc = DateTime.Parse(reader.GetString(4)).ToUniversalTime(),
+            CalcVersion = reader.IsDBNull(5) ? null : reader.GetString(5)
+        };
+    }
+
+    private static MatterTotals MapMatterTotals(SqliteDataReader reader)
+    {
+        return new MatterTotals
+        {
+            MatterId = reader.GetInt64(0),
+            TotalRoundedMinutesAllTime = reader.GetInt32(1),
+            DailyTotalsMaxUpdatedAt = reader.IsDBNull(2) ? null : reader.GetString(2),
+            CalculatedAtUtc = DateTime.Parse(reader.GetString(3)).ToUniversalTime(),
+            CalcVersion = reader.IsDBNull(4) ? null : reader.GetString(4)
+        };
+    }
+
     private static Matter MapMatter(SqliteDataReader reader)
     {
         var billingTypeValue = reader.IsDBNull(4) ? "hourly" : reader.GetString(4);
@@ -1503,6 +1665,11 @@ public sealed class DatabaseService
     private static decimal? GetNullableDecimal(SqliteDataReader reader, int index)
     {
         return reader.IsDBNull(index) ? null : (decimal)reader.GetDouble(index);
+    }
+
+    private static string FormatDayKey(DateTime dayUtc)
+    {
+        return dayUtc.ToUniversalTime().Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     private static void EnsureHashtagColumn(SqliteConnection connection)
@@ -1705,6 +1872,54 @@ public sealed class DatabaseService
         }
     }
 
+    private void EnsureMatterTotalsTables(SqliteConnection connection)
+    {
+        var createStatements = new List<string>();
+        if (!TableExists(connection, "matter_daily_totals"))
+        {
+            createStatements.Add("""
+                CREATE TABLE IF NOT EXISTS matter_daily_totals (
+                  matter_id INTEGER NOT NULL,
+                  day TEXT NOT NULL,
+                  rounded_minutes_sum INTEGER NOT NULL,
+                  fingerprint TEXT NULL,
+                  updated_at_utc TEXT NOT NULL,
+                  calc_version TEXT NULL,
+                  PRIMARY KEY (matter_id, day),
+                  FOREIGN KEY(matter_id) REFERENCES Matters(id)
+                );
+                """);
+        }
+
+        if (!TableExists(connection, "matter_totals"))
+        {
+            createStatements.Add("""
+                CREATE TABLE IF NOT EXISTS matter_totals (
+                  matter_id INTEGER PRIMARY KEY,
+                  total_rounded_minutes_all_time INTEGER NOT NULL,
+                  daily_totals_max_updated_at TEXT NULL,
+                  calculated_at_utc TEXT NOT NULL,
+                  calc_version TEXT NULL,
+                  FOREIGN KEY(matter_id) REFERENCES Matters(id)
+                );
+                """);
+        }
+
+        if (createStatements.Count == 0)
+        {
+            return;
+        }
+
+        CreateDatabaseBackup(connection);
+
+        foreach (var statement in createStatements)
+        {
+            using var create = connection.CreateCommand();
+            create.CommandText = statement;
+            create.ExecuteNonQuery();
+        }
+    }
+
     private static string GetIndexSignature(SqliteConnection connection, string indexName)
     {
         var columns = new SortedList<int, string>();
@@ -1728,6 +1943,15 @@ public sealed class DatabaseService
         }
 
         return string.Join(",", columns.Values);
+    }
+
+    private static bool TableExists(SqliteConnection connection, string tableName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $table_name;";
+        command.Parameters.AddWithValue("$table_name", tableName);
+        using var reader = command.ExecuteReader();
+        return reader.Read();
     }
 
     private void CreateDatabaseBackup(SqliteConnection connection)
