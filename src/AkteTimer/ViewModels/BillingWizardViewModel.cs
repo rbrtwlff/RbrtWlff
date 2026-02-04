@@ -342,6 +342,13 @@ public sealed class BillingWizardViewModel : ViewModelBase
         {
             var breakdown = RvgBreakdownSerializer.Deserialize(snapshot.BreakdownJson);
             var breakdownNote = breakdown == null ? "ohne Aufschlüsselung, Altbestand" : null;
+            _databaseService.UpdateBillingCaseRvgData(
+                billingCase.Id,
+                signature,
+                0m,
+                false,
+                snapshot.Signature,
+                snapshot.Total);
             return new RvgBillingEvaluation(
                 "RVG bereits abgerechnet – kein neuer Tatbestand (Freigabe gesperrt).",
                 0m,

@@ -208,24 +208,48 @@ public sealed class BillingService
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(billingCase.RvgSignature))
-            {
-                throw new InvalidOperationException("RVG-Signatur fehlt für die Finalisierung.");
-            }
-
             var matter = _database.GetMatterById(billingCase.MatterId)
                          ?? throw new InvalidOperationException("Akte nicht gefunden.");
+            var computedSignature = ComputeRvgSignature(matter);
+            var latestSnapshot = _database.GetLatestRvgBillingSnapshot(matter.Id);
+            if (latestSnapshot != null
+                && string.Equals(latestSnapshot.Signature, computedSignature, StringComparison.Ordinal))
+            {
+                // Kein Delta ist kein Fehler: vorhandener Snapshot bleibt gültig.
+                continue;
+            }
+
+            var signatureToUse = !string.IsNullOrWhiteSpace(billingCase.RvgSignature)
+                ? billingCase.RvgSignature
+                : computedSignature;
+            if (string.IsNullOrWhiteSpace(billingCase.RvgSignature))
+            {
+                // Datenheilung: Signatur speichern, obwohl kein neuer Snapshot erzwungen wird.
+                _database.UpdateBillingCaseRvgData(
+                    billingCase.Id,
+                    signatureToUse,
+                    billingCase.RvgTotal,
+                    billingCase.RvgIsDifference,
+                    billingCase.RvgBaseSignature,
+                    billingCase.RvgBaseTotal);
+            }
+
             var breakdown = RvgCalculator.CalculateBreakdown(matter, rvgFeeTableService);
             var breakdownJson = RvgBreakdownSerializer.Serialize(breakdown);
             var total = billingCase.RvgIsDifference
                 ? billingCase.RvgBaseTotal + billingCase.RvgTotal
                 : billingCase.RvgTotal;
+            if (total <= 0m)
+            {
+                // Kein abrechenbarer Betrag: kein Snapshot erforderlich.
+                continue;
+            }
 
             snapshots.Add(new RvgBillingSnapshot
             {
                 MatterId = billingCase.MatterId,
                 BilledUtc = finalizedUtc,
-                Signature = billingCase.RvgSignature,
+                Signature = signatureToUse,
                 Total = total,
                 BatchId = batchId,
                 BreakdownJson = breakdownJson
