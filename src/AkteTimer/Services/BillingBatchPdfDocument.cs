@@ -169,6 +169,7 @@ public sealed class BillingBatchPdfDocument : IDocument
         {
             column.Spacing(6);
             column.Item().Text("RVG-Abrechnung").FontSize(13).SemiBold();
+            // RVG-Berechnung basiert auf dem Streitwert, deshalb explizit in der Verfügung ausweisen.
             column.Item().Text(text =>
             {
                 text.Span("Streitwert: ").SemiBold();

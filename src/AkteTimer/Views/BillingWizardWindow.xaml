@@ -142,6 +142,13 @@
                        Visibility="{Binding CurrentCase.HasRvgBreakdownNote, Converter={StaticResource BoolToVis}}" />
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
+                        Margin="0,0,0,4"
+                        Visibility="{Binding CurrentCase.IsRvgBilling, Converter={StaticResource BoolToVis}}">
+              <TextBlock Text="Streitwert" FontWeight="SemiBold" Margin="0,0,8,0" />
+              <TextBlock Text="{Binding CurrentCase.SubjectValueEur, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
                         Visibility="{Binding CurrentCase.HasRvgBreakdown, Converter={StaticResource BoolToVis}}">
               <TextBlock Text="Summe" FontWeight="SemiBold" Margin="0,0,8,0" />
               <TextBlock Text="{Binding CurrentCase.RvgBreakdownTotal, Converter={StaticResource CurrencyConverter}}" FontWeight="SemiBold" />
