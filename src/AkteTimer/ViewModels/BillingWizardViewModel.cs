@@ -47,7 +47,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
         _cases = new List<BillingCaseDisplayViewModel>();
         foreach (var item in caseItems)
         {
-            var entries = databaseService.GetEntriesForMatter(item.matter.Id);
+            var entries = databaseService.GetBillableEntriesForMatter(item.matter.Id);
             var timeEntryViewModels = entries
                 .Select(entry => new TimeEntryRowViewModel(entry))
                 .ToList();
@@ -65,6 +65,8 @@ public sealed class BillingWizardViewModel : ViewModelBase
                 item.billingCase.DummyAmount,
                 item.billingCase.TotalMinutes,
                 item.billingCase.TotalAmount,
+                item.billingCase.SelectedEntryCount,
+                item.billingCase.IncludedEntryCount,
                 item.matter.HourlyRateEurPerHour,
                 adjustment?.Reason,
                 timeEntryViewModels,
@@ -509,6 +511,8 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         decimal dummyAmount,
         int totalMinutes,
         decimal totalAmount,
+        int selectedEntryCount,
+        int includedEntryCount,
         decimal hourlyRate,
         string? dummyReason,
         IReadOnlyList<TimeEntryRowViewModel> timeEntries,
@@ -532,6 +536,8 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
         TrackedMinutes = trackedMinutes;
         TrackedAmount = trackedAmount;
         HourlyRate = hourlyRate;
+        SelectedEntryCount = selectedEntryCount;
+        IncludedEntryCount = includedEntryCount;
         _dummyMinutes = dummyMinutes;
         _dummyAmount = dummyAmount;
         _totalMinutes = totalMinutes;
@@ -567,6 +573,14 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     public bool IsRvgBilling => BillingType == BillingType.Rvg;
 
     public decimal HourlyRate { get; }
+
+    public int SelectedEntryCount { get; }
+
+    public int IncludedEntryCount { get; }
+
+    public int AutoIncludedEntryCount => Math.Max(0, IncludedEntryCount - SelectedEntryCount);
+
+    public string IncludedEntriesText => $"Einbezogen: {IncludedEntryCount} (davon automatisch: {AutoIncludedEntryCount})";
 
     public bool IsApproved => ApprovedUtc.HasValue;
 

@@ -113,7 +113,9 @@ public sealed class DatabaseService
               rvg_total REAL NOT NULL DEFAULT 0,
               rvg_is_difference INTEGER NOT NULL DEFAULT 0,
               rvg_base_signature TEXT NULL,
-              rvg_base_total REAL NOT NULL DEFAULT 0
+              rvg_base_total REAL NOT NULL DEFAULT 0,
+              selected_entry_count INTEGER NOT NULL DEFAULT 0,
+              included_entry_count INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS BillingAdjustments (
@@ -142,6 +144,7 @@ public sealed class DatabaseService
         EnsureMatterColumns(connection);
         EnsureTimeEntryBillingColumns(connection);
         EnsureRvgBillingSnapshotColumns(connection);
+        EnsureBillingCaseBatchScopeColumns(connection);
         EnsureTimeEntryIndexes(connection);
         EnsureMatterTotalsTables(connection);
     }
@@ -771,6 +774,30 @@ public sealed class DatabaseService
         });
     }
 
+    public List<TimeEntry> GetBillableEntriesForMatter(long matterId)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            {TimeEntrySelect}
+            WHERE te.matter_id = $matter_id
+              AND te.billed = 0
+              AND te.end_utc IS NOT NULL
+            ORDER BY te.start_utc ASC;
+            """;
+        command.Parameters.AddWithValue("$matter_id", matterId);
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<TimeEntry>();
+        while (reader.Read())
+        {
+            entries.Add(MapTimeEntry(reader));
+        }
+
+        return entries;
+    }
+
     public List<TimeEntry> GetUnbilledEntries(bool onlyCompleted = true)
     {
         using var connection = CreateConnection();
@@ -1180,11 +1207,11 @@ public sealed class DatabaseService
             INSERT INTO BillingCases (
                 batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
                 tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total, rvg_is_difference,
-                rvg_base_signature, rvg_base_total)
+                rvg_base_signature, rvg_base_total, selected_entry_count, included_entry_count)
             VALUES (
                 $batch_id, $matter_id, $billing_type, $approved_utc, $tracked_minutes, $dummy_minutes, $total_minutes,
                 $tracked_amount, $dummy_amount, $total_amount, $note_for_staff, $rvg_signature, $rvg_total,
-                $rvg_is_difference, $rvg_base_signature, $rvg_base_total);
+                $rvg_is_difference, $rvg_base_signature, $rvg_base_total, $selected_entry_count, $included_entry_count);
             """;
         insert.Parameters.AddWithValue("$batch_id", billingCase.BatchId);
         insert.Parameters.AddWithValue("$matter_id", billingCase.MatterId);
@@ -1202,6 +1229,8 @@ public sealed class DatabaseService
         insert.Parameters.AddWithValue("$rvg_is_difference", billingCase.RvgIsDifference ? 1 : 0);
         insert.Parameters.AddWithValue("$rvg_base_signature", string.IsNullOrWhiteSpace(billingCase.RvgBaseSignature) ? DBNull.Value : billingCase.RvgBaseSignature);
         insert.Parameters.AddWithValue("$rvg_base_total", (double)billingCase.RvgBaseTotal);
+        insert.Parameters.AddWithValue("$selected_entry_count", billingCase.SelectedEntryCount);
+        insert.Parameters.AddWithValue("$included_entry_count", billingCase.IncludedEntryCount);
         insert.ExecuteNonQuery();
 
         using var select = connection.CreateCommand();
@@ -1209,7 +1238,7 @@ public sealed class DatabaseService
         select.CommandText = """
             SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
                    tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
-                   rvg_is_difference, rvg_base_signature, rvg_base_total
+                   rvg_is_difference, rvg_base_signature, rvg_base_total, selected_entry_count, included_entry_count
             FROM BillingCases
             WHERE rowid = last_insert_rowid();
             """;
@@ -1228,7 +1257,7 @@ public sealed class DatabaseService
         command.CommandText = """
             SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
                    tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
-                   rvg_is_difference, rvg_base_signature, rvg_base_total
+                   rvg_is_difference, rvg_base_signature, rvg_base_total, selected_entry_count, included_entry_count
             FROM BillingCases
             WHERE id = $id;
             """;
@@ -1527,7 +1556,7 @@ public sealed class DatabaseService
         command.CommandText = """
             SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
                    tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
-                   rvg_is_difference, rvg_base_signature, rvg_base_total
+                   rvg_is_difference, rvg_base_signature, rvg_base_total, selected_entry_count, included_entry_count
             FROM BillingCases
             WHERE batch_id = $batch_id
             ORDER BY id ASC;
@@ -1557,7 +1586,7 @@ public sealed class DatabaseService
         command.CommandText = $"""
             SELECT id, batch_id, matter_id, billing_type, approved_utc, tracked_minutes, dummy_minutes, total_minutes,
                    tracked_amount, dummy_amount, total_amount, note_for_staff, rvg_signature, rvg_total,
-                   rvg_is_difference, rvg_base_signature, rvg_base_total
+                   rvg_is_difference, rvg_base_signature, rvg_base_total, selected_entry_count, included_entry_count
             FROM BillingCases
             WHERE batch_id IN ({batchFilters})
             ORDER BY id ASC;
@@ -1842,7 +1871,9 @@ public sealed class DatabaseService
             RvgTotal = (decimal)reader.GetDouble(13),
             RvgIsDifference = !reader.IsDBNull(14) && reader.GetInt64(14) == 1,
             RvgBaseSignature = reader.IsDBNull(15) ? null : reader.GetString(15),
-            RvgBaseTotal = (decimal)reader.GetDouble(16)
+            RvgBaseTotal = (decimal)reader.GetDouble(16),
+            SelectedEntryCount = reader.IsDBNull(17) ? 0 : reader.GetInt32(17),
+            IncludedEntryCount = reader.IsDBNull(18) ? 0 : reader.GetInt32(18)
         };
     }
 
@@ -2018,6 +2049,36 @@ public sealed class DatabaseService
         using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE RvgBillingSnapshots ADD COLUMN breakdown_json TEXT NULL;";
         alter.ExecuteNonQuery();
+    }
+
+    private static void EnsureBillingCaseBatchScopeColumns(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(BillingCases);";
+        using var reader = command.ExecuteReader();
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        var additions = new List<string>();
+        if (!columns.Contains("selected_entry_count"))
+        {
+            additions.Add("ALTER TABLE BillingCases ADD COLUMN selected_entry_count INTEGER NOT NULL DEFAULT 0;");
+        }
+
+        if (!columns.Contains("included_entry_count"))
+        {
+            additions.Add("ALTER TABLE BillingCases ADD COLUMN included_entry_count INTEGER NOT NULL DEFAULT 0;");
+        }
+
+        foreach (var sql in additions)
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = sql;
+            alter.ExecuteNonQuery();
+        }
     }
 
     private void EnsureTimeEntryIndexes(SqliteConnection connection)
