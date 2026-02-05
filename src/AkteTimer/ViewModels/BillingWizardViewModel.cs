@@ -57,6 +57,7 @@ public sealed class BillingWizardViewModel : ViewModelBase
             _cases.Add(new BillingCaseDisplayViewModel(
                 item.billingCase.Id,
                 item.matter.FileRef,
+                item.matter.SubjectValueEur,
                 item.billingCase.BillingType,
                 item.billingCase.ApprovedUtc,
                 item.billingCase.TrackedMinutes,
@@ -503,6 +504,7 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     public BillingCaseDisplayViewModel(
         long billingCaseId,
         string fileRef,
+        decimal subjectValueEur,
         BillingType billingType,
         DateTime? approvedUtc,
         int trackedMinutes,
@@ -531,6 +533,8 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     {
         BillingCaseId = billingCaseId;
         FileRef = fileRef;
+        // RVG basiert fachlich auf dem Streitwert; daher im Wizard sichtbar machen.
+        SubjectValueEur = subjectValueEur;
         BillingType = billingType;
         ApprovedUtc = approvedUtc;
         TrackedMinutes = trackedMinutes;
@@ -563,6 +567,8 @@ public sealed class BillingCaseDisplayViewModel : ViewModelBase
     public long BillingCaseId { get; }
 
     public string FileRef { get; }
+
+    public decimal SubjectValueEur { get; }
 
     public BillingType BillingType { get; }
 
