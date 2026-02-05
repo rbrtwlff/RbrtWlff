@@ -33,22 +33,30 @@ public sealed class BillingService
     public (long BatchId, List<long> CaseIds) CreateBillingBatchDraft(IEnumerable<long> timeEntryIds)
     {
         var entryIdList = timeEntryIds?.Distinct().ToList() ?? new List<long>();
-        var entries = _database.GetTimeEntriesByIds(entryIdList, onlyCompleted: true);
-        var eligibleEntries = entries.Where(entry => !entry.Billed).ToList();
+        var selectedEntries = _database.GetTimeEntriesByIds(entryIdList, onlyCompleted: true)
+            .Where(entry => !entry.Billed)
+            .ToList();
 
         var batch = _database.CreateBillingBatch(DateTime.UtcNow);
-        if (eligibleEntries.Count == 0)
+        if (selectedEntries.Count == 0)
         {
             return (batch.Id, new List<long>());
         }
 
+        var selectedCountByMatter = selectedEntries
+            .GroupBy(entry => entry.MatterId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
         var cases = new List<(long CaseId, string FileRef)>();
-        foreach (var group in eligibleEntries.GroupBy(entry => entry.MatterId))
+        foreach (var matterId in selectedCountByMatter.Keys)
         {
-            var matter = _database.GetMatterById(group.Key)
+            var matter = _database.GetMatterById(matterId)
                          ?? throw new InvalidOperationException("Matter nicht gefunden.");
 
-            var trackedMinutes = group.Sum(entry =>
+            // Die Batch-Menge wird pro Matter bewusst erweitert: neben der Auswahl
+            // werden alle aktuell abrechenbaren (completed + unbilled) Einträge einbezogen.
+            var billableEntries = _database.GetBillableEntriesForMatter(matterId);
+            var trackedMinutes = billableEntries.Sum(entry =>
             {
                 var duration = AkteTimer.ViewModels.TimeEntryCalculations.GetDuration(entry);
                 var actualMinutes = AkteTimer.ViewModels.TimeEntryCalculations.GetActualMinutes(duration);
@@ -76,7 +84,9 @@ public sealed class BillingService
                 RvgTotal = 0m,
                 RvgIsDifference = false,
                 RvgBaseSignature = null,
-                RvgBaseTotal = 0m
+                RvgBaseTotal = 0m,
+                SelectedEntryCount = selectedCountByMatter[matterId],
+                IncludedEntryCount = billableEntries.Count
             };
 
             var createdCase = _database.CreateBillingCase(billingCase);
@@ -107,7 +117,7 @@ public sealed class BillingService
             {
                 var matter = _database.GetMatterById(billingCase.MatterId)
                              ?? throw new InvalidOperationException("Akte nicht gefunden.");
-                var timeEntries = _database.GetEntriesForMatter(matter.Id);
+                var timeEntries = _database.GetBillableEntriesForMatter(matter.Id);
                 var rvgSignature = ComputeRvgSignature(matter);
                 var rvgFeeSummary = BuildRvgFeeSummary(matter);
                 RvgBreakdown? breakdown = null;

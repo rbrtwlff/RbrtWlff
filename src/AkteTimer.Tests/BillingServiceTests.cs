@@ -96,6 +96,10 @@ public sealed class BillingServiceTests
         Assert.Equal(6, caseByMatter[matterTwo.Id].TrackedMinutes);
         Assert.Equal(46m, caseByMatter[matterOne.Id].TrackedAmount);
         Assert.Equal(23m, caseByMatter[matterTwo.Id].TrackedAmount);
+        Assert.Equal(1, caseByMatter[matterOne.Id].SelectedEntryCount);
+        Assert.Equal(1, caseByMatter[matterOne.Id].IncludedEntryCount);
+        Assert.Equal(1, caseByMatter[matterTwo.Id].SelectedEntryCount);
+        Assert.Equal(1, caseByMatter[matterTwo.Id].IncludedEntryCount);
 
         var fileRefLookup = new Dictionary<long, string>
         {
@@ -108,6 +112,46 @@ public sealed class BillingServiceTests
             .ToList();
 
         Assert.Equal(expectedCaseIds, result.CaseIds);
+    }
+
+    [Fact]
+    public void CreateBillingBatchDraft_ExpandsMatterToAllBillableEntries()
+    {
+        using var fixture = new BillingFixture();
+        var database = fixture.Database;
+        var billingService = fixture.Service;
+
+        var matter = database.CreateMatter("111/24");
+        var otherMatter = database.CreateMatter("222/24");
+        var now = DateTime.UtcNow;
+
+        var selectedEntry = database.CreateTimeEntry(matter.Id, now.AddMinutes(-70), "#Test");
+        selectedEntry = database.UpdateTimeEntry(selectedEntry.Id, matter.Id, now.AddMinutes(-70), now.AddMinutes(-60), null, null);
+
+        var autoIncludedEntry = database.CreateTimeEntry(matter.Id, now.AddMinutes(-55), "#Test");
+        autoIncludedEntry = database.UpdateTimeEntry(autoIncludedEntry.Id, matter.Id, now.AddMinutes(-55), now.AddMinutes(-40), null, null);
+
+        var runningEntry = database.CreateTimeEntry(matter.Id, now.AddMinutes(-5), "#Test");
+
+        var otherEntry = database.CreateTimeEntry(otherMatter.Id, now.AddMinutes(-30), "#Test");
+        otherEntry = database.UpdateTimeEntry(otherEntry.Id, otherMatter.Id, now.AddMinutes(-30), now.AddMinutes(-20), null, null);
+
+        var result = billingService.CreateBillingBatchDraft(new[] { selectedEntry.Id });
+        var billingCase = database.GetBillingCasesForBatch(result.BatchId).Single();
+
+        Assert.Equal(matter.Id, billingCase.MatterId);
+        Assert.Equal(30, billingCase.TrackedMinutes);
+        Assert.Equal(115m, billingCase.TrackedAmount);
+        Assert.Equal(1, billingCase.SelectedEntryCount);
+        Assert.Equal(2, billingCase.IncludedEntryCount);
+
+        database.UpdateBillingBatchPdfPath(result.BatchId, "export.pdf");
+        billingService.FinalizeBatch(result.BatchId);
+
+        Assert.True(database.GetTimeEntryById(selectedEntry.Id)!.Billed);
+        Assert.True(database.GetTimeEntryById(autoIncludedEntry.Id)!.Billed);
+        Assert.False(database.GetTimeEntryById(runningEntry.Id)!.Billed);
+        Assert.False(database.GetTimeEntryById(otherEntry.Id)!.Billed);
     }
 
     [Fact]

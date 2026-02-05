@@ -25,15 +25,19 @@
                Text="{Binding HeaderText}" />
 
     <StackPanel Grid.Row="1"
-                Orientation="Horizontal"
                 Margin="0,12,0,8"
                 Visibility="{Binding IsCasePage, Converter={StaticResource BoolToVis}}">
-      <TextBlock Text="Akte:" FontWeight="SemiBold" />
-      <TextBlock Text="{Binding CurrentCase.FileRef}" Margin="6,0,16,0" />
-      <TextBlock Text="Abrechnung:" FontWeight="SemiBold" />
-      <TextBlock Text="{Binding CurrentCase.BillingType}" Margin="6,0,16,0" />
-      <TextBlock Text="Status:" FontWeight="SemiBold" />
-      <TextBlock Text="{Binding CurrentCase.ApprovalStatusText}" Margin="6,0,0,0" />
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="Akte:" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding CurrentCase.FileRef}" Margin="6,0,16,0" />
+        <TextBlock Text="Abrechnung:" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding CurrentCase.BillingType}" Margin="6,0,16,0" />
+        <TextBlock Text="Status:" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding CurrentCase.ApprovalStatusText}" Margin="6,0,0,0" />
+      </StackPanel>
+      <TextBlock Margin="0,4,0,0"
+                 Foreground="DimGray"
+                 Text="{Binding CurrentCase.IncludedEntriesText}" />
     </StackPanel>
 
     <StackPanel Grid.Row="2"

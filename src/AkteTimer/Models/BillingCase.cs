@@ -19,4 +19,6 @@ public sealed class BillingCase
     public bool RvgIsDifference { get; set; }
     public string? RvgBaseSignature { get; set; }
     public decimal RvgBaseTotal { get; set; }
+    public int SelectedEntryCount { get; set; }
+    public int IncludedEntryCount { get; set; }
 }
