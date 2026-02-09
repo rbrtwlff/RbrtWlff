@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "source": "KostBR\u00c4G 2025, Anlage 2 zu \u00a7 13 Abs. 1 RVG",
-    "version_label": "RVG-Wertgeb\u00fchrentabelle",
+    "source": "RVG Anlage 2 zu § 13 Abs. 1 RVG (Stand 01.06.2025)",
+    "version_label": "RVG-Wertgebührentabelle",
     "version_date": "2025-06-01"
   },
   "entries": [
@@ -11,167 +11,167 @@
     },
     {
       "value_to_eur": 1000,
-      "fee_1_0_eur": 84.0
+      "fee_1_0_eur": 93.0
     },
     {
       "value_to_eur": 1500,
-      "fee_1_0_eur": 116.5
+      "fee_1_0_eur": 134.5
     },
     {
       "value_to_eur": 2000,
-      "fee_1_0_eur": 149.0
+      "fee_1_0_eur": 176.0
     },
     {
       "value_to_eur": 3000,
-      "fee_1_0_eur": 211.0
+      "fee_1_0_eur": 235.5
     },
     {
       "value_to_eur": 4000,
-      "fee_1_0_eur": 273.0
+      "fee_1_0_eur": 295.0
     },
     {
       "value_to_eur": 5000,
-      "fee_1_0_eur": 335.0
+      "fee_1_0_eur": 354.5
     },
     {
       "value_to_eur": 6000,
-      "fee_1_0_eur": 397.0
+      "fee_1_0_eur": 414.0
     },
     {
       "value_to_eur": 7000,
-      "fee_1_0_eur": 459.0
+      "fee_1_0_eur": 473.5
     },
     {
       "value_to_eur": 8000,
-      "fee_1_0_eur": 521.0
+      "fee_1_0_eur": 533.0
     },
     {
       "value_to_eur": 9000,
-      "fee_1_0_eur": 583.0
+      "fee_1_0_eur": 592.5
     },
     {
       "value_to_eur": 10000,
-      "fee_1_0_eur": 644.5
+      "fee_1_0_eur": 652.0
     },
     {
       "value_to_eur": 13000,
-      "fee_1_0_eur": 739.0
+      "fee_1_0_eur": 704.88
     },
     {
       "value_to_eur": 16000,
-      "fee_1_0_eur": 833.5
+      "fee_1_0_eur": 757.75
     },
     {
       "value_to_eur": 19000,
-      "fee_1_0_eur": 928.0
+      "fee_1_0_eur": 810.63
     },
     {
       "value_to_eur": 22000,
-      "fee_1_0_eur": 1022.5
+      "fee_1_0_eur": 863.5
     },
     {
       "value_to_eur": 25000,
-      "fee_1_0_eur": 1117.0
+      "fee_1_0_eur": 916.38
     },
     {
       "value_to_eur": 30000,
-      "fee_1_0_eur": 1258.0
+      "fee_1_0_eur": 1004.5
     },
     {
       "value_to_eur": 35000,
-      "fee_1_0_eur": 1398.5
+      "fee_1_0_eur": 1092.63
     },
     {
       "value_to_eur": 40000,
-      "fee_1_0_eur": 1539.5
+      "fee_1_0_eur": 1180.75
     },
     {
       "value_to_eur": 45000,
-      "fee_1_0_eur": 1680.0
+      "fee_1_0_eur": 1268.88
     },
     {
       "value_to_eur": 50000,
-      "fee_1_0_eur": 1820.5
+      "fee_1_0_eur": 1357.0
     },
     {
       "value_to_eur": 65000,
-      "fee_1_0_eur": 2003.5
+      "fee_1_0_eur": 1470.27
     },
     {
       "value_to_eur": 80000,
-      "fee_1_0_eur": 2186.0
+      "fee_1_0_eur": 1583.53
     },
     {
       "value_to_eur": 95000,
-      "fee_1_0_eur": 2369.0
+      "fee_1_0_eur": 1696.8
     },
     {
       "value_to_eur": 110000,
-      "fee_1_0_eur": 2551.5
+      "fee_1_0_eur": 1810.07
     },
     {
       "value_to_eur": 125000,
-      "fee_1_0_eur": 2734.0
+      "fee_1_0_eur": 1923.33
     },
     {
       "value_to_eur": 140000,
-      "fee_1_0_eur": 2917.0
+      "fee_1_0_eur": 2036.6
     },
     {
       "value_to_eur": 155000,
-      "fee_1_0_eur": 3099.5
+      "fee_1_0_eur": 2149.87
     },
     {
       "value_to_eur": 170000,
-      "fee_1_0_eur": 3282.5
+      "fee_1_0_eur": 2263.13
     },
     {
       "value_to_eur": 185000,
-      "fee_1_0_eur": 3465.0
+      "fee_1_0_eur": 2376.4
     },
     {
       "value_to_eur": 200000,
-      "fee_1_0_eur": 3647.5
+      "fee_1_0_eur": 2489.67
     },
     {
       "value_to_eur": 230000,
-      "fee_1_0_eur": 3922.0
+      "fee_1_0_eur": 2716.2
     },
     {
       "value_to_eur": 260000,
-      "fee_1_0_eur": 4196.0
+      "fee_1_0_eur": 2942.73
     },
     {
       "value_to_eur": 290000,
-      "fee_1_0_eur": 4470.0
+      "fee_1_0_eur": 3169.27
     },
     {
       "value_to_eur": 320000,
-      "fee_1_0_eur": 4744.0
+      "fee_1_0_eur": 3395.8
     },
     {
       "value_to_eur": 350000,
-      "fee_1_0_eur": 5018.0
+      "fee_1_0_eur": 3622.33
     },
     {
       "value_to_eur": 380000,
-      "fee_1_0_eur": 5292.0
+      "fee_1_0_eur": 3848.87
     },
     {
       "value_to_eur": 410000,
-      "fee_1_0_eur": 5566.0
+      "fee_1_0_eur": 4075.4
     },
     {
       "value_to_eur": 440000,
-      "fee_1_0_eur": 5840.0
+      "fee_1_0_eur": 4301.93
     },
     {
       "value_to_eur": 470000,
-      "fee_1_0_eur": 6114.0
+      "fee_1_0_eur": 4528.47
     },
     {
       "value_to_eur": 500000,
-      "fee_1_0_eur": 6388.0
+      "fee_1_0_eur": 4755.0
     }
   ]
 }

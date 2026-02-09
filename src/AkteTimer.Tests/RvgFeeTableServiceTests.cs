@@ -7,9 +7,10 @@ public sealed class RvgFeeTableServiceTests
 {
     [Theory]
     [InlineData(500, 51.50m)]
-    [InlineData(2000, 149.00m)]
-    [InlineData(10000, 644.50m)]
-    [InlineData(50000, 1820.50m)]
+    [InlineData(1000, 93.00m)]
+    [InlineData(3000, 235.50m)]
+    [InlineData(10000, 652.00m)]
+    [InlineData(50000, 1357.00m)]
     public void LookupFee_ReturnsExpectedFixpoints(decimal subjectValue, decimal expectedFee)
     {
         var service = new RvgFeeTableService();
@@ -24,8 +25,8 @@ public sealed class RvgFeeTableServiceTests
     {
         var service = new RvgFeeTableService();
 
-        var fee = service.LookupFee1_0(7500m);
+        var fee = service.LookupFee1_0(501m);
 
-        Assert.Equal(521.00m, fee);
+        Assert.Equal(93.00m, fee);
     }
 }
