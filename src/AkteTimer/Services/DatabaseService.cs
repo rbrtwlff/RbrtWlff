@@ -1548,6 +1548,47 @@ public sealed class DatabaseService
         };
     }
 
+    public void UpdateRvgBillingSnapshot(long snapshotId, string signature, decimal total, string? breakdownJson)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE RvgBillingSnapshots
+                SET signature = $signature,
+                    total = $total,
+                    breakdown_json = $breakdown_json
+                WHERE id = $id;
+                """;
+            command.Parameters.AddWithValue("$signature", signature);
+            command.Parameters.AddWithValue("$total", (double)total);
+            command.Parameters.AddWithValue("$breakdown_json", breakdownJson ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("$id", snapshotId);
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public void InsertRvgBillingSnapshot(RvgBillingSnapshot snapshot)
+    {
+        ExecuteInTransaction((connection, transaction) =>
+        {
+            using var insertSnapshot = connection.CreateCommand();
+            insertSnapshot.Transaction = transaction;
+            insertSnapshot.CommandText = """
+                INSERT INTO RvgBillingSnapshots (matter_id, billed_utc, signature, total, batch_id, breakdown_json)
+                VALUES ($matter_id, $billed_utc, $signature, $total, $batch_id, $breakdown_json);
+                """;
+            insertSnapshot.Parameters.AddWithValue("$matter_id", snapshot.MatterId);
+            insertSnapshot.Parameters.AddWithValue("$billed_utc", snapshot.BilledUtc.ToString("o"));
+            insertSnapshot.Parameters.AddWithValue("$signature", snapshot.Signature);
+            insertSnapshot.Parameters.AddWithValue("$total", (double)snapshot.Total);
+            insertSnapshot.Parameters.AddWithValue("$batch_id", snapshot.BatchId);
+            insertSnapshot.Parameters.AddWithValue("$breakdown_json", snapshot.BreakdownJson ?? (object)DBNull.Value);
+            insertSnapshot.ExecuteNonQuery();
+        });
+    }
+
     public List<BillingCase> GetBillingCasesForBatch(long batchId)
     {
         using var connection = CreateConnection();
@@ -1603,6 +1644,44 @@ public sealed class DatabaseService
         while (reader.Read())
         {
             cases.Add(MapBillingCase(reader));
+        }
+
+        return cases;
+    }
+
+    public List<RvgBillingCaseRecalcEntry> GetFinalizedRvgBillingCases(long? matterId = null)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        var matterFilter = matterId.HasValue ? "AND bc.matter_id = $matter_id" : string.Empty;
+        command.CommandText = $"""
+            SELECT bc.id, bc.matter_id, bc.batch_id, bb.finalized_utc, bc.rvg_signature, bc.rvg_is_difference, bc.rvg_base_signature
+            FROM BillingCases bc
+            JOIN BillingBatches bb ON bb.id = bc.batch_id
+            WHERE bc.billing_type = $billing_type
+              AND bb.finalized_utc IS NOT NULL
+              {matterFilter}
+            ORDER BY bb.finalized_utc ASC, bc.id ASC;
+            """;
+        command.Parameters.AddWithValue("$billing_type", (int)BillingType.Rvg);
+        if (matterId.HasValue)
+        {
+            command.Parameters.AddWithValue("$matter_id", matterId.Value);
+        }
+
+        using var reader = command.ExecuteReader();
+        var cases = new List<RvgBillingCaseRecalcEntry>();
+        while (reader.Read())
+        {
+            cases.Add(new RvgBillingCaseRecalcEntry(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.GetInt64(2),
+                DateTime.Parse(reader.GetString(3)).ToUniversalTime(),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                !reader.IsDBNull(5) && reader.GetInt64(5) == 1,
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
         }
 
         return cases;

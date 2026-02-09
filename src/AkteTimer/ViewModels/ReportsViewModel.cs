@@ -858,6 +858,7 @@ public sealed class ReportsViewModel : ViewModelBase
                 var job = new MatterTotalsJob(_databaseService);
                 UpdateRebuildProgress(0, 1, $"Rebuild {matterGroup!.Matter}");
                 job.RebuildMatter(matterGroup.MatterId, token);
+                _billingService.RecalculateRvgSnapshotsForMatter(matterGroup.MatterId);
                 UpdateRebuildProgress(1, 1, $"Rebuild {matterGroup.Matter}");
             },
             $"Rebuild {matterGroup!.Matter}");
@@ -884,6 +885,8 @@ public sealed class ReportsViewModel : ViewModelBase
                     job.RebuildMatter(matter.Id, token);
                     UpdateRebuildProgress(i + 1, total, $"Rebuild {matter.FileRef} ({i + 1}/{total})");
                 }
+
+                _billingService.RecalculateRvgSnapshotsForAll();
             },
             "Rebuild aller Akten");
     }

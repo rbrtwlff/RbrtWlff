@@ -21,7 +21,7 @@ public sealed class RvgCalculatorTests
         var service = new RvgFeeTableService();
         var fee = service.LookupFee1_0(1000m);
 
-        Assert.Equal(84.00m, fee);
+        Assert.Equal(93.00m, fee);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class RvgCalculatorTests
         var service = new RvgFeeTableService();
         var fee = service.LookupFee1_0(999999m);
 
-        Assert.Equal(6388.00m, fee);
+        Assert.Equal(4755.00m, fee);
     }
 
     [Fact]

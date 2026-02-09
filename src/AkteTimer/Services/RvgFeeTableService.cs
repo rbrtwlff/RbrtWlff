@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
@@ -54,7 +55,63 @@ public sealed class RvgFeeTableService
             throw new InvalidOperationException("RVG Tabelle konnte nicht geladen werden.");
         }
 
+        ValidateTable(table);
         return table;
+    }
+
+    private static void ValidateTable(RvgFeeTable table)
+    {
+        var entries = table.Entries;
+        var lastValue = -1;
+        var lastFee = decimal.MinValue;
+        foreach (var entry in entries)
+        {
+            if (entry.ValueToEur <= lastValue)
+            {
+                throw new InvalidOperationException("RVG-Tabelle inkonsistent/ungültig: Wertstufen nicht aufsteigend.");
+            }
+
+            if (entry.Fee1_0Eur < lastFee)
+            {
+                throw new InvalidOperationException("RVG-Tabelle inkonsistent/ungültig: 1,0-Gebühr fällt ab.");
+            }
+
+            lastValue = entry.ValueToEur;
+            lastFee = entry.Fee1_0Eur;
+        }
+
+        var fixpoints = new Dictionary<decimal, decimal>
+        {
+            { 500m, 51.50m },
+            { 1000m, 93.00m },
+            { 3000m, 235.50m },
+            { 10000m, 652.00m },
+            { 50000m, 1357.00m }
+        };
+
+        foreach (var fixpoint in fixpoints)
+        {
+            var fee = LookupFee(entries, fixpoint.Key);
+            if (fee != fixpoint.Value)
+            {
+                throw new InvalidOperationException(
+                    $"RVG-Tabelle inkonsistent/ungültig: Fixpunkt {fixpoint.Key:N0} EUR erwartet {fixpoint.Value:N2} EUR, gefunden {fee:N2} EUR.");
+            }
+        }
+    }
+
+    private static decimal LookupFee(IReadOnlyList<RvgFeeTableEntry> entries, decimal subjectValueEur)
+    {
+        var value = Math.Max(0m, subjectValueEur);
+        foreach (var entry in entries)
+        {
+            if (entry.ValueToEur >= value)
+            {
+                return entry.Fee1_0Eur;
+            }
+        }
+
+        return entries[^1].Fee1_0Eur;
     }
 }
 
