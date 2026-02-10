@@ -29,7 +29,9 @@ public sealed class RvgFeeTableService
             }
         }
 
-        return entries[^1].Fee1_0Eur;
+        var feeAt500k = LookupFee(entries, 500000m);
+        var stepsAbove500k = Math.Ceiling((value - 500000m) / 50000m);
+        return feeAt500k + (stepsAbove500k * 175m);
     }
 
     private static RvgFeeTable LoadTable()
@@ -68,12 +70,12 @@ public sealed class RvgFeeTableService
         {
             if (entry.ValueToEur <= lastValue)
             {
-                throw new InvalidOperationException("RVG-Tabelle inkonsistent/ungültig: Wertstufen nicht aufsteigend.");
+                throw new InvalidOperationException($"RVG-Tabelle inkonsistent/ungültig: Wertstufen nicht aufsteigend bei value_to_eur={entry.ValueToEur}.");
             }
 
             if (entry.Fee1_0Eur < lastFee)
             {
-                throw new InvalidOperationException("RVG-Tabelle inkonsistent/ungültig: 1,0-Gebühr fällt ab.");
+                throw new InvalidOperationException($"RVG-Tabelle inkonsistent/ungültig: 1,0-Gebühr fällt ab bei value_to_eur={entry.ValueToEur}.");
             }
 
             lastValue = entry.ValueToEur;

@@ -25,18 +25,18 @@ public sealed class RvgCalculatorTests
     }
 
     [Fact]
-    public void LookupFee_UsesUpperBoundary()
+    public void LookupFee_UsesStatutoryProgressionAbove500k()
     {
         var service = new RvgFeeTableService();
         var fee = service.LookupFee1_0(999999m);
 
-        Assert.Equal(4755.00m, fee);
+        Assert.Equal(5502.00m, fee);
     }
 
     [Fact]
     public void Estimate_MultipliesFactor()
     {
-        var estimate = RvgCalculator.CalculateEstimate(100m, 1.3m);
+        var estimate = RvgCalculator.CalculateEstimate(100m, 1.3m, 0m);
 
         Assert.Equal(130.00m, estimate);
     }
@@ -44,9 +44,32 @@ public sealed class RvgCalculatorTests
     [Fact]
     public void Estimate_RoundsToTwoDecimals()
     {
-        var estimate = RvgCalculator.CalculateEstimate(10.005m, 1m);
+        var estimate = RvgCalculator.CalculateEstimate(10.005m, 1m, 0m);
 
         Assert.Equal(10.01m, estimate);
+    }
+
+    [Theory]
+    [InlineData(60858, 1.3, 1893.45)]
+    [InlineData(300000, 1.3, 3785.60)]
+    public void EndToEnd_FactorCalculation_UsesOfficialBracketValues(decimal subjectValue, decimal factor, decimal expectedAmount)
+    {
+        var service = new RvgFeeTableService();
+        var matter = new Matter
+        {
+            BillingType = BillingType.Rvg,
+            SubjectValueEur = subjectValue,
+            BusinessFee13Enabled = factor == 1.3m,
+            TermFee12Enabled = false,
+            SettlementFee10Enabled = false,
+            SettlementFee15Enabled = false,
+            CustomFeeFactor = factor == 1.3m ? null : factor
+        };
+
+        var breakdown = RvgCalculator.CalculateBreakdown(matter, service);
+
+        Assert.Single(breakdown.Items);
+        Assert.Equal(expectedAmount, breakdown.Items[0].Amount);
     }
 
     [Fact]
